@@ -3620,6 +3620,20 @@ t.test('HasSpecialization: true only when BOTH the base cert is active/unexpired
     t.isFalse(f.env.HasSpecialization('CIT1', 'police', 'explosives'), 'a specialization never granted must read false')
 end)
 
+t.test('HasSpecialization: a granted ROLE only counts once its XP is reached (server/roles.lua IsRoleXpUnlocked)', function()
+    local f = newFixture()
+    f.registerPlayer(1, 'CIT1', { name = 'police', grade = { level = 1 } })
+    f.mysql.scalar.await = function() return 5 end
+    f.mysql.query.await = function() return { { specialization = 'narcotics' } } end
+    f.env.RefreshCertificationCache('CIT1', 'police')
+
+    local reached = false
+    f.env.IsRoleXpUnlocked = function(cid, key) return cid == 'CIT1' and key == 'narcotics' and reached end
+    t.isFalse(f.env.HasSpecialization('CIT1', 'police', 'narcotics'), 'held, but the XP is not reached yet')
+    reached = true
+    t.isTrue(f.env.HasSpecialization('CIT1', 'police', 'narcotics'), 'held and unlocked')
+end)
+
 t.test('HasSpecialization: an EXPIRED base cert soft-disables its specializations too, without any DB write', function()
     local f = newFixture()
     f.registerPlayer(1, 'CIT1', { name = 'police', grade = { level = 1 } })

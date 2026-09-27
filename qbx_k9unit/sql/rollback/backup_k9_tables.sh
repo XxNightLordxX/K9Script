@@ -193,7 +193,7 @@ ALL_TABLES=(k9_certifications k9_search_log k9_partnerships k9_partnership_pair_
             k9_equipment_shop_items k9_equipment_shop_item_audit
             k9_xp_tiers k9_xp_tier_audit
             k9_individual_overrides k9_individual_override_audit
-            k9_dog_characters k9_personnel k9_wellbeing)
+            k9_dog_characters k9_personnel k9_wellbeing k9_roles)
 PRESENT=()
 MISSING=()
 for t in "${ALL_TABLES[@]}"; do

@@ -192,7 +192,11 @@ function HasSpecialization(citizenid, jobName, specializationKey)
     local cached = Certifications[citizenid]
     if not (cached and cached.active and cached.job == jobName and not cached.expired) then return false end
     local jobSpecs = Specializations[citizenid] and Specializations[citizenid][jobName]
-    return jobSpecs ~= nil and jobSpecs[specializationKey] == true
+    if not (jobSpecs ~= nil and jobSpecs[specializationKey] == true) then return false end
+    -- ROLES (server/roles.lua): a role only counts once it still exists and
+    -- this person's XP has reached its requirement.
+    if type(IsRoleXpUnlocked) == 'function' and not IsRoleXpUnlocked(citizenid, specializationKey) then return false end
+    return true
 end
 
 --- DB-authoritative (works for an OFFLINE citizenid too, unlike the

@@ -563,6 +563,15 @@ local function ResolveHeldContrabandCategoriesForCitizenId(citizenid, jobName)
     if type(HasSpecialization) ~= 'function' or type(citizenid) ~= 'string' then
         return held -- soft dependency, this resource's established convention -- no specialization data available, so no categorised item can ever match (uncategorised items are unaffected -- see this function's own doc comment)
     end
+    -- ROLES (server/roles.lua): a category counts when a held, unlocked
+    -- role has detect_<category>.
+    if type(GetHeldRoleUnlocks) == 'function' then
+        for unlock in pairs(GetHeldRoleUnlocks(citizenid, jobName)) do
+            local category = unlock:match('^detect_(.+)$')
+            if category then held[category] = true end
+        end
+        return held
+    end
     local knownSpecializations = type(Config.K9Specializations) == 'table' and Config.K9Specializations or {}
     for specKey in pairs(knownSpecializations) do
         if HasSpecialization(citizenid, jobName, specKey) then

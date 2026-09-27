@@ -1900,6 +1900,11 @@ lib.callback.register('qbx_k9unit:server:tabletRequestMyRecord', function(source
         certifications = EnrichCertificationsWithGrantedByName(BuildCertificationsArray(citizenid)),
         xp = xp,
         tierLabel = tierLabel,
+        -- ROLES (server/roles.lua): the live role list (roles high command
+        -- created included) and the XP a role requirement is measured
+        -- against, so the tablet can say "active" or "unlocks at N XP".
+        roleCatalog = type(ListRolesForDisplay) == 'function' and ListRolesForDisplay() or nil,
+        roleXp = type(GetRoleXpForCitizen) == 'function' and GetRoleXpForCitizen(citizenid) or nil,
         -- HANDLER LADDER (owner-directed progression pass). Carried
         -- ALONGSIDE the K9 pair above, never merged into it: the two are
         -- separate ladders on separate feature switches, and either can be
@@ -2428,6 +2433,8 @@ lib.callback.register('qbx_k9unit:server:tabletRequestPersonSummary', function(s
         certifications = EnrichCertificationsWithGrantedByName(BuildCertificationsArray(targetCitizenId)),
         xp = xp,
         tierLabel = tierLabel,
+        roleCatalog = type(ListRolesForDisplay) == 'function' and ListRolesForDisplay() or nil,
+        roleXp = type(GetRoleXpForCitizen) == 'function' and GetRoleXpForCitizen(targetCitizenId) or nil,
         -- HANDLER LADDER (owner-directed progression pass). Carried
         -- ALONGSIDE the K9 pair above, never merged into it: the two are
         -- separate ladders on separate feature switches, and either can be

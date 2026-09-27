@@ -1640,6 +1640,12 @@ local function ValidateCombatRequest(src, targetNetId, featureEnabled, rangeMete
             and not TierCapabilityPermits(k9Citizenid, k9JobName, 'bite_hold_and_takedown') then
             return false, nil, nil, nil, nil, 'tier_capability_denied'
         end
+        -- ROLES (server/roles.lua): once any role lists bite_takedown, only
+        -- holders of an unlocked role with it may start a bite or takedown.
+        if type(RoleUnlockPermits) == 'function' and k9Citizenid and k9JobName
+            and not RoleUnlockPermits(k9Citizenid, k9JobName, 'bite_takedown') then
+            return false, nil, nil, nil, nil, 'tier_capability_denied'
+        end
     end
 
     if K9ActiveEffect[src] then

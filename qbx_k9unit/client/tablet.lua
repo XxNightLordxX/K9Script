@@ -2671,6 +2671,30 @@ RegisterNUICallback('tablet:revertK9Ped', function(data, cb)
     cb(AwaitServerCallback('qbx_k9unit:server:tabletRevertK9Ped', data.targetCitizenId))
 end)
 
+-- K9 roles (server/roles.lua): list for everyone, save/delete for high
+-- command (checked server-side).
+RegisterNUICallback('tablet:rolesList', function(_, cb)
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletRolesList'))
+end)
+
+RegisterNUICallback('tablet:rolesSave', function(data, cb)
+    if type(data) ~= 'table' then
+        cb({ ok = false, error = 'invalid_args' })
+        return
+    end
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletRolesSave', {
+        key = data.key, label = data.label, xpRequired = data.xpRequired, unlocks = data.unlocks,
+    }))
+end)
+
+RegisterNUICallback('tablet:rolesDelete', function(data, cb)
+    if type(data) ~= 'table' or type(data.key) ~= 'string' or data.key == '' then
+        cb({ ok = false, error = 'invalid_args' })
+        return
+    end
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletRolesDelete', data.key))
+end)
+
 -- Dog-character pin (server/tablet.lua tabletPinDogCharacter / Unpin).
 RegisterNUICallback('tablet:pinDogCharacter', function(data, cb)
     if type(data) ~= 'table' or type(data.targetCitizenId) ~= 'string' or data.targetCitizenId == ''

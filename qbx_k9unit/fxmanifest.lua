@@ -391,6 +391,7 @@ server_scripts {
     -- database holds one of them. No hard load-order requirement -- every
     -- function here is called at event time, never at file load.
     'server/certtiers.lua',
+    'server/roles.lua',     -- K9 roles: tiers and specializations merged into one catalog high command edits on the tablet (label, XP needed, unlocks), overlaid on Config.K9Specializations and saved in k9_roles. NewCooldown at file-load time (after server/cooldowns.lua); K9Store/HasSpecialization/GetXP at run time only.
     -- K9 COMMAND TABLET, server half. This is high command's actual control
     -- surface: the roster read side, plus tabletAssignK9Role and
     -- tabletRevertK9Ped -- assigning someone the K9 role and stripping it

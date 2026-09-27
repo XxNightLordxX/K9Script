@@ -516,6 +516,8 @@ local MIGRATION_FILES_THAT_CREATE_TABLES = {
     -- list like this one needs every new migration added in the SAME
     -- change that adds the migration file itself.
     '0022_create_k9_wellbeing.sql',
+    -- the K9 role catalog (server/roles.lua), listed from the start.
+    '0023_create_k9_roles.sql',
 }
 
 local FOUNDING_TABLES_WITH_NO_DEDICATED_MIGRATION = {

@@ -1578,10 +1578,22 @@ Config.CertificationExpiryCheckIntervalMs = 300000
 -- existing active certification. Add freely -- but the keys are stored in
 -- the database, so never RENAME one that has already been granted; add a
 -- new key and migrate, the same rule Config.Permissions carries.
+-- K9 ROLES. These three are the roles a new server starts with; high
+-- command adds, renames, re-prices and removes roles on the tablet
+-- (Server Settings > Catalogs > Roles), and those edits win over this list.
+-- A role does nothing until its holder's XP (K9 XP for a dog, handler XP
+-- for a handler, whichever is higher) reaches xpRequired.
+--   unlocks: what the role switches on --
+--     'track_blood', 'track_gunpowder'  a tracking type
+--     'detect_<category>'               counts that contraband category
+--                                        when sniffing (see
+--                                        Config.SearchContrabandItems)
+--     'bite_takedown'                   once ANY role has this, only its
+--                                        holders may bite or take down
 Config.K9Specializations = {
-    narcotics  = { label = 'Narcotics detection' },
-    explosives = { label = 'Explosives detection' },
-    patrol     = { label = 'Patrol / apprehension' },
+    narcotics  = { label = 'Narcotics detection',   xpRequired = 0,    unlocks = { 'detect_narcotics' } },
+    patrol     = { label = 'Patrol / apprehension', xpRequired = 0,    unlocks = { 'track_blood' } },
+    explosives = { label = 'Explosives detection',  xpRequired = 1250, unlocks = { 'detect_explosives', 'track_gunpowder' } },
 }
 
 -- ======================================================================

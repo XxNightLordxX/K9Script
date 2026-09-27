@@ -149,6 +149,11 @@
     "k9_access_lost_grade_change": "Your K9 access has ended -- your current rank no longer qualifies you, and you hold no separate certification for this department. Any active K9 pairing has ended.",
     "revoked_notice_job_change_next_steps": "If you need K9 access in your new department, ask a certifying officer there to certify you."
   },
+  "roles": {
+    "unlock_track_template": "Tracks %s trails",
+    "unlock_detect_template": "Detects %s contraband",
+    "unlock_bite_takedown": "Bite & takedown (once any role has this, only its holders may bite or take down)"
+  },
   "warrants": {
     "found": "Warrant! Player %s has an active %s.",
     "found_partner": "Your partner sniffed player %s and found an active %s."
