@@ -178,7 +178,7 @@
     "noncompliance_notify_title": "K9 Unit — Non-Compliance",
     "noncompliance_target_npc": "NPC netId %s",
     "noncompliance_target_player": "player source %s",
-    "not_eligible_target": "That target is not currently eligible.",
+    "not_eligible_target": "That player is not flagged as wanted. A K9 can only bite, take down or drag a player who is wanted.",
     "not_fleeing": "The target does not appear to be fleeing.",
     "not_fleeing_speed": "They were moving at %s m/s -- a takedown needs at least %s m/s, so they have to be running.",
     "offline": "Unable to resolve your own K9.",

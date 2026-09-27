@@ -66,6 +66,8 @@ end
 addPlayer(1, 'CHIEF', 'Chief', 'police', 4, true)
 addPlayer(2, 'DOG', 'Rex', 'police', 1, false)
 addPlayer(3, 'HANDLER', 'Sam', 'police', 1, false)
+addPlayer(4, 'SUSPECT', 'Joe', 'unemployed', 0, false)
+players[4].coords = { x = 2.5, y = 0.5, z = 0 }
 local function byPed(ped) for _, p in pairs(players) do if p.ped == ped then return p end end end
 local function byCid(cid) for _, p in pairs(players) do if p.PlayerData.citizenid == cid then return p end end end
 
@@ -101,6 +103,17 @@ env = setmetatable({
     GetEntityCoords = function(ped) local p = byPed(ped); return p and vec(p.coords.x, p.coords.y, p.coords.z) or vec() end,
     GetEntityModel = function(ped) local p = byPed(ped); return p and p.model or 0 end,
     GetEntityHealth = function() return 200 end,
+    -- network ids are the ped handles themselves in this fake world
+    NetworkGetEntityFromNetworkId = function(n) return n end,
+    NetworkGetNetworkIdFromEntity = function(e) return e end,
+    NetworkGetEntityOwner = function(e) local p = byPed(e); return p and p.PlayerData.source or 0 end,
+    GetEntityType = function(e) return byPed(e) and 1 or 0 end,
+    IsPedAPlayer = function(e) return byPed(e) ~= nil end,
+    GetVehiclePedIsIn = function() return 0 end,
+    GetEntitySpeed = function() return 0 end,
+    GetEntityHeading = function() return 0 end,
+    GetPedSourceOfDeath = function() return 0 end,
+    IsEntityDead = function() return false end,
     GetPlayerName = function(src) return 'P' .. tostring(src) end,
     GetPlayers = function() local o = {}; for s in pairs(players) do o[#o + 1] = tostring(s) end; return o end,
     GetHashKey = hash, joaat = hash,
@@ -176,6 +189,77 @@ t.test('4. Sam clips the leash on -- partners, so no prompt', function()
     check(eventsTo('qbx_k9unit:client:leashAttached', 2) == 1 and eventsTo('qbx_k9unit:client:leashAttached', 3) == 1, 'both leashed: ' .. tostring(lastNotify(3)))
     net('qbx_k9unit:server:detachLeash', 3)
     check(eventsTo('qbx_k9unit:client:leashDetached', 2) >= 1, 'detached')
+end)
+
+t.test('4a. Chief gives Rex 50 XP from the tablet', function()
+    tick()
+    local r = cb('qbx_k9unit:server:tabletGiveXp', 1, 'DOG', 50)
+    check(r and r.ok, 'give XP ok: ' .. tostring(r and (r.error or r.message)))
+end)
+
+t.test('4b. Sam (a certified HANDLER, human) throws the fetch ball', function()
+    tick()
+    local before = #clientEvents
+    net('qbx_k9unit:server:requestThrowFetchBall', 3)
+    check(#clientEvents > before, 'the server answered the throw: ' .. tostring(lastNotify(3)))
+    check(lastNotify(3) ~= env.locale('fetch.not_authorized_equipment'), 'a certified handler is allowed to throw')
+end)
+
+t.test('4c. Rex searches the suspect', function()
+    tick()
+    local r = cb('qbx_k9unit:server:searchTarget', 2, 'person', players[4].ped)
+    check(r ~= nil, 'search answered')
+    check(r and r.reason ~= 'not_authorized' and r.reason ~= 'invalid_target', 'search allowed: ' .. tostring(r and (r.reason or r.ok)))
+end)
+
+t.test('4d. Rex tries to bite a player who is NOT wanted -- refused, and told exactly why', function()
+    tick()
+    net('qbx_k9unit:server:requestBiteHold', 2, players[4].ped)
+    check(lastNotify(2) == env.locale('combat.not_eligible_target'), 'refused with the wanted-status reason, got ' .. tostring(lastNotify(2)))
+    check(lastNotify(2):find('wanted', 1, true) ~= nil, 'the message names the reason')
+end)
+
+t.test('4e. once the suspect is flagged wanted, Rex bites and holds', function()
+    tick()
+    players[4].PlayerData.metadata.wanted = true
+    local before = #clientEvents
+    net('qbx_k9unit:server:requestBiteHold', 2, players[4].ped)
+    check(#clientEvents > before, 'the bite reached a client: ' .. tostring(lastNotify(2)))
+    net('qbx_k9unit:server:releaseBiteHold', 2)
+end)
+
+t.test('4e2. Sam (the handler, a human) cannot use a dog-only move -- his bite is refused and nothing reaches the suspect', function()
+    tick(20000)
+    local before = eventsTo('qbx_k9unit:client:biteHoldStarted') + eventsTo('qbx_k9unit:client:applyBiteHold')
+    local notesBefore = #notifies
+    net('qbx_k9unit:server:requestBiteHold', 3, players[4].ped)
+    local after = eventsTo('qbx_k9unit:client:biteHoldStarted') + eventsTo('qbx_k9unit:client:applyBiteHold')
+    check(after == before, 'no bite started for a human handler')
+    check(#notifies > notesBefore, 'he is told no, not silently ignored')
+end)
+
+t.test('4e3. Rex asks for the nearest trail to track -- answered, not refused for access', function()
+    tick()
+    local r = cb('qbx_k9unit:server:findNearestTrackableSource', 2)
+    check(type(r) == 'table', 'tracking answered')
+end)
+
+t.test('4f. Rex deploys a kennel', function()
+    tick()
+    local before = #clientEvents
+    net('qbx_k9unit:server:requestDeployKennel', 2)
+    check(#clientEvents > before, 'deploy answered: ' .. tostring(lastNotify(2)))
+end)
+
+t.test('4g. each player opens their own tablet record -- the dog reads as a K9, the handler as a handler', function()
+    tick()
+    local dog = cb('qbx_k9unit:server:tabletRequestMyRecord', 2)
+    tick()
+    local handler = cb('qbx_k9unit:server:tabletRequestMyRecord', 3)
+    check(dog and dog.ok, 'Rex record ok')
+    check(handler and handler.ok, 'Sam record ok')
+    check(dog and dog.viewer and dog.viewer.isK9 == true, 'Rex is shown as the K9, got ' .. tostring(dog and dog.viewer and dog.viewer.isK9))
+    check(handler and handler.viewer and handler.viewer.isK9 ~= true, 'Sam is shown as a handler')
 end)
 
 t.test('5. Chief force-ends the partnership from the tablet; history names the Chief', function()
