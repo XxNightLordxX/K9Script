@@ -98,8 +98,8 @@ t.test('CONTROL: the scanners find the real registrations and the real reference
     local nReg, nRef = 0, 0
     for _ in pairs(registered) do nReg = nReg + 1 end
     for _ in pairs(reference) do nRef = nRef + 1 end
-    t.isTrue(nReg >= 12, 'expected at least 12 RegisterKeyMapping defaults, found ' .. nReg)
-    t.isTrue(nRef >= 12, 'expected at least 12 reference entries with a defaultKeybind, found ' .. nRef)
+    t.isTrue(nReg >= 10, 'expected at least 10 RegisterKeyMapping defaults, found ' .. nReg)
+    t.isTrue(nRef >= 10, 'expected at least 10 reference entries with a defaultKeybind, found ' .. nRef)
     t.equals(registered.k9takedown, 'LBRACKET', 'a config-driven default resolves through config.lua')
     t.equals(registered.k9sit, 'G', 'a literal default is read as written')
 end)

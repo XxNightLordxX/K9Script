@@ -740,7 +740,7 @@ t.test('NO "MORE..." PAGES: with every optional feature on, the K9 menu has at m
     end
     t.equals(ids('k9unit_handler'), 'k9_leash,k9_vehicle,k9_partner')
     t.equals(ids('k9unit_combat'), 'k9_bite_hold,k9_takedown,k9_drag')
-    t.equals(ids('k9unit_senses'), 'k9_track_certified,k9_scent_vision,k9_thermal_vision,k9_night_vision,k9_vision_cycle,k9_camera_feed')
+    t.equals(ids('k9unit_senses'), 'k9_track_certified,k9_scent_vision,k9_thermal_vision,k9_night_vision,k9_vision_cycle')
     t.isTrue(#f.findMenu('k9unit_utility') <= 6, 'Utility fits on one page too')
     local _, fetchMenu = f.findK9Item('k9_fetch')
     local _, kennelMenu = f.findK9Item('k9_kennel')
@@ -763,7 +763,7 @@ t.test('ONE MENU PER PLAYER: a human handler gets the handler\'s buttons -- no S
     })
     local topIds = {}
     for i, item in ipairs(f.findMenu('k9unit')) do topIds[i] = item.id end
-    t.equals(table.concat(topIds, ','), 'k9_open_tablet,k9_group_handler,k9_camera_feed,k9_utility')
+    t.equals(table.concat(topIds, ','), 'k9_open_tablet,k9_group_handler,k9_utility')
 
     for _, dogOnly in ipairs({ 'k9_sit', 'k9_bark', 'k9_bite_hold', 'k9_takedown', 'k9_drag', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle', 'k9_track_certified' }) do
         t.isNil(f.findK9Item(dogOnly), dogOnly .. ' is not in a human\'s menu')
@@ -2202,38 +2202,9 @@ t.test('FIXED-SHAPE GUARD: k9_scent_vision does not throw when ToggleScentVision
     assertGuardDoesNotThrow(f.findK9Item('k9_scent_vision'))
 end)
 
-t.test('k9_camera_feed: present at the shipped default (Config.Features.CameraFeedPiP defaults true), with the real locale-backed label', function()
-    local f = newRadialFixture()
-    local item = f.findK9Item('k9_camera_feed')
-    t.isNotNil(item)
-    t.equals(item.label, locale('radial.camera_feed_label'))
-end)
-
-t.test('k9_camera_feed: absent when Config.Features.CameraFeedPiP is off', function()
-    local f = newRadialFixture({ features = { CameraFeedPiP = false } })
-    t.isNil(f.findK9Item('k9_camera_feed'))
-end)
-
-t.test('k9_camera_feed: onSelect calls ToggleCameraFeed() exactly once, and is NOT pre-filtered on partnership', function()
-    -- Deliberate: pre-filtering on partnership would make the control
-    -- vanish exactly when a handler is trying to work out why they cannot
-    -- see their dog, replacing ToggleCameraFeed()'s own "you are not
-    -- partnered with anyone" message with nothing at all.
-    local f = newRadialFixture({ canShowK9UI = false, hasK9Access = false })
-    f.findK9Item('k9_camera_feed').onSelect()
-    t.equals(#f.calls.ToggleCameraFeed, 1)
-    t.equals(f.canShowK9UICallCount(), 0)
-end)
-
-t.test('FIXED-SHAPE GUARD: k9_camera_feed does not throw when ToggleCameraFeed is entirely absent', function()
-    local f = newRadialFixture({ omit = { 'ToggleCameraFeed' } })
-    assertGuardDoesNotThrow(f.findK9Item('k9_camera_feed'))
-end)
-
-t.test('the two new items are INDEPENDENT: switching one flag off leaves the other in place', function()
-    local f = newRadialFixture({ features = { ScentVision = false } })
-    t.isNil(f.findK9Item('k9_scent_vision'))
-    t.isNotNil(f.findK9Item('k9_camera_feed'), 'one perception ability being off must never take another down with it')
+t.test('NO PARTNER CAMERA BUTTON: the partner camera is opened from the tablet only (owner\'s choice) -- not in the dog\'s menu or the handler\'s', function()
+    t.isNil(newRadialFixture().findK9Item('k9_camera_feed'))
+    t.isNil(newRadialFixture({ playingDog = false }).findK9Item('k9_camera_feed'))
 end)
 
 os.exit(t.summary())

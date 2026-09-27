@@ -187,7 +187,7 @@ t.test('CONTROL: the scanners genuinely reach the real files on disk -- a clean 
         end
     end
     t.isTrue(#literals >= 6, ('expected at least 6 literal keybind defaults across client/, found %d'):format(#literals))
-    t.isTrue(#ExtractConfiguredDefaultKeys() >= 5, 'expected at least 5 configured keybind defaults in config.lua')
+    t.isTrue(#ExtractConfiguredDefaultKeys() >= 4, 'expected at least 4 configured keybind defaults in config.lua')
 end)
 
 -- ============================================================================

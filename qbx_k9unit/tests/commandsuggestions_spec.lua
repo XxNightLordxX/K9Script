@@ -145,7 +145,6 @@ local HIDDEN_ALIAS_COMMANDS = {
     -- so the player sees one thing (k9kennel) per the project-owner's own
     -- "additive still means the player sees one thing" instruction.
     k9deploykennel = true,
-    k9exitkennel = true,
     -- family #7: permissions (2 -> 1, 'k9permission') -- server/permissions.lua
     k9grantpermission = true,
     k9revokepermission = true,

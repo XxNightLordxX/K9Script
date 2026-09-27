@@ -259,14 +259,9 @@ local COMMAND_SUGGESTIONS = {
     { command = 'k9sit', keySuffix = 'k9sit' },
     { command = 'k9bark', keySuffix = 'k9bark' },
     { command = 'k9scentvision', keySuffix = 'k9scentvision' },
-    -- k9exitkennel: same ADDITIVE hidden treatment as k9deploykennel above
-    -- -- RegisterKeyMapping('k9exitkennel', ..., 'O') in this same file
-    -- still needs the real registration to keep the rebinding UI working;
-    -- only the chat suggestion is gone.
     -- client/agility.lua (qbx_k9unit: namespace)
     { command = 'qbx_k9unit:vault', keySuffix = 'vault' },
     -- client/vision.lua (qbx_k9unit: namespace)
-    { command = 'qbx_k9unit:toggleCameraFeed', keySuffix = 'toggle_camera_feed' },
     -- client/vision.lua -- OWNER REVERSAL (coder-architect, this pass):
     -- the earlier vision-merge pass hid these two behind 'k9vision' as
     -- HIDDEN_ALIAS_COMMANDS entries; the owner has since asked for thermal
@@ -274,8 +269,6 @@ local COMMAND_SUGGESTIONS = {
     -- real, unconditional RegisterCommand + RegisterKeyMapping calls in
     -- client/vision.lua (unchanged throughout, including during the merge)
     -- and are chat-suggested again here under their own names.
-    { command = 'qbx_k9unit:toggleThermalVision', keySuffix = 'toggle_thermal_vision' },
-    { command = 'qbx_k9unit:toggleNightVision', keySuffix = 'toggle_night_vision' },
     -- 'k9vision' (Off -> Night -> Thermal -> Off cycle) is KEPT as an extra,
     -- optional convenience alongside the two explicit toggles above -- see
     -- client/vision.lua's own "MERGED ENTRY POINT" header for the reasoning

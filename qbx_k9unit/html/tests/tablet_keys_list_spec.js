@@ -69,7 +69,10 @@ t.test('the Guide opens with Your Keys: the K9 menu and third-eye keys first, th
     t.isTrue(rows.indexOf('[ = Take down a fleeing suspect') !== -1);
     t.isTrue(rows.indexOf('. = Scent vision on / off') !== -1);
     t.isTrue(rows.indexOf('B = Bite & hold / let go') !== -1);
-    t.isTrue(rows.indexOf('O = Leave the kennel') !== -1);
+    t.isTrue(rows.indexOf('I = Cycle vision: off, night, thermal') !== -1, 'the one vision key');
+    for (const gone of ['O', 'K', 'J', 'H']) {
+        t.equals(rows.filter((r) => r.indexOf(gone + ' = ') === 0).length, 0, gone + ' is no longer a K9 key (kennel exit, thermal, night and partner camera moved)');
+    }
 });
 
 t.test('a key for a feature switched off on this server is not listed -- and nothing else goes with it', async () => {

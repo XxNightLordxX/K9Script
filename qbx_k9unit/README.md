@@ -97,8 +97,9 @@ Paste this to your players.
 2. Sniff people with the third eye (**Left Alt** > **Sniff Person**). You
    and your handler are told if they have a warrant in the MDT.
 3. Go after anyone with Bite (**B**), Takedown (**[**) or Drag (**Y**).
-4. Follow scents with scent vision (**.**). Hop in and out of the
-   patrol car with **Vehicle** in the K9 menu.
+4. Follow scents with scent vision (**.**) and switch vision modes with
+   **I**. Hop in and out of the patrol car with **Vehicle** in the K9
+   menu.
 
 **Playing the handler**
 1. Stand next to your dog, press **Z**, pick **K9 Unit** > **Partner &
@@ -131,17 +132,16 @@ switched on on your server).
 | **X** | Jump a low obstacle |
 | **N** | Pursuit sprint |
 | **L** | First-person view on / off |
-| **H** | Partner camera on / off |
-| **K** | Thermal vision on / off |
-| **J** | Night vision on / off |
-| **I** | Cycle vision: off, night, thermal |
-| **O** | Leave the kennel |
+| **I** | Vision: off, night, thermal (the one vision key) |
 
 Bite & hold, takedown, drag and scent vision take their default from
-`config.lua` (`Config.Combat.*` and `Config.Tracking.ScentVision.keybind`);
-the camera feed, thermal and night vision keys from `Config.CameraFeed` and
-`Config.Vision`. Changing a default there never moves a key a player has
-already set.
+`config.lua` (`Config.Combat.*` and `Config.Tracking.ScentVision.keybind`).
+Changing a default there never moves a key a player has already set.
+
+Not on a key, on purpose: the **partner camera** is a button in the
+tablet; **leaving the kennel** is the K9 menu's Kennel button or the third
+eye on the kennel; thermal and night vision each have a button in the K9
+menu's Senses group as well as the **I** cycle.
 
 ---
 

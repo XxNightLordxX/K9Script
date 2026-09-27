@@ -1478,6 +1478,27 @@ t.test('triggerFeature: an unrecognised feature key is unknown_action', function
     t.equals(f.callNui('tablet:triggerFeature', { feature = 'NotARealFeature' }).error, 'unknown_action')
 end)
 
+t.test('CameraFeedPiP: the tablet is the only place the partner camera opens -- the button closes the tablet (so the camera window is not hidden behind it) and toggles the camera', function()
+    local f = newTabletFixture()
+    local toggled, openWhenToggled = 0, nil
+    f.env.ToggleCameraFeed = function()
+        toggled = toggled + 1
+        openWhenToggled = f.env.IsTabletOpen and f.env.IsTabletOpen() or nil
+    end
+    f.env.OpenTablet()
+    local result = f.callNui('tablet:triggerFeature', { feature = 'CameraFeedPiP' })
+    t.isTrue(result.ok)
+    t.equals(toggled, 1)
+    t.equals(f.setNuiFocusCalls[#f.setNuiFocusCalls][1], false, 'the tablet let go of the screen first')
+    if openWhenToggled ~= nil then t.isFalse(openWhenToggled) end
+end)
+
+t.test('the shipped config lets the tablet show the partner camera button', function()
+    local env = Sandbox.newEnv({})
+    Sandbox.loadInto('../config.lua', env)
+    t.isTrue(env.Config.CommandTablet.ActionableFeatures.CameraFeedPiP)
+end)
+
 t.test('LeashMechanics (release-ungated / attempt-gated toggle): IsLeashed() true detaches WITHOUT ever consulting CanShowK9UI', function()
     local f = newTabletFixture()
     f.setQueryState('isLeashed', true)

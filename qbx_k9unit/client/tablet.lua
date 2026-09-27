@@ -1284,7 +1284,7 @@ local TABLET_STRING_KEYS = {
     -- mid-pass -- server/permissions.lua registered both concurrently
     -- while this list was being written; tests/commandreferenceregistry_spec.lua
     -- is what actually caught the gap.)
-    'keys_heading', 'keys_intro', 'keys_action_radial', 'keys_action_third_eye', 'keys_action_sit', 'keys_action_bark', 'keys_action_scent_vision', 'keys_action_bite_hold', 'keys_action_takedown', 'keys_action_drag', 'keys_action_vault', 'keys_action_pursuit_sprint', 'keys_action_toggle_camera', 'keys_action_camera_feed', 'keys_action_thermal', 'keys_action_night', 'keys_action_vision_cycle', 'keys_action_exit_kennel', 'keys_name_radial', 'keys_name_third_eye', 'cmdref_heading', 'cmdref_intro', 'cmdref_search_placeholder', 'cmdref_status_unknown',
+    'keys_heading', 'keys_intro', 'keys_action_radial', 'keys_action_third_eye', 'keys_action_sit', 'keys_action_bark', 'keys_action_scent_vision', 'keys_action_bite_hold', 'keys_action_takedown', 'keys_action_drag', 'keys_action_vault', 'keys_action_pursuit_sprint', 'keys_action_toggle_camera', 'keys_action_vision_cycle', 'keys_name_radial', 'keys_name_third_eye', 'cmdref_heading', 'cmdref_intro', 'cmdref_search_placeholder', 'cmdref_status_unknown',
     'cmdref_filter_label', 'cmdref_filter_no_matches',
     'cmdref_status_unavailable_loading', 'cmdref_status_unavailable_error',
         'cmdref_empty', 'cmdref_column_command', 'cmdref_column_does', 'cmdref_column_needs',
@@ -1306,7 +1306,6 @@ local TABLET_STRING_KEYS = {
     'cmdref_k9takedown_usage', 'cmdref_k9takedown_does', 'cmdref_k9takedown_needs',
     'cmdref_k9dragtoggle_usage', 'cmdref_k9dragtoggle_does', 'cmdref_k9dragtoggle_needs',
     'cmdref_k9deploykennel_usage', 'cmdref_k9deploykennel_does', 'cmdref_k9deploykennel_needs',
-    'cmdref_k9exitkennel_usage', 'cmdref_k9exitkennel_does', 'cmdref_k9exitkennel_needs',
     -- k9kennel -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #5's merged, ADDITIVE entry
     -- point. Landed here in the SAME change as html/tablet.js's own
     -- DEFAULT_STRINGS entry and locales/en.json's `tablet` group entry --
@@ -1392,19 +1391,8 @@ local TABLET_STRING_KEYS = {
     'cmdref_vault_usage', 'cmdref_vault_does', 'cmdref_vault_needs',
     'cmdref_pursuitsprint_usage', 'cmdref_pursuitsprint_does', 'cmdref_pursuitsprint_needs',
     'cmdref_toggle_camera_usage', 'cmdref_toggle_camera_does', 'cmdref_toggle_camera_needs',
-    'cmdref_toggle_camera_feed_usage', 'cmdref_toggle_camera_feed_does', 'cmdref_toggle_camera_feed_needs',
-    'cmdref_toggle_thermal_vision_usage', 'cmdref_toggle_thermal_vision_does', 'cmdref_toggle_thermal_vision_needs',
-    'cmdref_toggle_night_vision_usage', 'cmdref_toggle_night_vision_does', 'cmdref_toggle_night_vision_needs',
-    -- OWNER REVERSAL (coder-architect, this pass): a prior "vision merge"
-    -- pass folded the two entries directly above into a single 'k9vision'
-    -- cycle and left their keys here only as "harmless inert leftovers"
-    -- (their COMMAND_REFERENCE row had been removed from html/tablet.js).
-    -- The owner has since asked for thermal and night vision to be
-    -- separate, first-class controls again -- both keys ABOVE are back to
-    -- backing a real COMMAND_REFERENCE row again (html/tablet.js), not
-    -- inert. 'k9vision' below is KEPT too, as an extra optional
-    -- convenience alongside the two explicit toggles (not a replacement for
-    -- them) -- its own COMMAND_REFERENCE triple.
+    -- 'k9vision' is the one vision key (the separate thermal and night
+    -- vision keys were removed at the owner's request).
     'cmdref_k9vision_usage', 'cmdref_k9vision_does', 'cmdref_k9vision_needs',
     'cmdref_default_keybind_configurable_template', 'cmdref_category_vision',
     -- SERVER SETTINGS -- html/tablet.js's one admin settings tab
@@ -2009,6 +1997,18 @@ local FEATURE_TRIGGERS = {
     ThermalVision = function()
         if type(ToggleThermalVision) == 'function' then ToggleThermalVision(); return true end
         return false, 'not_available'
+    end,
+    -- PARTNER CAMERA -- the tablet is the only place it is opened (owner's
+    -- choice: no key, no command, no menu button). Closes the tablet first
+    -- so the picture-in-picture window is not hidden behind it.
+    -- ToggleCameraFeed() does every real check itself (partnered, partner
+    -- online and in range) and says why when it cannot start; a second
+    -- press turns it off.
+    CameraFeedPiP = function()
+        if type(ToggleCameraFeed) ~= 'function' then return false, 'not_available' end
+        CloseTablet()
+        ToggleCameraFeed()
+        return true
     end,
     NightVision = function()
         if type(ToggleNightVision) == 'function' then ToggleNightVision(); return true end

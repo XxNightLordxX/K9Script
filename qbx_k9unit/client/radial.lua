@@ -1146,31 +1146,9 @@ local function RegisterK9RadialMenu()
         }
     end
 
-    --- K9 Camera Feed — the same discoverability gap as Scent Vision above,
-    --- and the same fix. Command + keybind since it shipped, never on the
-    --- wheel.
-    ---
-    --- Config.Features.CameraFeedPiP only, display-only, for the same
-    --- reason: ToggleCameraFeed() performs every real check itself and
-    --- notifies specifically on each failure (feature disabled, not
-    --- partnered with anyone, partner offline, partner out of range, camera
-    --- creation failed). Pre-filtering the item on partnership here would
-    --- ALSO be wrong on its own terms -- it would make the control vanish
-    --- exactly when a handler is trying to work out why they cannot see
-    --- their dog, replacing "you are not partnered with anyone" with
-    --- nothing at all.
-    if Config.Features.CameraFeedPiP then
-        k9SubmenuItems[#k9SubmenuItems + 1] = {
-            id = 'k9_camera_feed',
-            label = locale('radial.camera_feed_label'),
-            icon = 'video',
-            onSelect = function()
-                if type(ToggleCameraFeed) == 'function' then
-                    ToggleCameraFeed()
-                end
-            end,
-        }
-    end
+    --- The partner camera has no menu button: it is opened from the tablet
+    --- only (owner's choice) -- see client/tablet.lua's
+    --- FEATURE_TRIGGERS.CameraFeedPiP.
 
     --- K9 Vision — EXTRA, OPTIONAL CONVENIENCE, kept alongside the two
     --- explicit items immediately above (owner's own steer: "keep it as an
@@ -1918,7 +1896,7 @@ local function RegisterK9RadialMenu()
         'k9_open_tablet',
         'k9_bark', 'k9_leash', 'k9_vehicle', 'k9_partner',
         'k9_bite_hold', 'k9_takedown', 'k9_drag',
-        'k9_track_certified', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle', 'k9_camera_feed',
+        'k9_track_certified', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle',
         'k9_utility',
         'k9_fetch', 'k9_kennel',
     }
@@ -2007,7 +1985,7 @@ local function RegisterK9RadialMenu()
     local K9_SUBMENU_GROUPS = {
         { menuId = 'k9unit_handler', openerId = 'k9_group_handler', label = locale('radial.group_handler_label'), icon = 'people-arrows', members = { 'k9_leash', 'k9_vehicle', 'k9_partner' } },
         { menuId = 'k9unit_combat', openerId = 'k9_group_combat', label = locale('radial.group_combat_label'), icon = 'hand-fist', members = { 'k9_bite_hold', 'k9_takedown', 'k9_drag' } },
-        { menuId = 'k9unit_senses', openerId = 'k9_group_senses', label = locale('radial.group_senses_label'), icon = 'eye', members = { 'k9_track_certified', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle', 'k9_camera_feed' } },
+        { menuId = 'k9unit_senses', openerId = 'k9_group_senses', label = locale('radial.group_senses_label'), icon = 'eye', members = { 'k9_track_certified', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle' } },
     }
     -- Moved into the existing Utility sub-menu rather than a group of their own.
     local MOVE_TO_UTILITY = { k9_fetch = true, k9_kennel = true }

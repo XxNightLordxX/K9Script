@@ -820,11 +820,7 @@
         keys_action_vault: "Jump a low obstacle",
         keys_action_pursuit_sprint: "Pursuit sprint",
         keys_action_toggle_camera: "First-person view on / off",
-        keys_action_camera_feed: "Partner camera on / off",
-        keys_action_thermal: "Thermal vision on / off",
-        keys_action_night: "Night vision on / off",
         keys_action_vision_cycle: "Cycle vision: off, night, thermal",
-        keys_action_exit_kennel: "Leave the kennel",
         keys_name_radial: "Z",
         keys_name_third_eye: "Left Alt",
         cmdref_heading: 'Command Reference',
@@ -905,17 +901,14 @@
         cmdref_k9deploykennel_usage: '/k9deploykennel',
         cmdref_k9deploykennel_does: 'Places a portable kennel at your feet.',
         cmdref_k9deploykennel_needs: 'An active K9 certification, and you must currently be controlling your K9. This feature must be turned on for your server.',
-        cmdref_k9exitkennel_usage: '/k9exitkennel',
-        cmdref_k9exitkennel_does: 'Gets you out of a kennel you are resting in.',
-        cmdref_k9exitkennel_needs: 'Nothing -- always available while resting in a kennel, so you can never get stuck inside one.',
         // k9kennel -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #5's merged entry point.
         // does/usage text from client/commandsuggestions.lua's own
         // PENDING_LOCALE_KEYS (the exact interim text already shipped
         // client-side for this command); needs mirrors k9deploykennel's own
         // above (the START half this command's gate documents).
         cmdref_k9kennel_usage: '/k9kennel',
-        cmdref_k9kennel_does: 'Deploys, enters, or exits your kennel -- whichever one makes sense right now. Old names /k9deploykennel and /k9exitkennel still work too.',
-        cmdref_k9kennel_needs: 'An active K9 certification, and you must currently be controlling your K9, to deploy or enter. Exiting is always available. This feature must be turned on for your server.',
+        cmdref_k9kennel_does: "Deploys or enters your kennel -- whichever one makes sense right now. To leave the kennel, use the Kennel button in your K9 menu or the third eye on the kennel.",
+        cmdref_k9kennel_needs: "An active K9 certification, and you must currently be controlling your K9, to deploy or enter. This feature must be turned on for your server.",
         // k9debug -- server/diagnostics.lua. The one command whose gate is
         // NOT a Config.Features key: it is switched by Config.DebugDump
         // .enabled, which the tablet's predictive-availability logic has no
@@ -1023,17 +1016,8 @@
         cmdref_toggle_camera_usage: '/qbx_k9unit:toggleCamera',
         cmdref_toggle_camera_does: 'Switches your view between looking through your K9\'s own eyes (first-person) and the normal camera behind it (third-person). Press again to switch back.',
         cmdref_toggle_camera_needs: 'You must be controlling your K9. Nothing else -- no certification and no server setting can turn this off.',
-        cmdref_toggle_camera_feed_usage: '/qbx_k9unit:toggleCameraFeed',
-        cmdref_toggle_camera_feed_does: 'Opens a small picture-in-picture window showing what your partner (K9 or handler) can currently see. Press again to close it.',
-        cmdref_toggle_camera_feed_needs: 'K9 access, an online partner within range, and Partner Camera Feed enabled on this server.',
-        cmdref_toggle_thermal_vision_usage: '/qbx_k9unit:toggleThermalVision',
-        cmdref_toggle_thermal_vision_does: 'Turns on heat vision: people and animals glow so they are easier to spot, even in the dark or through smoke. Press again to turn it off. Turning this on switches Night Vision off automatically.',
-        cmdref_toggle_thermal_vision_needs: 'You must be controlling your K9, and Thermal Vision enabled on this server. No certification needed.',
-        cmdref_toggle_night_vision_usage: '/qbx_k9unit:toggleNightVision',
-        cmdref_toggle_night_vision_does: 'Turns on night vision so you can see clearly in the dark. Press again to turn it off. Turning this on switches Thermal Vision off automatically.',
-        cmdref_toggle_night_vision_needs: 'You must be controlling your K9, and Night Vision enabled on this server. No certification needed.',
         cmdref_k9vision_usage: '/k9vision',
-        cmdref_k9vision_does: 'Cycles your K9 vision: off, then Night Vision, then Thermal Vision, then back off -- skipping whichever of those two your server has turned off. Old names /qbx_k9unit:toggleThermalVision and /qbx_k9unit:toggleNightVision still jump straight to one specific mode, if that\'s what you want instead.',
+        cmdref_k9vision_does: 'Cycles your K9 vision: off, then Night Vision, then Thermal Vision, then back off -- skipping whichever of those two your server has turned off. This is the only vision key; the K9 menu\'s Senses group also has a button for each mode.',
         cmdref_k9vision_needs: 'You must be controlling your K9. No certification needed. Does nothing but notify you if both Night Vision and Thermal Vision are turned off on this server.',
 
         // ---- SERVER SETTINGS -- the one admin settings tab and its
@@ -1194,8 +1178,8 @@
         help_task_kennel_heading: "Deploy a Kennel",
         help_task_kennel_1: "1. As the K9, open your K9 Unit radial menu, then Utility, and choose \"Kennel (Deploy/Enter/Exit)\". It is placed on the ground just in front of you.",
         help_task_kennel_2: "2. You can only have one active kennel at a time -- pick it back up (walk up to it and use the \"Pick Up Kennel\" option) before deploying another.",
-        help_task_kennel_3: "3. Any K9 can use a deployed kennel to rest: walk up to it and choose \"Rest in Kennel\". Choose \"Exit Kennel\" (or use its own keybind) to get back out.",
-        help_task_kennel_4: "4. This same \"Kennel (Deploy/Enter/Exit)\" option always appears under Utility in the radial menu, even when deploying is turned off -- if choosing it does nothing while you have no kennel out, this feature is disabled on this server -- ask High Command.",
+        help_task_kennel_3: "3. Any K9 can use a deployed kennel to rest: walk up to it and choose \"Rest in Kennel\". To get back out, press the same \"Kennel (Deploy/Enter/Exit)\" button in your K9 menu, or look at the kennel with the third eye (Left Alt) and choose \"Exit Kennel\".",
+        help_task_kennel_4: "4. This same \"Kennel (Deploy/Enter/Exit)\" option always appears under Utility in the radial menu, even when deploying is turned off -- if choosing it does nothing while you have no kennel out, this feature is disabled on this server.",
         help_task_stop_being_k9_heading: "Go Back to Being Human",
         help_task_stop_being_k9_1: "1. There is no self-service way to turn yourself back -- and that is deliberate, not a bug. Being the K9 is a role high command puts you in, so high command is who takes you back out of it.",
         help_task_stop_being_k9_2: "2. Ask any High Command officer to open their tablet, find you on the Command Console, and press \"Revert to Human\". It takes them about ten seconds.",
@@ -1500,7 +1484,6 @@
         { command: 'qbx_k9unit:vault', category: 'combat', adminOnly: false, usageKey: 'cmdref_vault_usage', doesKey: 'cmdref_vault_does', needsKey: 'cmdref_vault_needs', gate: { kind: 'access', featureKey: 'AgilityAdvanced' }, defaultKeybind: 'X', keyLabelKey: 'keys_action_vault' },
         { command: 'qbx_k9unit:pursuitsprint', category: 'combat', adminOnly: false, usageKey: 'cmdref_pursuitsprint_usage', doesKey: 'cmdref_pursuitsprint_does', needsKey: 'cmdref_pursuitsprint_needs', gate: { kind: 'access', featureKey: 'PursuitSprint' }, defaultKeybind: 'N', keyLabelKey: 'keys_action_pursuit_sprint' },
         { command: 'qbx_k9unit:toggleCamera', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_camera_usage', doesKey: 'cmdref_toggle_camera_does', needsKey: 'cmdref_toggle_camera_needs', gate: { kind: 'open' }, defaultKeybind: 'L', keyLabelKey: 'keys_action_toggle_camera' },
-        { command: 'qbx_k9unit:toggleCameraFeed', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_camera_feed_usage', doesKey: 'cmdref_toggle_camera_feed_does', needsKey: 'cmdref_toggle_camera_feed_needs', gate: { kind: 'access', featureKey: 'CameraFeedPiP' }, defaultKeybind: 'H', keyLabelKey: 'keys_action_camera_feed', defaultKeybindConfigurable: true },
         // qbx_k9unit:toggleThermalVision / qbx_k9unit:toggleNightVision --
         // OWNER REVERSAL (coder-architect, this pass): an earlier pass had
         // folded these two into a single 'k9vision' cycle entry and removed
@@ -1514,8 +1497,6 @@
         // tests/commandreferenceregistry_spec.lua's HIDDEN_ALIAS_COMMANDS
         // ('vision' family, now empty) / COMMANDS_TAB_CLEANUP_COMPLETE
         // (vision reverted to not-complete).
-        { command: 'qbx_k9unit:toggleThermalVision', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_thermal_vision_usage', doesKey: 'cmdref_toggle_thermal_vision_does', needsKey: 'cmdref_toggle_thermal_vision_needs', gate: { kind: 'open', featureKey: 'ThermalVision' }, defaultKeybind: 'K', keyLabelKey: 'keys_action_thermal', defaultKeybindConfigurable: true },
-        { command: 'qbx_k9unit:toggleNightVision', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_night_vision_usage', doesKey: 'cmdref_toggle_night_vision_does', needsKey: 'cmdref_toggle_night_vision_needs', gate: { kind: 'open', featureKey: 'NightVision' }, defaultKeybind: 'J', keyLabelKey: 'keys_action_night', defaultKeybindConfigurable: true },
         // 'k9vision' (Off -> Night -> Thermal -> Off) is KEPT as an extra,
         // optional convenience alongside the two explicit toggles above --
         // owner's own steer ("keep it as an extra... someone may prefer
@@ -1546,14 +1527,7 @@
         // non-K9 EMS officer with the right job would read "Not certified").
         { command: 'k9treat', category: 'field_gear', adminOnly: false, usageKey: 'cmdref_k9treat_usage', doesKey: 'cmdref_k9treat_does', needsKey: 'cmdref_k9treat_needs', gate: { kind: 'open', featureKey: 'K9Medkit' } },
         { command: 'k9deploykennel', category: 'field_gear', adminOnly: false, usageKey: 'cmdref_k9deploykennel_usage', doesKey: 'cmdref_k9deploykennel_does', needsKey: 'cmdref_k9deploykennel_needs', gate: { kind: 'access', featureKey: 'DeployableKennel' } },
-        // k9exitkennel -- trap-hunt fix. UNCONDITIONAL (gate: 'open', no
-        // featureKey at all) on purpose, matching k9dropfetchball/
-        // k9recallfetchball above: client/keybinds.lua registers this
-        // command with NO Config.Features wrapper, and client/kennel.lua's
-        // ExitKennelRest() never gates on DeployableKennel, HasK9Access, or
-        // certification -- this is a confining-mechanic escape hatch, never
-        // gated on the way out.
-        { command: 'k9exitkennel', category: 'field_gear', adminOnly: false, usageKey: 'cmdref_k9exitkennel_usage', doesKey: 'cmdref_k9exitkennel_does', needsKey: 'cmdref_k9exitkennel_needs', gate: { kind: 'open' }, defaultKeybind: 'O', keyLabelKey: 'keys_action_exit_kennel' },
+        // (k9exitkennel removed: leave the kennel from the third eye or the K9 menu.)
         // k9kennel -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #5's merged, ADDITIVE
         // entry point (client/kennel.lua) -- reported as
         // PENDING_NEW_CANONICAL_COMMANDS while html/tablet.js was a hot

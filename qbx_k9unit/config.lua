@@ -147,7 +147,6 @@ Config = {}
 --   Config.PursuitSprint ............ the short burst of real speed
 --   Config.Partnership .............. handler and K9 pairing
 --   Config.DoorInteraction .......... scratching at doors
---   Config.Vision ................... thermal and night vision
 --
 -- KIT AND PLACES
 --   Config.K9Vehicles ............... which vehicles a K9 can ride in
@@ -1410,6 +1409,7 @@ Config.CommandTablet = {
         GunpowderSniffing = true,
         ThermalVision     = true,
         NightVision       = true,
+        CameraFeedPiP     = true, -- the only place the partner camera is opened
         BiteAndHold       = true,
         NonLethalTakedown = true,
         PropDragging      = true,
@@ -1509,8 +1509,8 @@ Config.K9Onboarding = {
 
     -- The key/button that dismisses the nudge for good, as a raw game
     -- control number rather than a key name -- this is NOT the same kind
-    -- of setting as Config.CameraFeed.toggleKey elsewhere in this file, so
-    -- you cannot just type a letter here. Leave this at its default (202,
+    -- of setting as the letter keys elsewhere in this file, so you cannot
+    -- just type a letter here. Leave this at its default (202,
     -- Backspace on keyboard / B on a controller) unless you already know
     -- it clashes with something else on your server. A missing or invalid
     -- number falls back to 202.
@@ -2862,28 +2862,18 @@ Config.DoorInteraction = {
 -- ======================================================================
 -- client/vision.lua. Tuning for the partner camera feed above.
 Config.CameraFeed = {
-    toggleKey              = 'H',   -- rebindable in-game like any other key
+    -- No key: the partner camera is opened from the tablet only.
     fov                    = 50.0,  -- field of view, degrees. Lower = more zoomed in.
     k9EyeHeightOffset      = 0.65,  -- metres above a dog-shaped partner's feet. Approximate, not read off the model — tune it for the breeds you actually use.
     handlerEyeHeightOffset = 1.6,   -- metres above a human-shaped partner's feet. Same caveat.
 }
 
-Config.Vision = {
-    Thermal = { toggleKey = 'K' }, -- drives SetSeethrough(true/false) -- see §11.6
-    Night   = { toggleKey = 'J' }, -- drives SetNightvision(true/false) -- see §11.6
-}
--- The K and J keys above still jump straight to that one specific mode --
--- nothing above changed. Each also has its own K9 radial menu entry ("K9:
--- Thermal Vision" / "K9: Night Vision"), independent of the other. There is
--- ALSO a single "/k9vision" cycle (default key I, also in the K9 radial
--- menu as "K9: Vision"), kept as an extra, optional convenience alongside
--- the two above, not a replacement for them -- it steps Off -> Night ->
--- Thermal -> Off in one press, skipping whichever of ThermalVision/
--- NightVision you turn off below in Config.Features. Turn both off and the
--- cycle just tells the player nothing is available right now, rather than
--- doing nothing with no explanation. This does not add a new setting to
--- turn off on its own -- it simply respects the two flags above, the same
--- way the K/J keys already do.
+-- VISION: there is one vision key, I ("/k9vision"), which steps Off ->
+-- Night -> Thermal -> Off in one press, skipping whichever of ThermalVision/
+-- NightVision you turn off above in Config.Features. The K9 menu's Senses
+-- group also has a button for each mode. The separate K and J keys were
+-- removed at the owner's request. Turn both flags off and the cycle just
+-- tells the player nothing is available right now.
 
 -- ======================================================================
 -- COMBAT & ADVANCED AGILITY -- bite and hold, non-lethal takedowns, dragging.
@@ -3240,8 +3230,8 @@ Config.Combat = {
 -- Config.Combat (a different file's config namespace) would blur that
 -- ownership split for no benefit. Mirrors this file's own established
 -- convention of one dedicated top-level table per Phase 2/3 feature
--- (Config.Tracking, Config.SearchZones, Config.DoorInteraction, Config.Vision,
--- Config.Combat above) rather than a single everything-table.
+-- (Config.Tracking, Config.SearchZones, Config.DoorInteraction, Config.Combat
+-- above) rather than a single everything-table.
 --
 -- This registry started as a FOUNDATION ONLY, with no combat consequence
 -- wired to it. The two combat mechanics DEVELOPER_REFERENCE.md 12.0 item 7

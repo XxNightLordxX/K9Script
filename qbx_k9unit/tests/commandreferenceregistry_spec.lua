@@ -206,7 +206,6 @@ local HIDDEN_ALIAS_COMMANDS = {
     -- matching comment) -- only their COMMAND_REFERENCE visibility is
     -- targeted for removal here, once batched with the rest.
     k9deploykennel = 'kennel',
-    k9exitkennel = 'kennel',
     -- family #7: permissions (2 -> 1, 'k9permission') -- server/permissions.lua.
     -- Unlike audit/fetch/training's "interim" state, this family's
     -- COMMAND_REFERENCE removal landed in the SAME change as the merge
