@@ -1503,6 +1503,41 @@ body {
 }
 
 /*
+    PERSON SCREEN FOLDOUTS -- html/tablet.js's buildPersonFoldout(): the
+    rarely used sections fold away behind their heading. The summary keeps
+    the section-heading look plus a turning arrow so it reads as clickable.
+*/
+.k9tablet-person-foldout {
+    margin-top: 12px;
+    border-top: 1px solid rgba(127, 127, 127, 0.25);
+    padding-top: 4px;
+}
+
+.k9tablet-person-foldout-summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.k9tablet-person-foldout-summary::-webkit-details-marker {
+    display: none;
+}
+
+.k9tablet-person-foldout-summary::before {
+    content: '\25B8';
+    display: inline-block;
+    margin-right: 8px;
+    transition: transform 0.15s ease;
+}
+
+.k9tablet-person-foldout[open] > .k9tablet-person-foldout-summary::before {
+    transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .k9tablet-person-foldout-summary::before { transition: none; }
+}
+
+/*
     YOUR KEYS -- html/tablet.js's own buildKeysListSection(): a key cap and
     what it does, one per row, two columns where there is room. Uses the
     theme's own colours; layout only otherwise.

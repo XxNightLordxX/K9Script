@@ -1040,6 +1040,7 @@
         roster: null, // { rows, truncated, truncatedMessage }
         rosterQuery: '',
         findPersonQuery: '', // the Console's one search box -- see buildFindPersonBar()
+        personOpenSections: {}, // which Person-screen foldouts are open -- see buildPersonFoldout()
 
         // ONLINE PLAYERS LIST (owner-directed, 2026-08-26: "make the add
         // permission section... where its a list when i choose a player
@@ -5464,8 +5465,14 @@
             // sections immediately below already do.
             wrap.appendChild(buildCertificationList(state.personSummary.certifications, canCertify ? handlePersonCertAction : null, { showRosterControls: true }));
 
-            wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('person_rank_heading') }));
-            wrap.appendChild(buildRankSection(state.personSummary.job));
+            // K9 ROLE right under Certifications (the owner's rework pass):
+            // making someone the K9, changing their breed, and the
+            // emergency Revert to Human used to sit at the very bottom of
+            // this page, under three long admin sections.
+            if (state.viewer.isHighCommand) {
+                wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('role_heading') }));
+                wrap.appendChild(buildRoleControl());
+            }
 
             wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('person_xp_heading') }));
             wrap.appendChild(mk('p', { class: 'k9tablet-xp-line', text: xpLine(state.personSummary.xp, state.personSummary.tierLabel) }));
@@ -5513,19 +5520,25 @@
                 wrap.appendChild(buildPersonPartnershipHistorySection());
             }
 
+            wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('person_rank_heading') }));
+            wrap.appendChild(buildRankSection(state.personSummary.job));
+
+            // THE RARELY-USED, LONG SECTIONS fold away (the owner's rework
+            // pass). Special permissions, per-person ability switches and a
+            // K9's individual overrides are real, kept, and one click away
+            // -- they just no longer make every visit scroll past them. See
+            // buildPersonFoldout() for why each remembers being left open.
             if (state.viewer.isHighCommand) {
-                wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('person_capabilities_heading') }));
-                wrap.appendChild(buildCapabilityList(state.personSummary.permissions));
-
-                wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('person_features_heading') }));
-                wrap.appendChild(buildPersonFeaturesSection());
-
-                wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('role_heading') }));
-                wrap.appendChild(buildRoleControl());
-
-                wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('k9_profile_person_section_heading') }));
-                wrap.appendChild(mk('p', { class: 'k9tablet-muted', text: S('k9_profile_person_section_intro') }));
-                wrap.appendChild(buildPersonK9ProfileSection());
+                wrap.appendChild(buildPersonFoldout('capabilities', S('person_capabilities_heading'), [
+                    buildCapabilityList(state.personSummary.permissions),
+                ]));
+                wrap.appendChild(buildPersonFoldout('features', S('person_features_heading'), [
+                    buildPersonFeaturesSection(),
+                ]));
+                wrap.appendChild(buildPersonFoldout('k9_profile', S('k9_profile_person_section_heading'), [
+                    mk('p', { class: 'k9tablet-muted', text: S('k9_profile_person_section_intro') }),
+                    buildPersonK9ProfileSection(),
+                ]));
             }
         }
 
@@ -5922,6 +5935,30 @@
         wrap.appendChild(mk('p', { class: 'k9tablet-muted k9tablet-hint', text: S('role_revert_hint') }));
 
         return wrap;
+    }
+
+    /**
+     * A section of the Person screen that folds away (native <details>),
+     * closed by default. Its heading is the clickable summary.
+     *
+     * REMEMBERS BEING LEFT OPEN: every action on this screen re-renders it
+     * from scratch (render()), which would snap a <details> shut after
+     * every tick of a checkbox inside it. state.personOpenSections keeps the
+     * open ones open across those re-renders.
+     * @param {string} key
+     * @param {string} headingText
+     * @param {HTMLElement[]} children
+     * @returns {HTMLElement}
+     */
+    function buildPersonFoldout(key, headingText, children) {
+        var details = mk('details', { class: 'k9tablet-person-foldout' });
+        if (state.personOpenSections[key]) details.setAttribute('open', '');
+        details.addEventListener('toggle', function () {
+            state.personOpenSections[key] = details.open === true;
+        });
+        details.appendChild(mk('summary', { class: 'k9tablet-section-heading k9tablet-person-foldout-summary', text: headingText }));
+        for (var i = 0; i < children.length; i++) details.appendChild(children[i]);
+        return details;
     }
 
     /**
