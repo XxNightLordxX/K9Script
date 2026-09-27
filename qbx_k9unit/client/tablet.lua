@@ -1158,7 +1158,7 @@ local TABLET_STRING_KEYS = {
     'tier_label', 'tier_set_label', 'renew_label', 'specializations_heading',
     'no_specializations', 'expires_label', 'expired_badge',
     'role_option_xp_template',
-    'role_status_active',
+    'role_status_active', 'role_status_deleted',
     'role_status_locked_template',
     'roles_heading',
     'roles_intro',

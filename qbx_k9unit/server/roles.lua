@@ -133,6 +133,10 @@ end
 -- ======================================================================
 local BASE_ROLES = {} -- snapshot of the shipped roles
 local ROLES = {}      -- live catalog: key -> { label, xpRequired, unlocks = set }
+-- Keys of deleted roles. A new role never reuses one: people who held the
+-- deleted role still have that grant on record, and would silently get a
+-- brand-new role that happened to share its name.
+local DELETED_KEYS = {}
 
 local function NormalizeXp(value)
     local n = tonumber(value)
@@ -185,19 +189,21 @@ end
 --- Rebuilds the live catalog: shipped roles, then every k9_roles row on
 --- top. Yields (a database read) when the database is on.
 function RefreshRoleCatalog()
-    local fresh = {}
+    local fresh, deleted = {}, {}
     for key, role in pairs(BASE_ROLES) do fresh[key] = CopyRole(role) end
     for _, row in ipairs(K9Store.Role_GetAllRows()) do
         local key = row.role_key
         if type(key) == 'string' then
             if tonumber(row.deleted) == 1 or row.deleted == true then
                 fresh[key] = nil
+                deleted[key] = true
             else
                 fresh[key] = { label = tostring(row.label or key), xpRequired = NormalizeXp(row.xp_required), unlocks = ParseUnlocks(row.unlocks or '') }
             end
         end
     end
     ROLES = fresh
+    DELETED_KEYS = deleted
     MirrorIntoConfig()
 end
 
@@ -344,15 +350,19 @@ lib.callback.register('qbx_k9unit:server:tabletRolesSave', function(source, data
         local base = SlugFromLabel(label)
         key = base
         local n = 2
-        while ROLES[key] do key = base .. '_' .. n; n = n + 1 end
+        while ROLES[key] or DELETED_KEYS[key] do key = base .. '_' .. n; n = n + 1 end
     elseif type(key) ~= 'string' or #key > ROLE_KEY_MAX or not key:match(ROLE_KEY_PATTERN) or not ROLES[key] then
         return { ok = false, error = 'unknown_role' }
     end
 
+    -- k9_roles.unlocks is VARCHAR(255).
+    local unlockText = table.concat(SortedUnlockList(unlocks), ',')
+    if #unlockText > 255 then return { ok = false, error = 'invalid_unlocks', field = 'unlocks' } end
+
     if not RoleEditCooldown.Consume(source) then return { ok = false, error = 'rate_limited' } end
 
     local who = CallerCitizenId(source) or 'unknown'
-    if not K9Store.Role_Upsert(key, label, xp, table.concat(SortedUnlockList(unlocks), ','), who) then
+    if not K9Store.Role_Upsert(key, label, xp, unlockText, who) then
         return { ok = false, error = 'db_error' }
     end
     RefreshRoleCatalog()

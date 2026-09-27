@@ -662,6 +662,23 @@ t.test('deleting a role shop items still need is refused, naming those items and
     t.isTrue(findByText(h.getRoot(), 'Zzyzx Novel Role').length >= 1, 'the role is still listed');
 });
 
+t.test('a role high command deleted shows "Role deleted" on a record -- never "Active" -- and can still be revoked', async () => {
+    const h = createHarness({
+        fetchImpl: routeFetch(baseHandlers({
+            'tablet:requestMyRecord': () => ({
+                ok: true, viewer: CONSOLE_ONLY_VIEWER, xp: 900, tierLabel: null, myFeatures: [], roleXp: 900,
+                roleCatalog: [{ key: 'patrol', label: 'Patrol / apprehension', xpRequired: 0, unlocks: [] }],
+                certifications: [{ departmentKey: 'police', departmentLabel: 'Police', active: true, grantedBy: 'HC1', tier: null, expiresAtUnix: null, expired: false, specializations: ['patrol', 'old_tactical'] }],
+            }),
+        })),
+    });
+    await openTablet(h);
+    const myRecordTab = findByText(h.getRoot(), 'My Record')[0];
+    if (myRecordTab) { myRecordTab.click(); await settle(); }
+    t.equals(findByText(h.getRoot(), 'Role deleted').length, 1, 'the deleted role is labelled as deleted');
+    t.equals(findByText(h.getRoot(), 'Active').length, 1, 'only the real role reads Active');
+});
+
 t.test('a failed roles load shows the error and a Retry that fetches again', async () => {
     let calls = 0;
     const h = createHarness({

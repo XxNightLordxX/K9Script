@@ -2321,9 +2321,9 @@ local function EquipmentShopRoleDenialText(citizenid, jobName, roleKey)
         held = HasSpecializationGranted(citizenid, jobName, roleKey) == true
     end
     if held and need > 0 and type(GetRoleXpForCitizen) == 'function' then
-        local have = GetRoleXpForCitizen(citizenid) or 0
+        local have = math.floor(tonumber(GetRoleXpForCitizen(citizenid)) or 0)
         if have < need then
-            return locale('equipmentshop.requires_role_xp', label, need, have)
+            return locale('equipmentshop.requires_role_xp', label, math.floor(need), have)
         end
     end
     return locale('equipmentshop.requires_specialization', label)

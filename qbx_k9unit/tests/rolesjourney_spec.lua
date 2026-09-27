@@ -263,6 +263,51 @@ t.test('J. the Chief clears the shop requirement, then deletes the role -- bites
     check(audit.rows[1].action == 'role_delete', 'the delete is audited too')
 end)
 
+t.test('K. a role with no unlocks saves; a handler\'s own XP counts toward roles', function()
+    tick(60000)
+    local r = cb('qbx_k9unit:server:tabletRolesSave', 1, { label = 'Senior Handler', xpRequired = 300, unlocks = {} })
+    check(r and r.ok and r.key == 'senior_handler', 'a role with nothing ticked saves: ' .. tostring(r and (r.error or r.key)))
+    tick(60000)
+    check(cb('qbx_k9unit:server:tabletGrantSpecialization', 1, 'HANDLER', 'police', 'senior_handler').ok, 'given to Sam')
+    check(not env.HasSpecialization('HANDLER', 'police', 'senior_handler'), 'locked with no XP')
+    local realHandlerXP = env.GetHandlerXP
+    env.GetHandlerXP = function(cid) if cid == 'HANDLER' then return 350 end return realHandlerXP(cid) end
+    check(env.HasSpecialization('HANDLER', 'police', 'senior_handler'), 'Sam\'s 350 handler XP switches it on')
+    env.GetHandlerXP = realHandlerXP
+end)
+
+t.test('L. taking a role away removes what it unlocked', function()
+    tick(60000)
+    check(cb('qbx_k9unit:server:tabletRolesSave', 1, { key = 'patrol', label = 'Patrol / apprehension', xpRequired = 0, unlocks = { 'track_blood', 'bite_takedown' } }).ok, 'patrol now unlocks bites')
+    tick(60000)
+    check(cb('qbx_k9unit:server:tabletGrantSpecialization', 1, 'DOG', 'police', 'patrol').ok, 'Rex given Patrol')
+    check(env.RoleUnlockPermits('DOG', 'police', 'bite_takedown') == true, 'Rex may bite')
+    tick(60000)
+    local r = cb('qbx_k9unit:server:tabletRevokeSpecialization', 1, 'DOG', 'police', 'patrol')
+    check(r and r.ok, 'revoked: ' .. tostring(r and r.error))
+    check(env.RoleUnlockPermits('DOG', 'police', 'bite_takedown') == false, 'Rex may no longer bite')
+end)
+
+t.test('M. an old tier-gated shop item is still enforced (and can be cleared with None)', function()
+    tick(60000)
+    local r = cb('qbx_k9unit:server:equipmentShopItemsUpsert', 1, { key = 'k9_medkit', price = 100, requiredTierKey = 'senior' })
+    check(r and r.ok, 'legacy tier requirement saved: ' .. tostring(r and (r.reason or r.error)))
+    check(oxHooks.buyItem({ shopType = 'k9supply', source = 2, itemName = 'k9_medkit' }) == false, 'Rex (default tier) is refused')
+    tick(60000)
+    check(cb('qbx_k9unit:server:equipmentShopItemsUpsert', 1, { key = 'k9_medkit', price = 100 }).ok, 'cleared')
+    check(oxHooks.buyItem({ shopType = 'k9supply', source = 2, itemName = 'k9_medkit' }) ~= false, 'Rex can buy it again')
+end)
+
+t.test('N. decertifying someone switches all their roles off', function()
+    tick(60000)
+    check(cb('qbx_k9unit:server:tabletGrantSpecialization', 1, 'DOG', 'police', 'narcotics').ok, 'Rex given Narcotics')
+    check(env.HasSpecialization('DOG', 'police', 'narcotics'), 'active while certified')
+    tick(60000)
+    local r = cb('qbx_k9unit:server:tabletDecertify', 1, 'DOG', 'police')
+    check(r and r.ok, 'decertified: ' .. tostring(r and r.error))
+    check(not env.HasSpecialization('DOG', 'police', 'narcotics'), 'no longer counts')
+end)
+
 t.test('every message any player was shown along the way has real text', function()
     local missing = {}
     for _, n in ipairs(notifies) do if tostring(n.text):find('^<<') then missing[#missing + 1] = n.text end end

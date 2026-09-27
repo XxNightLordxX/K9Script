@@ -1305,7 +1305,8 @@
     "settings_overview_roles_template": "{count} role(s) set up.",
     "roles_audit_created": "Created",
     "roles_audit_edited": "Edited",
-    "roles_audit_deleted": "Deleted"
+    "roles_audit_deleted": "Deleted",
+    "role_status_deleted": "Role deleted"
   },
   "inventory": {
     "open_gear_target_label": "Open K9 Gear",

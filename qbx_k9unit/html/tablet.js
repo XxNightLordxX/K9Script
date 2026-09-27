@@ -4305,7 +4305,14 @@
         var row = mk('div', { class: 'k9tablet-specialization-row' });
         row.appendChild(mk('span', { class: 'k9tablet-specialization-label', text: specializationDisplayLabel(key) }));
         // A role switches on once the holder's XP reaches its requirement.
-        if (typeof roleXp === 'number') {
+        var catalogKnown = !!(state.specializations && typeof state.specializations === 'object' && Object.keys(state.specializations).length > 0);
+        var roleStillExists = !catalogKnown || Object.prototype.hasOwnProperty.call(state.specializations, key);
+        if (!roleStillExists) {
+            // High command deleted this role; the server no longer honours
+            // it. Say so (never "Active"), and keep Revoke so it can be
+            // tidied off the record.
+            row.appendChild(mk('span', { class: 'k9tablet-feature-state k9tablet-feature-state--requires_grant_missing', text: S('role_status_deleted') }));
+        } else if (typeof roleXp === 'number') {
             var need = roleXpRequired(key);
             var active = roleXp >= need;
             row.appendChild(mk('span', {

@@ -566,6 +566,7 @@
         no_specializations: 'No roles yet.',
         role_option_xp_template: "needs {xp} XP",
         role_status_active: "Active",
+        role_status_deleted: "Role deleted",
         role_status_locked_template: "Unlocks at {xp} XP",
         roles_heading: "Roles",
         roles_intro: "Give people roles on their tablet page. A role switches on once that person's XP reaches its XP requirement.",

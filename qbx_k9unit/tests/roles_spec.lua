@@ -191,6 +191,16 @@ t.test('every role create, edit and delete is written to the audit trail with wh
     t.equals(audit[3].key, 'tactical_k9')
 end)
 
+t.test('a new role never reuses a deleted role\'s key -- people who held the old one do not silently get the new one', function()
+    local f = fixture({ held = { DOG = { patrol = true } } })
+    t.isTrue(f.cb['qbx_k9unit:server:tabletRolesDelete'](1, 'patrol').ok)
+    f.env.GetGameTimer = function() return 2000000 end
+    local r = f.cb['qbx_k9unit:server:tabletRolesSave'](1, { label = 'Patrol', xpRequired = 0, unlocks = { 'track_blood' } })
+    t.isTrue(r.ok)
+    t.equals(r.key, 'patrol_2', 'a fresh key, not the deleted one')
+    t.isNil(f.env.GetHeldRoleUnlocks('DOG', 'police').track_blood, 'the old holder does not inherit the new role')
+end)
+
 t.test('saved edits survive a catalog refresh (they are read back from K9Store)', function()
     local f = fixture()
     f.cb['qbx_k9unit:server:tabletRolesSave'](1, { key = 'narcotics', label = 'Drug dog', xpRequired = 300, unlocks = { 'detect_narcotics' } })
