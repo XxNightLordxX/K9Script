@@ -4341,7 +4341,7 @@ end)
 -- now; the refusal case is reported, not silently skipped.
 -- ======================================================================
 
-t.test('GrantSpecialization: TIER CAPABILITY -- consulted with (targetCitizenid, jobName, \'specializations_eligible\') AFTER the active-cert check passes, and a tier that HOLDS the capability still grants normally', function()
+t.test('GrantSpecialization: the old tier capability is RETIRED -- a tier that would deny specializations no longer blocks giving someone a role', function()
     local f = newFixture()
     f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
     f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
@@ -4350,24 +4350,31 @@ t.test('GrantSpecialization: TIER CAPABILITY -- consulted with (targetCitizenid,
     f.mysql.scalar.await = function() return 5 end -- active base cert
     f.env.RefreshCertificationCache('TARGET', 'police')
 
-    local capturedArgs
-    f.env.TierCapabilityPermits = function(citizenid, jobName, capabilityKey)
-        capturedArgs = { citizenid, jobName, capabilityKey }
-        return true -- this tier HOLDS the capability
-    end
+    local consulted = false
+    f.env.TierCapabilityPermits = function() consulted = true; return false end -- a tier box ticked long ago, now uneditable
 
-    f.mysql.scalar.await = function() return nil end -- pre-check: no existing active specialization row
+    f.mysql.scalar.await = function() return nil end
     local insertParams
     f.mysql.insert.await = function(_sql, params) insertParams = params; return 1 end
     f.mysql.query.await = function() return { { specialization = 'narcotics' } } end
 
     f.commands['k9specialize'].fn(10, { '20', 'narcotics' })
 
-    t.equals(capturedArgs[1], 'TARGET')
-    t.equals(capturedArgs[2], 'police')
-    t.equals(capturedArgs[3], 'specializations_eligible')
-    t.equals(insertParams[1], 'TARGET', 'a tier that holds the capability must not block the grant')
+    t.isFalse(consulted, 'the grant path no longer asks the tier at all')
+    t.equals(insertParams[1], 'TARGET', 'the role is granted')
     t.isTrue(f.env.HasSpecialization('TARGET', 'police', 'narcotics'))
+end)
+
+t.test('HasSpecializationGranted: true once given, even before the XP is reached -- HasSpecialization only once it is', function()
+    local f = newFixture()
+    f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
+    f.mysql.scalar.await = function() return 5 end
+    f.mysql.query.await = function() return { { specialization = 'explosives' } } end
+    f.env.RefreshCertificationCache('TARGET', 'police')
+    f.env.IsRoleXpUnlocked = function() return false end -- XP not reached yet
+    t.isTrue(f.env.HasSpecializationGranted('TARGET', 'police', 'explosives'))
+    t.isFalse(f.env.HasSpecialization('TARGET', 'police', 'explosives'))
+    t.isFalse(f.env.HasSpecializationGranted('TARGET', 'police', 'narcotics'), 'a role never given is not granted')
 end)
 
 t.test('GrantSpecialization: TIER CAPABILITY -- the runtime existence guard genuinely tolerates TierCapabilityPermits being entirely absent (server/certtiers.lua not loaded), failing OPEN to the ordinary grant path', function()

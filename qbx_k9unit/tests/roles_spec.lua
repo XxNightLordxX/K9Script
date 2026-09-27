@@ -158,6 +158,21 @@ t.test('deleting a role removes it from the catalog (a tombstone, so a shipped r
     t.isNil(f.Config.K9Specializations.patrol, 'still gone after a refresh')
 end)
 
+t.test('a role that shop items still need cannot be deleted -- the refusal names those items', function()
+    local f = fixture()
+    f.env.CountEquipmentShopItemsRequiringRole = function(key)
+        if key == 'explosives' then return 2, { 'k9_bomb_vest', 'k9_muzzle' } end
+        return 0, {}
+    end
+    local r = f.cb['qbx_k9unit:server:tabletRolesDelete'](1, 'explosives')
+    t.isFalse(r.ok)
+    t.equals(r.error, 'role_in_use_by_shop_items')
+    t.equals(table.concat(r.items, ','), 'k9_bomb_vest,k9_muzzle')
+    t.isNotNil(f.Config.K9Specializations.explosives, 'still there')
+    t.isNil(next(f.rows), 'nothing written')
+    t.isTrue(f.cb['qbx_k9unit:server:tabletRolesDelete'](1, 'patrol').ok, 'a role no item needs deletes as normal')
+end)
+
 t.test('saved edits survive a catalog refresh (they are read back from K9Store)', function()
     local f = fixture()
     f.cb['qbx_k9unit:server:tabletRolesSave'](1, { key = 'narcotics', label = 'Drug dog', xpRequired = 300, unlocks = { 'detect_narcotics' } })

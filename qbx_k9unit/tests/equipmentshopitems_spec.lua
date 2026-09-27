@@ -316,6 +316,8 @@ local function newFixture(opts)
         IsKnownCertificationTierKey = isKnownCertificationTierKey,
         MeetsTierRequirement = meetsTierRequirement,
         HasSpecialization = hasSpecialization,
+        HasSpecializationGranted = opts.hasSpecializationGranted,
+        GetRoleXpForCitizen = opts.getRoleXpForCitizen,
         locale = localeStub,
         NotifyPlayer = notifyPlayerStub,
         IsDuplicityVersion = function() return true end,
@@ -379,6 +381,7 @@ local function newFixture(opts)
         hookCallbacks = hookCallbacks,
         notifications = notifications,
         config = Config,
+        env = env,
         world = world,
         callbacks = callbacks,
         broadcasts = broadcasts,
@@ -764,6 +767,53 @@ t.test('buyItem hook: vetoes a purchase when the buyer lacks the required specia
     f.fireResourceStart()
     local denied = f.hookCallbacks['buyItem']({ shopType = 'k9supply', source = HC_SOURCE, itemName = 'k9_medkit' })
     t.equals(denied, false)
+end)
+
+t.test('buyItem hook: a role-gated item names the ROLE by its label when the buyer does not have it', function()
+    local world = newWorld()
+    world.items.k9_medkit = { label = nil, price = 150, currency = nil, sort_order = 1, required_tier_key = nil, required_specialization = 'explosives', deleted = 0, updated_by = 'HC' }
+    local playersBySource = {}
+    registerPlayer(playersBySource, HC_SOURCE, 'BUYER01', 'police')
+    local f = newFixture({
+        featureEnabled = true, shopConfig = BASE_SHOP_CONFIG, world = world, playersBySource = playersBySource,
+        registeredItems = { money = true, k9_medkit = true, k9_treat = true },
+        hasSpecialization = function() return false end,
+        hasSpecializationGranted = function() return false end,
+    })
+    f.config.K9Specializations = { explosives = { label = 'Explosives detection', xpRequired = 1250 } }
+    f.fireResourceStart()
+    t.equals(f.hookCallbacks['buyItem']({ shopType = 'k9supply', source = HC_SOURCE, itemName = 'k9_medkit' }), false)
+    t.equals(f.notifications[#f.notifications].description, 'equipmentshop.requires_specialization:Explosives detection')
+end)
+
+t.test('buyItem hook: a buyer who HOLDS the role but is short on XP is told the XP it needs and what they have', function()
+    local world = newWorld()
+    world.items.k9_medkit = { label = nil, price = 150, currency = nil, sort_order = 1, required_tier_key = nil, required_specialization = 'explosives', deleted = 0, updated_by = 'HC' }
+    local playersBySource = {}
+    registerPlayer(playersBySource, HC_SOURCE, 'BUYER01', 'police')
+    local f = newFixture({
+        featureEnabled = true, shopConfig = BASE_SHOP_CONFIG, world = world, playersBySource = playersBySource,
+        registeredItems = { money = true, k9_medkit = true, k9_treat = true },
+        hasSpecialization = function() return false end, -- held, but XP not reached
+        hasSpecializationGranted = function() return true end,
+        getRoleXpForCitizen = function() return 900 end,
+    })
+    f.config.K9Specializations = { explosives = { label = 'Explosives detection', xpRequired = 1250 } }
+    f.fireResourceStart()
+    t.equals(f.hookCallbacks['buyItem']({ shopType = 'k9supply', source = HC_SOURCE, itemName = 'k9_medkit' }), false)
+    t.equals(f.notifications[#f.notifications].description, 'equipmentshop.requires_role_xp:Explosives detection,1250,900')
+end)
+
+t.test('CountEquipmentShopItemsRequiringRole: lists exactly the items that need a role, in tablet order', function()
+    local world = newWorld()
+    world.items.k9_medkit = { label = nil, price = 150, currency = nil, sort_order = 1, required_tier_key = nil, required_specialization = 'explosives', deleted = 0, updated_by = 'HC' }
+    world.items.k9_treat = { label = nil, price = 5, currency = nil, sort_order = 2, required_tier_key = nil, required_specialization = nil, deleted = 0, updated_by = 'HC' }
+    local f = newFixture({ featureEnabled = true, shopConfig = BASE_SHOP_CONFIG, world = world, registeredItems = { money = true, k9_medkit = true, k9_treat = true } })
+    f.fireResourceStart()
+    local count, items = f.env.CountEquipmentShopItemsRequiringRole('explosives')
+    t.equals(count, 1)
+    t.equals(items[1], 'k9_medkit')
+    t.equals((f.env.CountEquipmentShopItemsRequiringRole('narcotics')), 0)
 end)
 
 t.test('buyItem hook: never touches a different shop\'s purchase (shopType filter)', function()

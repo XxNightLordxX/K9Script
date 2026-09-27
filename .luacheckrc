@@ -1092,7 +1092,7 @@ globals = {
     -- none of these needed the native-decl verification step this file
     -- applies to real natives further down -- they are this resource's own
     -- cross-file global convention, identical in shape to the line above.
-    "GetCertificationTier", "MeetsTierRequirement", "HasSpecialization",
+    "GetCertificationTier", "MeetsTierRequirement", "HasSpecialization", "HasSpecializationGranted", "CountEquipmentShopItemsRequiringRole",
     "QueryCertificationRecord", "QueryActiveSpecializations",
     -- client/appearance.lua + server/appearance.lua -- the K9 ROLE/MODEL
     -- DECOUPLING pass. These exist to satisfy a hard owner requirement:

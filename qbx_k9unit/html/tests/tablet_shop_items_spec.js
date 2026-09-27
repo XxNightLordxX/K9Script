@@ -154,8 +154,8 @@ t.test('DYNAMIC CATALOGUE: items rendered come ENTIRELY from tablet:equipmentSho
     t.isTrue(findByText(h.getRoot(), 'zzz_novel_bait').length >= 1);
     t.isTrue(findAll(h.getRoot(), (n) => typeof n._textContent === 'string' && n._textContent.indexOf('Free') !== -1).length >= 1, 'a ZERO price is called out with its own "Free" badge, never hidden/blank -- server/equipmentshop.lua explicitly allows price=0');
     t.isTrue(findByText(h.getRoot(), '150').length >= 1);
-    t.isTrue(findByText(h.getRoot(), 'Senior Handler').length >= 1, 'required tier resolved via the loaded certTiers catalog, not the raw key');
-    t.isTrue(findByText(h.getRoot(), 'Narcotics Detection').length >= 1, 'required specialization resolved via state.specializations, not the raw key');
+    t.isTrue(findByText(h.getRoot(), 'Narcotics Detection · old tier: Senior Handler').length >= 1, 'one Required Role cell: the role label, plus a leftover tier requirement named as old');
+    t.equals(findByText(h.getRoot(), 'Required Tier').length, 0, 'no separate tier column any more');
 });
 
 t.test('empty catalog shows an empty-state message, never a blank/crashed panel', async () => {
@@ -221,16 +221,15 @@ t.test('Add New Item: a ZERO price is submitted as the number 0 and accepted -- 
     t.isTrue(!('requiredSpecialization' in upsertBody));
 });
 
-t.test('Add New Item: label/currency/required tier/required specialization are all submitted when filled in', async () => {
+t.test('Add New Item: one Required Role picker (roles show the XP they need); no tier picker on a new item', async () => {
     let upsertBody = null;
     const h = createHarness({
         fetchImpl: routeFetch(baseHandlers({
             'tablet:equipmentShopItemsList': () => ({ ok: true, items: [] }),
-            'tablet:certTiersList': () => ({ ok: true, tiers: [{ key: 'trainee', label: 'Trainee', ordinal: 1, capabilities: {} }], capabilityCatalog: {} }),
             'tablet:equipmentShopItemsUpsert': (body) => { upsertBody = body; return { ok: true, items: [] }; },
         })),
     });
-    await openTablet(h, { specializations: { explosives: { label: 'Explosives Detection' } } });
+    await openTablet(h, { specializations: { explosives: { label: 'Explosives Detection', xpRequired: 1250 } } });
     openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
@@ -242,15 +241,13 @@ t.test('Add New Item: label/currency/required tier/required specialization are a
     findInput(h.getRoot(), (n) => n.getAttribute('placeholder') === "Leave blank to use the item's own name").typeValue('K9 Ballistic Vest');
     findInput(h.getRoot(), (n) => n.getAttribute('placeholder') === 'Leave blank to use the shop default').typeValue('black_money');
 
-    const tierSelect = findSelect(h.getRoot(), () => true);
-    t.isDefined(tierSelect);
-    tierSelect.value = 'trainee';
-    tierSelect._dispatch('input');
-
     const selects = findAll(h.getRoot(), (n) => n.tagName === 'select');
-    t.equals(selects.length, 2, 'exactly the required-tier and required-specialization selects are present');
-    selects[1].value = 'explosives';
-    selects[1]._dispatch('input');
+    t.equals(selects.length, 1, 'only the Required Role select');
+    t.isTrue(findByText(h.getRoot(), 'Required Role').length >= 1);
+    const optionTexts = findAll(selects[0], (n) => n.tagName === 'option').map((o) => o._textContent);
+    t.isTrue(optionTexts.indexOf('Explosives Detection (needs 1250 XP)') !== -1, 'each role says the XP it switches on at');
+    selects[0].value = 'explosives';
+    selects[0]._dispatch('input');
 
     findByText(h.getRoot(), 'Save Item')[0].click();
     await new Promise((r) => setTimeout(r, 30));
@@ -259,7 +256,7 @@ t.test('Add New Item: label/currency/required tier/required specialization are a
     t.equals(upsertBody.price, 250);
     t.equals(upsertBody.label, 'K9 Ballistic Vest');
     t.equals(upsertBody.currency, 'black_money');
-    t.equals(upsertBody.requiredTierKey, 'trainee');
+    t.isTrue(!('requiredTierKey' in upsertBody), 'a new item never gets a tier requirement');
     t.equals(upsertBody.requiredSpecialization, 'explosives');
 });
 
@@ -303,7 +300,7 @@ t.test('Edit an existing item: the key input is DISABLED, and every other field 
 // silently dropped by an untouched Save.
 // ======================================================================
 
-t.test('RETIRED REFERENCE: an item\'s requiredTierKey naming a tier absent from the loaded certTiers catalog renders as the raw key (table row) and as its own clearly-marked, PRE-SELECTED option in the edit draft (never blank, never silently cleared by Save)', async () => {
+t.test('OLD TIER REQUIREMENT: an item saved before tiers were merged keeps its tier -- shown as "old tier", PRE-SELECTED in its own picker with None beside it, never silently cleared by Save', async () => {
     let upsertBody = null;
     const h = createHarness({
         fetchImpl: routeFetch(baseHandlers({
@@ -322,13 +319,15 @@ t.test('RETIRED REFERENCE: an item\'s requiredTierKey naming a tier absent from 
     openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
-    t.isTrue(findByText(h.getRoot(), 'zzz_long_retired_tier').length >= 1, 'the table row shows the raw retired key rather than a blank cell');
+    t.isTrue(findByText(h.getRoot(), 'old tier: zzz_long_retired_tier').length >= 1, 'the table row names the leftover tier rather than hiding it');
 
     findByText(h.getRoot(), 'Edit')[0].click();
     await settle();
 
-    const tierSelect = findAll(h.getRoot(), (n) => n.tagName === 'select')[0];
+    const tierSelect = findAll(h.getRoot(), (n) => n.tagName === 'select' && n.classList.contains('k9tablet-shop-legacy-tier-select'))[0];
     t.isDefined(tierSelect);
+    t.isTrue(findByText(h.getRoot(), 'Old Tier Requirement').length >= 1);
+    t.equals(findAll(tierSelect, (n) => n.tagName === 'option').length, 2, 'only None and the old tier -- a new tier can never be picked');
     t.equals(tierSelect.value, 'zzz_long_retired_tier', 'the retired reference is PRE-SELECTED, not silently reset to "None"');
     const retiredOptionTexts = findAll(tierSelect, (n) => n.tagName === 'option').map((o) => o._textContent);
     t.isTrue(retiredOptionTexts.some((txt) => txt.indexOf('zzz_long_retired_tier') !== -1), 'the retired tier is offered as its own visible option, not hidden from the dropdown entirely');
@@ -359,7 +358,7 @@ t.test('RETIRED REFERENCE: choosing "None" on a retired required-specialization 
     findByText(h.getRoot(), 'Edit')[0].click();
     await settle();
 
-    const specSelect = findAll(h.getRoot(), (n) => n.tagName === 'select')[1];
+    const specSelect = findAll(h.getRoot(), (n) => n.tagName === 'select')[0];
     t.isDefined(specSelect);
     t.equals(specSelect.value, 'zzz_retired_spec', 'pre-selected, not reset to None');
     specSelect.value = '';
@@ -382,8 +381,8 @@ const UPSERT_REASON_TEXT = {
     invalid_price: 'That price is invalid -- enter a whole number from 0 up to 1,000,000,000. Zero is allowed for a free item.',
     invalid_label: 'That label is invalid or too long (max 60 characters, no special markup characters).',
     invalid_currency: 'That currency item key is invalid -- use 1-50 lowercase letters, numbers, or underscores, starting with a letter.',
-    invalid_required_tier: 'That required certification tier does not exist.',
-    invalid_required_specialization: 'That required specialization does not exist.',
+    invalid_required_tier: 'That old tier requirement no longer exists. Pick None to remove it.',
+    invalid_required_specialization: 'That role no longer exists. Pick another role, or None.',
     busy: 'This item is being edited elsewhere right now -- try again in a moment.',
     too_many_items: 'The maximum number of shop items has been reached.',
     db_error: 'A database error occurred. Try again.',

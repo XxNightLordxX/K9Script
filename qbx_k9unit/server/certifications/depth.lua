@@ -1089,11 +1089,13 @@ local function GrantSpecialization(granterSrc, targetServerId, specializationKey
     -- too", that is a deliberate new decision belonging next to
     -- RevokeAllSpecializationsForCitizenJob, not an accidental side effect
     -- of this check.
-    if type(TierCapabilityPermits) == 'function'
-        and not TierCapabilityPermits(targetCitizenid, jobName, 'specializations_eligible') then
-        NotifyPlayer(granterSrc, locale('certifications.specialization_requires_tier_capability_hint'), 'error')
-        return false, 'requires_tier_capability'
-    end
+    -- RETIRED: the certification-tier capability check
+    -- (specializations_eligible) that used to sit here. Tiers and
+    -- specializations are one thing now -- roles (server/roles.lua) --
+    -- and a role's own XP requirement decides when it switches on
+    -- (HasSpecialization). The tier editor is gone from the tablet, so a
+    -- tier box ticked in the past could never be unticked; gating grants
+    -- on it would strand high command with no way to give anyone a role.
 
     local lockKey = 'spec:' .. targetCitizenid .. ':' .. jobName .. ':' .. specializationKey
     if GrantInFlight[lockKey] then

@@ -365,6 +365,11 @@ lib.callback.register('qbx_k9unit:server:tabletRolesDelete', function(source, ke
         return { ok = false, error = 'not_authorized', message = locale('highcommand.not_authorized') }
     end
     if type(key) ~= 'string' or not ROLES[key] then return { ok = false, error = 'unknown_role' } end
+    -- A shop item that needs this role could never be bought again.
+    if type(CountEquipmentShopItemsRequiringRole) == 'function' then
+        local count, items = CountEquipmentShopItemsRequiringRole(key)
+        if count > 0 then return { ok = false, error = 'role_in_use_by_shop_items', count = count, items = items } end
+    end
     if not RoleEditCooldown.Consume(source) then return { ok = false, error = 'rate_limited' } end
 
     local who = CallerCitizenId(source) or 'unknown'

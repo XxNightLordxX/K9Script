@@ -1636,12 +1636,13 @@ local function ValidateCombatRequest(src, targetNetId, featureEnabled, rangeMete
         local k9Player = exports.qbx_core:GetPlayer(src)
         local k9Citizenid = k9Player and k9Player.PlayerData and k9Player.PlayerData.citizenid
         local k9JobName = k9Player and k9Player.PlayerData and k9Player.PlayerData.job and k9Player.PlayerData.job.name
-        if type(TierCapabilityPermits) == 'function' and k9Citizenid and k9JobName
-            and not TierCapabilityPermits(k9Citizenid, k9JobName, 'bite_hold_and_takedown') then
-            return false, nil, nil, nil, nil, 'tier_capability_denied'
-        end
         -- ROLES (server/roles.lua): once any role lists bite_takedown, only
         -- holders of an unlocked role with it may start a bite or takedown.
+        -- This replaced the old certification-tier capability check
+        -- (bite_hold_and_takedown), which is retired: the tier editor is
+        -- gone from the tablet, so a box ticked there could never be
+        -- unticked again. The reason code keeps its old name so client
+        -- message mapping is unchanged.
         if type(RoleUnlockPermits) == 'function' and k9Citizenid and k9JobName
             and not RoleUnlockPermits(k9Citizenid, k9JobName, 'bite_takedown') then
             return false, nil, nil, nil, nil, 'tier_capability_denied'

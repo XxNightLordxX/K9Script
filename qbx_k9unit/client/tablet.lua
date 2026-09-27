@@ -1179,6 +1179,7 @@ local TABLET_STRING_KEYS = {
     'roles_error_invalid_unlocks',
     'roles_error_too_many',
     'roles_error_unknown',
+    'roles_error_in_use_by_shop_template',
     'roles_saved',
     'roles_deleted',
     -- XP RANK EDITOR (owner-directed "...set experience level for each
@@ -1253,7 +1254,7 @@ local TABLET_STRING_KEYS = {
     'shop_item_key_label', 'shop_item_key_placeholder', 'shop_item_price_label',
     'shop_item_label_label', 'shop_item_label_placeholder', 'shop_item_currency_label',
     'shop_item_currency_placeholder', 'shop_item_required_tier_label',
-    'shop_item_required_specialization_label', 'shop_item_no_requirement',
+    'shop_item_required_specialization_label', 'shop_item_legacy_tier_template', 'shop_item_legacy_tier_hint', 'shop_item_no_requirement',
     'shop_item_retired_reference_badge',
     'shop_item_save_label', 'shop_item_cancel_label', 'shop_item_edit_label',
     'shop_item_delete_label', 'shop_item_move_up_label', 'shop_item_move_up_title',

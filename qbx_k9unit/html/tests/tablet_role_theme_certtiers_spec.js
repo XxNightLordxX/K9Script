@@ -647,6 +647,21 @@ t.test('Delete asks for a second press, then sends the role key and shows the ne
     t.isTrue(findByText(h.getRoot(), 'Role deleted.').length >= 1);
 });
 
+t.test('deleting a role shop items still need is refused, naming those items and what to do', async () => {
+    const h = createHarness({
+        fetchImpl: routeFetch(rolesHandlers({
+            'tablet:rolesDelete': () => ({ ok: false, error: 'role_in_use_by_shop_items', count: 2, items: ['k9_bomb_vest', 'k9_muzzle'] }),
+        })),
+    });
+    await openRoles(h);
+    findByText(h.getRoot(), 'Delete')[0].click();
+    await settle();
+    findByText(h.getRoot(), 'Confirm?')[0].click();
+    await new Promise((r) => setTimeout(r, 30));
+    t.isTrue(findByText(h.getRoot(), 'Shop items still need this role: k9_bomb_vest, k9_muzzle. Change their Required Role first, then delete it.').length >= 1);
+    t.isTrue(findByText(h.getRoot(), 'Zzyzx Novel Role').length >= 1, 'the role is still listed');
+});
+
 t.test('a failed roles load shows the error and a Retry that fetches again', async () => {
     let calls = 0;
     const h = createHarness({

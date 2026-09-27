@@ -6917,6 +6917,10 @@
             case 'invalid_unlocks': return S('roles_error_invalid_unlocks');
             case 'too_many_roles': return S('roles_error_too_many');
             case 'unknown_role': return S('roles_error_unknown');
+            case 'role_in_use_by_shop_items':
+                return formatTemplate(S('roles_error_in_use_by_shop_template'), {
+                    items: Array.isArray(result.items) ? result.items.join(', ') : '',
+                });
             default: return errorText(result);
         }
     }
@@ -7652,7 +7656,7 @@
         var thead = mk('thead');
         var headRow = mk('tr');
         [S('column_position'), S('column_key'), S('column_label'), S('column_price'), S('column_currency'),
-            S('column_required_tier'), S('column_required_specialization'), S('column_actions')].forEach(function (h) {
+            S('column_required_specialization'), S('column_actions')].forEach(function (h) {
             headRow.appendChild(mk('th', { text: h }));
         });
         thead.appendChild(headRow);
@@ -7670,6 +7674,25 @@
     function formatShopItemPrice(price) {
         if (typeof price !== 'number' || !isFinite(price)) return '';
         return String(price);
+    }
+
+    /**
+     * One line saying who may buy an item: its required role (with the XP
+     * that role switches on at), plus any old tier requirement left over
+     * from before tiers were merged into roles.
+     * @param {object} item @returns {string}
+     */
+    function shopItemRequirementText(item) {
+        var parts = [];
+        if (typeof item.requiredSpecialization === 'string' && item.requiredSpecialization.length > 0) {
+            var needXp = roleXpRequired(item.requiredSpecialization);
+            parts.push(specializationDisplayLabel(item.requiredSpecialization)
+                + (needXp > 0 ? ' (' + formatTemplate(S('role_option_xp_template'), { xp: needXp }) + ')' : ''));
+        }
+        if (typeof item.requiredTierKey === 'string' && item.requiredTierKey.length > 0) {
+            parts.push(formatTemplate(S('shop_item_legacy_tier_template'), { tier: tierDisplayLabel(item.requiredTierKey) }));
+        }
+        return parts.length > 0 ? parts.join(' · ') : S('shop_item_no_requirement');
     }
 
     /** @param {object} item @param {number} index */
@@ -7691,8 +7714,7 @@
         tr.appendChild(priceTd);
 
         tr.appendChild(mk('td', { class: 'k9tablet-muted', text: (typeof item.currency === 'string' && item.currency.length > 0) ? item.currency : S('shop_item_currency_default_note') }));
-        tr.appendChild(mk('td', { class: 'k9tablet-muted', text: (typeof item.requiredTierKey === 'string' && item.requiredTierKey.length > 0) ? tierDisplayLabel(item.requiredTierKey) : S('shop_item_no_requirement') }));
-        tr.appendChild(mk('td', { class: 'k9tablet-muted', text: (typeof item.requiredSpecialization === 'string' && item.requiredSpecialization.length > 0) ? specializationDisplayLabel(item.requiredSpecialization) : S('shop_item_no_requirement') }));
+        tr.appendChild(mk('td', { class: 'k9tablet-muted', text: shopItemRequirementText(item) }));
 
         var actionsTd = mk('td', { class: 'k9tablet-cert-tier-actions' });
         actionsTd.appendChild(mkButton(S('shop_item_move_up_label'), 'k9tablet-btn', function () {
@@ -7846,56 +7868,34 @@
         currencyRow.appendChild(currencyInput);
         wrap.appendChild(currencyRow);
 
-        // Required Tier -- populated from state.certTiers (opportunistic,
-        // see the tab's own click handler comment) -- a "None" option is
-        // ALWAYS first, never omitted, since a purchase requirement is
-        // optional. ALWAYS a real, editable <select>, never a read-only
-        // text fallback -- see the RETIRED REFERENCE note just below for
-        // why a read-only fallback would itself be a hazard here.
-        //
-        // RETIRED REFERENCE: `draft.requiredTierKey` may name a tier this
-        // screen's own (possibly stale, possibly never-loaded)
-        // state.certTiers does not currently contain -- e.g. a tier
-        // retired by a different high-command session since this item was
-        // last saved, or a session where the certTiersList fetch was
-        // denied/still in flight. Per this function's own header ("an
-        // edit draft always starts pre-filled... equipmentShopItemsUpsert
-        // REPLACES ... wholesale from whatever this ONE payload sends"),
-        // silently DROPPING it from the <select> would make a plain Save
-        // (touching nothing else) silently CLEAR a real, currently-
-        // configured purchase requirement the operator never asked to
-        // remove -- so it is always added as its own, clearly-labelled
-        // option and pre-selected instead: visible, and only ever cleared
-        // by a deliberate choice of "None", never a hidden side effect.
-        var tierRow = mk('div', { class: 'k9tablet-theme-field' + (state.shopItemFieldError === 'requiredTierKey' ? ' k9tablet-theme-field--invalid' : '') });
-        tierRow.appendChild(mk('label', { class: 'k9tablet-theme-field-label', text: S('shop_item_required_tier_label') }));
-        var tierSelect = mk('select', { class: 'k9tablet-role-select' });
-        var noneTierOption = mk('option', { text: S('shop_item_no_requirement') });
-        noneTierOption.setAttribute('value', '');
-        tierSelect.appendChild(noneTierOption);
-        var knownTierKeys = {};
-        if (Array.isArray(state.certTiers)) {
-            for (var ti = 0; ti < state.certTiers.length; ti++) {
-                var tierEntry = state.certTiers[ti];
-                if (!tierEntry || typeof tierEntry.key !== 'string' || tierEntry.key.length === 0) continue;
-                knownTierKeys[tierEntry.key] = true;
-                var tierOption = mk('option', { text: (typeof tierEntry.label === 'string' && tierEntry.label.length > 0) ? tierEntry.label : tierEntry.key });
-                tierOption.setAttribute('value', tierEntry.key);
-                tierSelect.appendChild(tierOption);
-            }
+        // Old tier requirement -- tiers were merged into roles, so a NEW
+        // tier requirement can no longer be picked. An item saved before
+        // that may still carry one (it is still enforced at purchase), so
+        // it is shown here, pre-selected, with None beside it: saving
+        // untouched keeps it, choosing None removes it. Never silently
+        // dropped by an unrelated edit.
+        if (draft.requiredTierKey.length > 0) {
+            var tierRow = mk('div', { class: 'k9tablet-theme-field' + (state.shopItemFieldError === 'requiredTierKey' ? ' k9tablet-theme-field--invalid' : '') });
+            tierRow.appendChild(mk('label', { class: 'k9tablet-theme-field-label', text: S('shop_item_required_tier_label') }));
+            var tierSelect = mk('select', { class: 'k9tablet-role-select k9tablet-shop-legacy-tier-select' });
+            var noneTierOption = mk('option', { text: S('shop_item_no_requirement') });
+            noneTierOption.setAttribute('value', '');
+            tierSelect.appendChild(noneTierOption);
+            var legacyTierOption = mk('option', { text: tierDisplayLabel(draft.requiredTierKey) });
+            legacyTierOption.setAttribute('value', draft.requiredTierKey);
+            tierSelect.appendChild(legacyTierOption);
+            tierSelect.value = draft.requiredTierKey;
+            tierSelect.addEventListener('input', function (e) { draft.requiredTierKey = e.target.value; });
+            tierRow.appendChild(tierSelect);
+            tierRow.appendChild(mk('p', { class: 'k9tablet-muted k9tablet-hint', text: S('shop_item_legacy_tier_hint') }));
+            wrap.appendChild(tierRow);
         }
-        if (draft.requiredTierKey.length > 0 && !knownTierKeys[draft.requiredTierKey]) {
-            var retiredTierOption = mk('option', { text: tierDisplayLabel(draft.requiredTierKey) + ' ' + S('shop_item_retired_reference_badge') });
-            retiredTierOption.setAttribute('value', draft.requiredTierKey);
-            tierSelect.appendChild(retiredTierOption);
-        }
-        tierSelect.value = draft.requiredTierKey;
-        tierSelect.addEventListener('input', function (e) { draft.requiredTierKey = e.target.value; });
-        tierRow.appendChild(tierSelect);
-        wrap.appendChild(tierRow);
 
-        // Required Specialization -- SAME shape, SAME RETIRED REFERENCE
-        // safeguard, as Required Tier immediately above. Populated from
+        // Required Role -- the item sells only to someone holding this role
+        // whose XP has reached it (server/equipmentshop.lua's buyItem hook).
+        // RETIRED REFERENCE safeguard: a role deleted since this item was
+        // saved stays listed and pre-selected, marked "(retired)", so a
+        // plain Save never silently clears it. Populated from
         // state.specializations (Config.K9Specializations, sent verbatim
         // at tablet:open -- always available with no separate fetch,
         // unlike the tier catalog, but an operator can still rename/remove
@@ -7912,7 +7912,8 @@
         for (var specKey in specCatalog) {
             if (!Object.prototype.hasOwnProperty.call(specCatalog, specKey)) continue;
             knownSpecKeys[specKey] = true;
-            var specOption = mk('option', { text: specializationDisplayLabel(specKey) });
+            var specNeedXp = roleXpRequired(specKey);
+            var specOption = mk('option', { text: specializationDisplayLabel(specKey) + (specNeedXp > 0 ? ' (' + formatTemplate(S('role_option_xp_template'), { xp: specNeedXp }) + ')' : '') });
             specOption.setAttribute('value', specKey);
             specSelect.appendChild(specOption);
         }
