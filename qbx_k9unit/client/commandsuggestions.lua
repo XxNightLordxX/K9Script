@@ -297,8 +297,6 @@ local COMMAND_SUGGESTIONS = {
     -- Partnership previously had an ox_target option and two
     -- client/radial.lua items, but no chat command.
     { command = 'k9partner', keySuffix = 'k9partner' , featureFlag = 'HandlerPartnership' },
-    -- server/suspects.lua -- an officer marks a player the K9 may act on.
-    { command = 'k9suspect', keySuffix = 'k9suspect' },
     -- client/inventory.lua -- menu-parity pass: Open My Gear (own K9
     -- inventory) previously had an ox_target option and a
     -- client/radial.lua Utility item, but no chat command.

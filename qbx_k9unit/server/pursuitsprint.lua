@@ -454,9 +454,8 @@ end
 
 -- ======================================================================
 -- WANTED/SUSPECT ELIGIBILITY -- the same flag combat uses for Bite & Hold
--- and Takedown, read through server/suspects.lua's IsPlayerK9Wanted (the
--- one implementation: officer marks, the setK9Suspect server event,
--- Config.Combat.WantedStatusCheckOverride, then the metadata default).
+-- and Takedown, read through server/warrants.lua's IsPlayerK9Wanted (the
+-- one implementation; off unless Config.Combat.RequireWantedStatus is on).
 -- ======================================================================
 --- @param targetSrc number
 --- @return boolean eligible
@@ -606,7 +605,6 @@ RegisterNetEvent('qbx_k9unit:server:requestPursuitSprint', function(targetNetId)
 
     if not IsPursuitTargetWantedEligible(targetSrc) then
         NotifyPlayer(src, PursuitSprintRejectMessage('not_wanted'), 'error')
-        if type(AskHandlerToMarkSuspect) == 'function' then pcall(AskHandlerToMarkSuspect, src, targetSrc) end
         return
     end
 

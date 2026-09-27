@@ -1010,9 +1010,9 @@ local TAKEDOWN_XP_MINT_COOLDOWN_MS = 60000
 --- @param targetSrc number
 --- @return boolean eligible
 local function IsPlayerWantedEligible(targetSrc)
-    -- One implementation for every combat path: server/suspects.lua
-    -- (officer marks, the setK9Suspect server event, the override, and the
-    -- metadata default). Fails closed if that file somehow did not load.
+    -- One implementation for every combat path: server/warrants.lua
+    -- (off unless Config.Combat.RequireWantedStatus is turned on). Fails
+    -- closed if that file somehow did not load.
     if type(IsPlayerK9Wanted) ~= 'function' then return not Config.Combat.RequireWantedStatus end
     return IsPlayerK9Wanted(targetSrc)
 end
@@ -1866,9 +1866,6 @@ local function ValidateCombatRequest(src, targetNetId, featureEnabled, rangeMete
     local isPlayerTarget = targetSrc ~= nil
 
     if isPlayerTarget and not IsPlayerWantedEligible(targetSrc) then
-        -- Not a suspect yet: offer the K9's handler a one-tap "Mark them?"
-        -- (server/suspects.lua). The refusal stands either way.
-        if type(AskHandlerToMarkSuspect) == 'function' then pcall(AskHandlerToMarkSuspect, src, targetSrc) end
         return false, nil, nil, nil, nil, 'not_eligible_target'
     end
 

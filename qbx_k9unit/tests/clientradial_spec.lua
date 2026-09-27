@@ -435,8 +435,6 @@ local function newRadialFixture(opts)
         IsOwnModelK9 = function() return opts.playingDog ~= false end,
         -- Which OTHER players' peds are dogs (FindNearestPairCandidate).
         IsEntityModelK9 = function(ped) return (opts.dogPeds or {})[ped] == true end,
-        MarkNearestSuspect = record('MarkNearestSuspect'),
-        CanMarkSuspectsHere = function() return opts.canMarkSuspects ~= false end,
     }
 
     local overrides = {
@@ -765,7 +763,7 @@ t.test('ONE MENU PER PLAYER: a human handler gets the handler\'s buttons -- no S
     })
     local topIds = {}
     for i, item in ipairs(f.findMenu('k9unit')) do topIds[i] = item.id end
-    t.equals(table.concat(topIds, ','), 'k9_open_tablet,k9_group_handler,k9_mark_suspect,k9_camera_feed,k9_utility')
+    t.equals(table.concat(topIds, ','), 'k9_open_tablet,k9_group_handler,k9_camera_feed,k9_utility')
 
     for _, dogOnly in ipairs({ 'k9_sit', 'k9_bark', 'k9_bite_hold', 'k9_takedown', 'k9_drag', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle', 'k9_track_certified' }) do
         t.isNil(f.findK9Item(dogOnly), dogOnly .. ' is not in a human\'s menu')
@@ -776,17 +774,12 @@ t.test('ONE MENU PER PLAYER: a human handler gets the handler\'s buttons -- no S
     t.isNotNil(f.findInMenu('k9unit_utility', 'k9_treat_nearest'))
     t.isNotNil(f.findInMenu('k9unit_utility', 'k9_fetch'))
 
-    f.findK9Item('k9_mark_suspect').onSelect()
-    t.equals(#f.calls.MarkNearestSuspect, 1, 'Mark / Clear Suspect marks whoever is nearest -- no ID to type')
+    t.isNil(f.findK9Item('k9_mark_suspect'), 'suspect marking was removed -- a K9 can act on anyone')
 end)
 
-t.test('ONE MENU PER PLAYER: the dog never gets Mark Suspect or Treat K9, and a human who cannot mark suspects (off duty, other job) does not see the button', function()
+t.test('ONE MENU PER PLAYER: the dog never gets Treat K9 (a person\'s action)', function()
     local dog = newRadialFixture({ features = { K9Medkit = true, BiteAndHold = true } })
-    t.isNil(dog.findK9Item('k9_mark_suspect'))
     t.isNil(dog.findK9Item('k9_treat_nearest'))
-
-    local civilian = newRadialFixture({ playingDog = false, canMarkSuspects = false, features = { BiteAndHold = true } })
-    t.isNil(civilian.findK9Item('k9_mark_suspect'))
 end)
 
 t.test('ONE MENU PER PLAYER: a bite still being held keeps its button even after the character changes -- it can always be let go', function()

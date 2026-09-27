@@ -682,14 +682,14 @@ t.test('ONBOARDING HINT: appears for a newly-granted player (real citizenid, Can
         'the tip still points at the tablet, where every key is listed')
 end)
 
-t.test('ONBOARDING HINT: a handler who has just partnered up gets the handler\'s version -- Leash, Partner, Mark Suspect -- not the dog\'s', function()
+t.test('ONBOARDING HINT: a handler who has just partnered up gets the handler\'s version -- Leash, Partner Up, camera -- not the dog\'s', function()
     local f = newHudFixture({ citizenid = 'CIT_HANDLER', canShowK9UI = false, playingDog = false, isPartnered = true })
     f.step()
     local msg = f.lastMessageWithAction('hud:onboardingHint')
     t.isNotNil(msg)
     t.isTrue(msg.data.visible)
     t.equals(msg.data.strings.body, Sandbox.locale('hud.onboarding_body_handler'))
-    t.isTrue(msg.data.strings.body:find('Mark Suspect', 1, true) ~= nil)
+    t.isTrue(msg.data.strings.body:find('Leash', 1, true) ~= nil)
 end)
 
 t.test('ONBOARDING HINT: does NOT appear for someone who has already opened the tablet (pre-seeded KVP)', function()

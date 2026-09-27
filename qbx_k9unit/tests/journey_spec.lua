@@ -217,7 +217,7 @@ t.test('4c. Rex searches the suspect', function()
     check(r and r.reason ~= 'not_authorized' and r.reason ~= 'invalid_target', 'search allowed: ' .. tostring(r and (r.reason or r.ok)))
 end)
 
-t.test('4c2. Rex sniffs Vic, who has an approved arrest warrant in sc-dispatch -- the sniff marks him and Rex and Sam are told', function()
+t.test('4c2. Rex sniffs Vic, who has an approved arrest warrant in sc-dispatch -- Rex and Sam are told', function()
     tick(20000)
     local realMySQL = env.MySQL
     env.MySQL = setmetatable({ query = { await = function(sql, params)
@@ -229,28 +229,17 @@ t.test('4c2. Rex sniffs Vic, who has an approved arrest warrant in sc-dispatch -
     local r = cb('qbx_k9unit:server:searchTarget', 2, 'person', players[5].ped)
     env.MySQL = realMySQL
     check(r and r.ok, 'the sniff finished: ' .. tostring(r and (r.reason or r.ok)))
-    check(lastNotify(2) == env.locale('suspects.warrant_found', 5, 'Arrest Warrant'), 'Rex hears about the warrant, got ' .. tostring(lastNotify(2)))
-    check(lastNotify(3) == env.locale('suspects.warrant_found_partner', 5, 'Arrest Warrant'), 'Sam hears too, got ' .. tostring(lastNotify(3)))
-    check(env.IsPlayerK9Wanted(5), 'Vic is now a suspect')
-    check(not env.IsPlayerK9Wanted(4), 'Joe, with no warrant, is not')
+    check(lastNotify(2) == env.locale('warrants.found', 5, 'Arrest Warrant'), 'Rex hears about the warrant, got ' .. tostring(lastNotify(2)))
+    check(lastNotify(3) == env.locale('warrants.found_partner', 5, 'Arrest Warrant'), 'Sam hears too, got ' .. tostring(lastNotify(3)))
 end)
 
-t.test('4d. Rex tries to bite a player who is NOT wanted -- refused, and told exactly why', function()
+t.test('4d. Rex bites and holds Joe -- no warrant, no mark, nothing to ask anyone: a K9 can go after anyone', function()
     tick()
-    net('qbx_k9unit:server:requestBiteHold', 2, players[4].ped)
-    check(lastNotify(2) == env.locale('combat.not_eligible_target'), 'refused with the wanted-status reason, got ' .. tostring(lastNotify(2)))
-    check(eventsTo('qbx_k9unit:client:suspectMarkAsked', 3) == 1, 'Sam, his handler, gets a one-tap "Mark them?" prompt')
-end)
-
-t.test('4e. Rex cannot mark his own target; Sam taps "Mark them", Rex is told, and then bites and holds', function()
-    tick()
-    commands['k9suspect'](2, { '4' })
-    check(lastNotify(2) == env.locale('suspects.not_allowed'), 'the dog is refused, got ' .. tostring(lastNotify(2)))
-    net('qbx_k9unit:server:answerSuspectAsk', 3, 4, true)
-    check(lastNotify(2) == env.locale('suspects.partner_marked', 4), 'Sam tapped "Mark them"; Rex hears Joe was marked, got ' .. tostring(lastNotify(2)))
     local before = #clientEvents
     net('qbx_k9unit:server:requestBiteHold', 2, players[4].ped)
     check(#clientEvents > before, 'the bite reached a client: ' .. tostring(lastNotify(2)))
+    check(lastNotify(2) ~= env.locale('combat.not_eligible_target'), 'never refused for not being wanted')
+    check(eventsTo('qbx_k9unit:client:suspectMarkAsked') == 0, 'nobody is asked to mark anyone')
     net('qbx_k9unit:server:releaseBiteHold', 2)
 end)
 

@@ -218,29 +218,19 @@ end
 --- the next Wait(...). Callers that want "one pass" should call step()
 --- twice: once to prime, once to execute.
 --- @return table runner -- { CreateThread = fun, Wait = fun, step = fun }
---- Gives `env` server/suspects.lua's IsPlayerK9Wanted (the one wanted-
---- status check combat and pursuit sprint call) WITHOUT loading that file's
---- command, net event and playerDropped handler into `env` itself -- a spec
---- that counts its own file's registrations keeps counting only those.
---- Reads env.Config, env.exports and env.print live, so a test that swaps
---- Config.Combat or a player's metadata after setup is still seen.
+--- Gives `env` server/warrants.lua's IsPlayerK9Wanted (the one optional
+--- wanted gate combat and pursuit sprint call) without adding anything else
+--- to `env`. Reads env.Config, env.exports and env.print live, so a test
+--- that swaps Config.Combat or a player's metadata after setup is still seen.
 --- @param env table
---- @return table suspectsEnv -- the side env, for a spec that wants its internals
-function Sandbox.loadSuspectsInto(env)
-    local noop = function() end
-    local side = Sandbox.newEnv({
-        RegisterCommand = noop, RegisterNetEvent = noop, AddEventHandler = noop,
-        SetTimeout = noop, NotifyPlayer = noop,
-        NewCooldown = function()
-            return { RegisterPlayerDropped = noop, Consume = function() return true end }
-        end,
-        GetGameTimer = function() return env.GetGameTimer and env.GetGameTimer() or 0 end,
-    })
+--- @return table sideEnv
+function Sandbox.loadWantedCheckInto(env)
+    local side = Sandbox.newEnv({})
     setmetatable(side, { __index = function(_, k)
         if k == 'Config' or k == 'exports' or k == 'print' then return env[k] end
     end })
     side.Config, side.exports, side.print = nil, nil, nil
-    Sandbox.loadInto('../server/suspects.lua', side)
+    Sandbox.loadInto('../server/warrants.lua', side)
     env.IsPlayerK9Wanted = side.IsPlayerK9Wanted
     return side
 end

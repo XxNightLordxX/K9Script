@@ -1065,9 +1065,8 @@ globals = {
     "IsKnownPermissionCatalogKey", "GetPermissionCatalogLabel",
     "ListPermissionCatalogKeys", "PermissionKeyEditMutex",
     "IsFetchCarryEngaged", "IsMyFetchBallOut", "FetchContextual", "ReleaseFetchBall", "RequestRecallFetchBall", "RequestThrowFetchBall",
-    -- server/suspects.lua -- officer suspect marks and the one wanted-status check
-    "IsPlayerK9Wanted", "IsK9SuspectMarked", "ToggleK9SuspectMark", "AskHandlerToMarkSuspect",
-    "MarkNearestSuspect", "CanMarkSuspectsHere", "CheckWarrantOnSniff",
+    -- server/warrants.lua -- the sniff's warrant check and the optional wanted gate
+    "IsPlayerK9Wanted", "CheckWarrantOnSniff",
     -- server/cooldowns.lua constructors
     "NewCooldown", "NewNestedCooldown", "NewMutex",
     -- server/notify.lua -- shared ox_lib notify wrapper, replacing 12

@@ -1844,18 +1844,6 @@ local function RegisterK9RadialMenu()
 
 
 
-    -- Mark / Clear Suspect -- the handler's side of combat: marks the person
-    -- standing nearest (never a dog) so the K9 can act on them. Only added
-    -- when players need a mark at all; client/suspects.lua owns the logic.
-    if type(MarkNearestSuspect) == 'function' then
-        k9SubmenuItems[#k9SubmenuItems + 1] = {
-            id = 'k9_mark_suspect',
-            label = locale('suspects.radial_label'),
-            icon = 'user-tag',
-            onSelect = function() MarkNearestSuspect() end,
-        }
-    end
-
     -- ======================================================================
     -- DISPLAY ORDER PASS (whole-menu ease-of-use audit, this pass). Every
     -- item above is appended to k9SubmenuItems in ACCRETION order -- wherever
@@ -1929,7 +1917,7 @@ local function RegisterK9RadialMenu()
     local K9_SUBMENU_DISPLAY_ORDER = {
         'k9_open_tablet',
         'k9_bark', 'k9_leash', 'k9_vehicle', 'k9_partner',
-        'k9_bite_hold', 'k9_takedown', 'k9_drag', 'k9_mark_suspect',
+        'k9_bite_hold', 'k9_takedown', 'k9_drag',
         'k9_track_certified', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle', 'k9_camera_feed',
         'k9_utility',
         'k9_fetch', 'k9_kennel',
@@ -1992,7 +1980,7 @@ local function RegisterK9RadialMenu()
             k9_bite_hold = true, k9_takedown = true, k9_drag = true,
             k9_prop_attachment = true, k9_open_inventory = true,
         }
-        local HUMAN_ONLY = { k9_treat_nearest = true, k9_mark_suspect = true }
+        local HUMAN_ONLY = { k9_treat_nearest = true }
         local STILL_RUNNING = {
             k9_bite_hold = function() return type(IsBiteHoldEngaged) == 'function' and IsBiteHoldEngaged() end,
             k9_vehicle = function() return type(IsInK9Vehicle) == 'function' and IsInK9Vehicle() end,
@@ -2002,9 +1990,6 @@ local function RegisterK9RadialMenu()
         }
         local amDog = type(IsOwnModelK9) == 'function' and IsOwnModelK9()
         local hide = amDog and HUMAN_ONLY or DOG_ONLY
-        if not amDog and type(CanMarkSuspectsHere) == 'function' and not CanMarkSuspectsHere() then
-            hide = setmetatable({ k9_mark_suspect = true }, { __index = DOG_ONLY })
-        end
         local function keep(list)
             local out = {}
             for _, item in ipairs(list) do

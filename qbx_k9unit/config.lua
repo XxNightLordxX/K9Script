@@ -2924,32 +2924,24 @@ Config.Combat = {
     -- Applies to BiteAndHold and NonLethalTakedown's player-target paths
     -- below (and would apply to PropDragging's, if/when that's built).
     -- DEVELOPER_REFERENCE.md §12.0 item 5 — RESOLVED, secure-by-default.
-    RequireWantedStatus = true, -- a K9 may only target a PLAYER who is flagged wanted/suspect. Does NOT affect NPC targets (a "wanted" concept doesn't apply to an NPC this resource has no reason to protect from griefing).
-
-    -- HOW A PLAYER BECOMES A SUSPECT the K9 may act on (any one is enough):
-    --   * An on-duty officer from a department above (not the dog itself)
-    --     types /k9suspect <player id>, or looks at the player with the
-    --     third eye (Left Alt) and picks "Mark as K9 Suspect". Doing it
-    --     again clears the mark. The officer's K9 partner is told.
-    --   * Your dispatch or MDT script runs, on the server:
-    --       TriggerEvent('qbx_k9unit:setK9Suspect', playerId, true, minutes)
-    --     (false instead of true clears it). Only server scripts can do this.
-    --   * The K9 sniffs them and they have an approved arrest or bench
-    --     warrant in sc-dispatch's MDT (WantedFromDispatch below).
-    --   * The override function below says yes.
-    -- A mark lasts this many minutes, and ends early if either player leaves.
-    SuspectMarkMinutes = 10,
+    -- OFF: a K9 can bite, take down, drag and pursuit-sprint ANY player
+    -- (owner: "the dog should be able to do that whether someone is marked
+    -- or not"). Turn it on only if you want those moves limited to players
+    -- your own setup flags as wanted -- WantedStatusCheckOverride below, or
+    -- metadata.wanted / metadata.iswanted. NPC targets are never affected.
+    RequireWantedStatus = false,
 
     -- THE SNIFF CHECKS FOR WARRANTS. When a K9 sniffs a person (third eye >
-    -- Search Person) and the resource named here is running, the sniff also
-    -- looks them up in its MDT. An ACTIVE, APPROVED warrant marks them as a
-    -- suspect on the spot, and the K9 and its partner are told. Built for
-    -- sc-dispatch (it reads sc-dispatch's own mdt_warrants table, and like
-    -- sc-dispatch only approved warrants count -- pending and denied never).
-    --   warrantTypes: a warrant counts when its type contains one of these
-    --     words (not case-sensitive). "Arrest Warrant" and "Bench Warrant"
-    --     count; a "Search Warrant" is for a place, not a person, so it
-    --     does not.
+    -- Sniff Person) and the resource named here is running, the sniff also
+    -- looks them up in its MDT and tells the K9 and its partner about an
+    -- ACTIVE, APPROVED warrant -- information for the roleplay; it does not
+    -- change what the K9 may do. Built for sc-dispatch (it reads
+    -- sc-dispatch's own mdt_warrants table, and like sc-dispatch only
+    -- approved warrants count -- pending and denied never).
+    --   warrantTypes: a warrant is reported when its type contains one of
+    --     these words (not case-sensitive). "Arrest Warrant" and "Bench
+    --     Warrant" are; a "Search Warrant" is for a place, not a person, so
+    --     it is not.
     -- Set resource = nil to turn this off.
     WantedFromDispatch = {
         resource = 'sc-dispatch',

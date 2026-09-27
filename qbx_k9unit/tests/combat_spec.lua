@@ -421,7 +421,7 @@ local function newCombatFixture(opts)
 
     Sandbox.loadInto('../server/cooldowns.lua', env)
     Sandbox.loadInto('../server/entities.lua', env)
-    Sandbox.loadSuspectsInto(env)
+    Sandbox.loadWantedCheckInto(env)
     -- EXCLUSIVE BODY-CLAIM REGISTRY (kennel-vs-vehicle-seat race fix pass)
     -- -- ValidateCombatRequest and the three grant handlers
     -- (requestBiteHold/HandleTakedownRequest/requestDrag) now call

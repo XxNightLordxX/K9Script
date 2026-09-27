@@ -880,9 +880,6 @@
         cmdref_k9takedown_usage: '/k9takedown',
         cmdref_k9takedown_does: 'Attempts a non-lethal takedown on the nearest fleeing eligible target.',
         cmdref_k9takedown_needs: 'K9 access, and Non-Lethal Takedown enabled on this server.',
-        cmdref_k9suspect_usage: '/k9suspect [player id]',
-        cmdref_k9suspect_does: 'Marks the person standing nearest you as a K9 suspect, so K9s can bite, take down or drag them. Add an ID to mark someone further away. Run it again to clear the mark. Also in the K9 menu (Mark / Clear Suspect) and on the third eye.',
-        cmdref_k9suspect_needs: 'On duty in a K9 department, and not playing a K9. Only needed while this server requires a player to be wanted before a K9 can act on them. A mark lasts a few minutes (SuspectMarkMinutes in config).',
         cmdref_k9dragtoggle_usage: '/k9dragtoggle',
         cmdref_k9dragtoggle_does: 'Toggles dragging the nearest downed target, or releases it if your K9 is already dragging one.',
         cmdref_k9dragtoggle_needs: 'K9 access, and Prop Dragging enabled on this server.',
@@ -1157,7 +1154,7 @@
         help_task_vehicle_3: "3. To let your K9 back out, open the interact menu on the vehicle again and choose \"Get Out of the Vehicle\".",
         help_task_search_heading: "Search a Suspect or Vehicle",
         help_task_search_1: "1. As the K9, walk up to a person or a vehicle.",
-        help_task_search_2: "2. Open your interact menu and choose \"Sniff Person (Contraband & Warrants)\" or \"Search Vehicle for Contraband\". Your K9 plays a sniffing animation while the server checks the result. Sniffing a person also checks the MDT: anyone with an active arrest or bench warrant is marked as a suspect on the spot, so you can go after them.",
+        help_task_search_2: "2. Open your interact menu and choose \"Sniff Person (Contraband & Warrants)\" or \"Search Vehicle for Contraband\". Your K9 plays a sniffing animation while the server checks the result. Sniffing a person also checks the MDT and tells you and your partner if they have an active arrest or bench warrant.",
         help_task_search_3: "3. This only works while you are playing as the K9 -- a handler cannot search on the K9's behalf.",
         help_task_treat_heading: "Treat an Injured K9",
         help_task_treat_1: "1. This is not limited to handlers -- anyone whose job is set up for it (usually EMS) can do this, as long as they are carrying a K9 medkit item.",
@@ -1485,7 +1482,6 @@
         { command: 'k9bitehold', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9bitehold_usage', doesKey: 'cmdref_k9bitehold_does', needsKey: 'cmdref_k9bitehold_needs', gate: { kind: 'access', featureKey: 'BiteAndHold' }, defaultKeybind: 'B', keyLabelKey: 'keys_action_bite_hold' },
         { command: 'k9takedown', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9takedown_usage', doesKey: 'cmdref_k9takedown_does', needsKey: 'cmdref_k9takedown_needs', gate: { kind: 'access', featureKey: 'NonLethalTakedown' }, defaultKeybind: '[', keyLabelKey: 'keys_action_takedown' },
         { command: 'k9dragtoggle', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9dragtoggle_usage', doesKey: 'cmdref_k9dragtoggle_does', needsKey: 'cmdref_k9dragtoggle_needs', gate: { kind: 'access', featureKey: 'PropDragging' }, defaultKeybind: 'Y', keyLabelKey: 'keys_action_drag' },
-        { command: 'k9suspect', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9suspect_usage', doesKey: 'cmdref_k9suspect_does', needsKey: 'cmdref_k9suspect_needs', gate: { kind: 'open', featureKey: 'BiteAndHold' } },
         // qbx_k9unit:vault/qbx_k9unit:pursuitsprint (integration-sweep
         // fix): two REAL, working keybind commands that had ZERO
         // COMMAND_REFERENCE entry before that pass -- see
