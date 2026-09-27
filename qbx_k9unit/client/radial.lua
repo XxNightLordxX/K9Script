@@ -1912,10 +1912,10 @@ local function RegisterK9RadialMenu()
     -- ======================================================================
     local K9_SUBMENU_DISPLAY_ORDER = {
         'k9_open_tablet',
-        'k9_bark', 'k9_leash', 'k9_vehicle', 'k9_utility',
-        'k9_partner',
-        'k9_track_certified', 'k9_thermal_vision', 'k9_night_vision', 'k9_scent_vision', 'k9_camera_feed', 'k9_vision_cycle',
+        'k9_bark', 'k9_leash', 'k9_vehicle', 'k9_partner',
         'k9_bite_hold', 'k9_takedown', 'k9_drag',
+        'k9_track_certified', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle', 'k9_camera_feed',
+        'k9_utility',
         'k9_fetch', 'k9_kennel',
     }
     do
@@ -1935,6 +1935,72 @@ local function RegisterK9RadialMenu()
             ordered[#ordered + 1] = item
         end
         k9SubmenuItems = ordered
+    end
+
+    -- ======================================================================
+    -- GROUPS -- NO "MORE..." PAGES (the owner's rework pass: "super easy to
+    -- use"). ox_lib's radial shows 6 slots a page and turns the 6th into
+    -- "More..." whenever there are more items (web/src/features/menu/radial,
+    -- PAGE_ITEMS = 6). This menu had about 17, so bite, takedown and drag sat
+    -- on the THIRD page -- three presses deep in the middle of a pursuit.
+    --
+    -- Now the K9 menu holds at most six entries: Tablet, Bark, and four
+    -- groups -- With Handler (leash, vehicle, partner), Combat, Senses, and
+    -- Utility (which also takes Fetch and Kennel). Every action is at most
+    -- two presses away, and no page ever needs "More...".
+    --
+    -- Nothing is removed and no gate moves: each group is a plain sub-menu
+    -- holding the SAME item tables built above, onSelect closures untouched.
+    -- A group with only one available item on this server is not wrapped at
+    -- all -- that item stays in the top menu, so nobody opens a sub-menu to
+    -- find a single button.
+    -- ======================================================================
+    local K9_SUBMENU_GROUPS = {
+        { menuId = 'k9unit_handler', openerId = 'k9_group_handler', label = locale('radial.group_handler_label'), icon = 'people-arrows', members = { 'k9_leash', 'k9_vehicle', 'k9_partner' } },
+        { menuId = 'k9unit_combat', openerId = 'k9_group_combat', label = locale('radial.group_combat_label'), icon = 'hand-fist', members = { 'k9_bite_hold', 'k9_takedown', 'k9_drag' } },
+        { menuId = 'k9unit_senses', openerId = 'k9_group_senses', label = locale('radial.group_senses_label'), icon = 'eye', members = { 'k9_track_certified', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle', 'k9_camera_feed' } },
+    }
+    -- Moved into the existing Utility sub-menu rather than a group of their own.
+    local MOVE_TO_UTILITY = { k9_fetch = true, k9_kennel = true }
+    do
+        local byId = {}
+        for _, item in ipairs(k9SubmenuItems) do byId[item.id] = item end
+
+        local grouped = {}
+        for _, group in ipairs(K9_SUBMENU_GROUPS) do
+            local members = {}
+            for _, id in ipairs(group.members) do
+                if byId[id] then members[#members + 1] = byId[id] end
+            end
+            group.present = members
+            if #members >= 2 then
+                for _, item in ipairs(members) do grouped[item.id] = group end
+            end
+        end
+
+        local movedToUtility = false
+        local top, openerPlaced = {}, {}
+        for _, item in ipairs(k9SubmenuItems) do
+            local group = grouped[item.id]
+            if group then
+                if not openerPlaced[group.menuId] then
+                    openerPlaced[group.menuId] = true
+                    lib.registerRadial({ id = group.menuId, items = group.present })
+                    top[#top + 1] = { id = group.openerId, label = group.label, icon = group.icon, menu = group.menuId }
+                end
+            elseif MOVE_TO_UTILITY[item.id] and byId.k9_utility then
+                k9UtilitySubmenuItems[#k9UtilitySubmenuItems + 1] = item
+                movedToUtility = true
+            else
+                top[#top + 1] = item
+            end
+        end
+        if movedToUtility then
+            -- Re-registered with the moved items; lib.registerRadial replaces
+            -- a menu by id.
+            lib.registerRadial({ id = 'k9unit_utility', items = k9UtilitySubmenuItems })
+        end
+        k9SubmenuItems = top
     end
 
     -- Per-person block on the WHOLE radial surface -- see this function's

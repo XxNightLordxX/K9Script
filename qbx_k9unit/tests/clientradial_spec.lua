@@ -551,6 +551,29 @@ local function newRadialFixture(opts)
             return nil
         end,
 
+        --- Finds an item anywhere under the K9 menu -- the top level or any
+        --- sub-menu it opens (With Handler / Combat / Senses / Utility / Bark).
+        --- @param itemId string
+        --- @return table? item, string? menuId -- the menu it lives in
+        findK9Item = function(itemId)
+            local seen = {}
+            local function search(menuId)
+                if seen[menuId] then return nil end
+                seen[menuId] = true
+                for _, item in ipairs(liveMenus[menuId] or {}) do
+                    if item.id == itemId then return item, menuId end
+                end
+                for _, item in ipairs(liveMenus[menuId] or {}) do
+                    if item.menu then
+                        local hit, where = search(item.menu)
+                        if hit then return hit, where end
+                    end
+                end
+                return nil
+            end
+            return search('k9unit')
+        end,
+
         --- Every id CURRENTLY registered (every live menu's items, plus
         --- every live root item) -- for the no-duplicate-ids check. Reads
         --- the live keyed model, not the raw call log, so this reflects
@@ -651,60 +674,39 @@ t.test('this spec\'s baseline flags: the k9unit submenu is registered and linked
     t.isNil(opener.onSelect, 'the opener is a pure navigation link, per this file\'s own header on menu-vs-navigation semantics -- it must carry no onSelect of its own')
 end)
 
-t.test('this spec\'s baseline flags: Bark, Leash, Vehicle, Utility (Phase 1 + regrouped items) are present at the top level; every later-phase item stays absent', function()
+t.test('this spec\'s baseline flags: Bark, the With Handler group (Leash + Vehicle) and Utility (with Kennel) are what a K9 sees; every later-phase item stays absent', function()
     local f = newRadialFixture()
     local items = f.findMenu('k9unit')
     local presentIds = {}
     for _, item in ipairs(items) do presentIds[item.id] = true end
 
-    -- k9_sit MOVED into the 'k9unit_utility' sub-menu (Job 3 regrouping,
-    -- ease-of-use audit) -- it is no longer a direct 'k9unit' child at all;
-    -- see the dedicated 'k9unit_utility' section below for its own coverage.
     t.isTrue(presentIds.k9_utility, 'the Utility sub-menu opener must be present -- k9_sit alone (no dedicated flag) guarantees the sub-menu is never empty')
     t.isTrue(presentIds.k9_bark)
-    t.isTrue(presentIds.k9_leash)
-    t.isTrue(presentIds.k9_vehicle)
-    t.isTrue(presentIds.k9_kennel, 'k9_kennel has no dedicated Config.Features flag of its own -- it carries the kennel EXIT path since the merge, and an exit-adjacent item is registered unconditionally. See client/radial.lua own comment on that item.')
+    t.isTrue(presentIds.k9_group_handler, 'Leash and Vehicle are both on here, so they share the With Handler group')
 
-    local shouldBeAbsent = {
-        'k9_sit', -- moved into 'k9unit_utility', see above
-        'k9_track_certified',
-        'k9_bite_hold', 'k9_takedown', 'k9_drag',
-        'k9_partner',
-        'k9_fetch',
-        -- k9_prop_attachment/k9_open_inventory/k9_treat_nearest also MOVED
-        -- into 'k9unit_utility' (Job 3) -- structurally never a direct
-        -- 'k9unit' child anymore, regardless of their own feature flags;
-        -- see the dedicated 'k9unit_utility' presence tests below.
-        'k9_prop_attachment', 'k9_open_inventory', 'k9_treat_nearest',
-        'k9_thermal_vision', -- gated on ThermalVision, pinned false in this file's own baseline above
-        'k9_night_vision', -- gated on NightVision, pinned false in this file's own baseline above
-        'k9_vision_cycle', -- gated on NightVision/ThermalVision, both pinned false in this file's own baseline above
-    }
-    for _, id in ipairs(shouldBeAbsent) do
-        t.isFalse(presentIds[id] == true, ('%s must be absent from the top-level k9unit menu'):format(id))
+    local _, leashMenu = f.findK9Item('k9_leash')
+    local _, vehicleMenu = f.findK9Item('k9_vehicle')
+    local _, kennelMenu = f.findK9Item('k9_kennel')
+    local _, sitMenu = f.findK9Item('k9_sit')
+    t.equals(leashMenu, 'k9unit_handler')
+    t.equals(vehicleMenu, 'k9unit_handler')
+    t.equals(kennelMenu, 'k9unit_utility', 'k9_kennel has no dedicated flag of its own (it carries the kennel EXIT path) and now lives in Utility')
+    t.equals(sitMenu, 'k9unit_utility')
+
+    for _, id in ipairs({
+        'k9_track_certified', 'k9_bite_hold', 'k9_takedown', 'k9_drag', 'k9_partner', 'k9_fetch',
+        'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle',
+    }) do
+        t.isNil(f.findK9Item(id), ('%s must be absent anywhere in the K9 menu under this baseline'):format(id))
     end
 end)
 
 -- ----------------------------------------------------------------------
--- DISPLAY ORDER (whole-menu ease-of-use audit, this pass) -- see
--- client/radial.lua's own "DISPLAY ORDER PASS" header for the full
--- front-to-back reasoning this locks in. A pure array-reshuffle right
--- before registration -- these tests only ever read `f.findMenu('k9unit')`
--- item ORDER, never presence/absence (already covered above) or onSelect
--- behavior (covered by each item's own dedicated test elsewhere in this
--- file).
+-- MENU SHAPE (the rework pass) -- ox_lib shows 6 slots a page and turns
+-- the 6th into "More..."; the K9 menu and every group must fit on one page.
 -- ----------------------------------------------------------------------
 
---- @param items table[]
---- @return table<string, number>
-local function idOrder(items)
-    local order = {}
-    for i, item in ipairs(items) do order[item.id] = i end
-    return order
-end
-
-t.test('DISPLAY ORDER: with every optional feature on, the whole-menu order groups related items into families and keeps Partner Up / Break Partnership as ONE item', function()
+t.test('NO "MORE..." PAGES: with every optional feature on, the K9 menu has at most six entries -- Tablet, Bark, With Handler, Combat, Senses, Utility -- and every action is at most two presses away', function()
     local f = newRadialFixture({
         features = {
             CommandTablet = true,
@@ -718,59 +720,37 @@ t.test('DISPLAY ORDER: with every optional feature on, the whole-menu order grou
             FetchMechanic = true,
         },
     })
-    local items = f.findMenu('k9unit')
-    local order = idOrder(items)
+    local top = f.findMenu('k9unit')
+    local topIds = {}
+    for i, item in ipairs(top) do topIds[i] = item.id end
+    t.isTrue(#top <= 6, ('ox_lib shows 6 slots a page; the K9 menu must fit on one page, got %d entries'):format(#top))
+    t.equals(table.concat(topIds, ','), 'k9_open_tablet,k9_bark,k9_group_handler,k9_group_combat,k9_group_senses,k9_utility')
 
-    -- Sanity: every id this test reasons about is actually present under
-    -- this fixture's all-flags-on features.
-    for _, id in ipairs({
-        'k9_open_tablet', 'k9_bark', 'k9_leash', 'k9_vehicle', 'k9_utility',
-        'k9_partner',
-        'k9_track_certified', 'k9_thermal_vision', 'k9_night_vision', 'k9_scent_vision', 'k9_camera_feed', 'k9_vision_cycle',
-        'k9_bite_hold', 'k9_takedown', 'k9_drag',
-        'k9_fetch', 'k9_kennel',
-    }) do
-        t.isNotNil(order[id], ('%s must be present'):format(id))
+    local function ids(menuId)
+        local out = {}
+        for _, item in ipairs(f.findMenu(menuId) or {}) do out[#out + 1] = item.id end
+        return table.concat(out, ',')
     end
+    t.equals(ids('k9unit_handler'), 'k9_leash,k9_vehicle,k9_partner')
+    t.equals(ids('k9unit_combat'), 'k9_bite_hold,k9_takedown,k9_drag')
+    t.equals(ids('k9unit_senses'), 'k9_track_certified,k9_scent_vision,k9_thermal_vision,k9_night_vision,k9_vision_cycle,k9_camera_feed')
+    t.isTrue(#f.findMenu('k9unit_utility') <= 6, 'Utility fits on one page too')
+    local _, fetchMenu = f.findK9Item('k9_fetch')
+    local _, kennelMenu = f.findK9Item('k9_kennel')
+    t.equals(fetchMenu, 'k9unit_utility')
+    t.equals(kennelMenu, 'k9unit_utility')
 
-    -- Partner Up and Break Partnership are ONE item now (the rework pass),
-    -- like Attach/Detach Leash -- there is no pair left to order.
-    t.isNil(order['k9_partner_up'], 'no separate Partner Up item')
-    t.isNil(order.k9_break_partnership, 'no separate Break Partnership item')
+    for _, menuId in ipairs({ 'k9unit_handler', 'k9unit_combat', 'k9unit_senses' }) do
+        t.isTrue(#f.findMenu(menuId) <= 6, menuId .. ' fits on one page')
+    end
+end)
 
-    -- Command Tablet stays the single most prominent entry.
-    t.equals(order.k9_open_tablet, 1, 'Command Tablet -- "the one entry that reaches everything else" -- must stay first')
-
-    -- The Phase 1 foundational actions (plus their Utility extension point)
-    -- are grouped immediately after the Tablet, not scattered by whichever
-    -- pass happened to add each one.
-    t.isTrue(order.k9_bark < order.k9_partner, 'Bark (a Phase 1 foundational action) must precede the Partnership family')
-    t.isTrue(order.k9_leash < order.k9_partner, 'Attach/Detach Leash must precede the Partnership family')
-    t.isTrue(order.k9_vehicle < order.k9_partner, 'Enter/Exit Vehicle must precede the Partnership family')
-    t.isTrue(order.k9_utility < order.k9_partner, 'the Utility opener must precede the Partnership family')
-
-    -- Perception family (search/vision) is grouped together, and precedes
-    -- the Combat/Emergency family -- a K9 finds a scene before it acts on
-    -- one.
-    t.isTrue(order.k9_track_certified < order.k9_thermal_vision)
-    t.isTrue(order.k9_thermal_vision < order.k9_night_vision)
-    t.isTrue(order.k9_night_vision < order.k9_scent_vision, 'Scent Vision joins the perception family after the two innate vision modes')
-    t.isTrue(order.k9_scent_vision < order.k9_camera_feed)
-    t.isTrue(order.k9_camera_feed < order.k9_vision_cycle, 'Cycle Vision stays last in the family, as the catch-all convenience it has always been')
-    t.isTrue(order.k9_vision_cycle < order.k9_bite_hold, 'the whole Perception family must precede Combat')
-
-    -- Combat family, grouped together. NARROWED 2026-09-02: several items
-    -- that used to sit inside and after this family went away with the
-    -- features that owned them, so the family now ends at Drag and Kennel
-    -- is last. The ordering PROPERTY this test exists for -- related items
-    -- stay adjacent, in a deliberate order, rather than accreting -- is
-    -- unchanged and still asserted across every item that remains.
-    t.isTrue(order.k9_bite_hold < order.k9_takedown)
-    t.isTrue(order.k9_takedown < order.k9_drag)
-    t.isTrue(order.k9_drag < order.k9_fetch, 'Combat precedes the lighter, non-combat items after it')
-
-    -- Recreational/logistics pair, now last.
-    t.isTrue(order.k9_fetch < order.k9_kennel)
+t.test('a group with only ONE item available on this server is not wrapped -- that item stays in the top menu, no sub-menu for a single button', function()
+    local f = newRadialFixture({ features = { VehicleEntryExit = false } })
+    local item, menuId = f.findK9Item('k9_leash')
+    t.isNotNil(item)
+    t.equals(menuId, 'k9unit', 'Leash is the only With Handler item here, so it sits in the top menu')
+    t.isNil(f.findMenu('k9unit_handler'))
 end)
 
 -- ----------------------------------------------------------------------
@@ -788,7 +768,7 @@ end)
 
 t.test('k9unit_utility: registered and linked from the k9unit menu via a single k9_utility opener', function()
     local f = newRadialFixture()
-    local link = f.findInMenu('k9unit', 'k9_utility')
+    local link = f.findK9Item('k9_utility')
     t.isNotNil(link, 'k9unit must carry a k9_utility opener linking into the sub-menu')
     t.equals(link.menu, 'k9unit_utility')
     t.isNil(link.onSelect, 'the opener is a pure navigation link, carrying no onSelect of its own')
@@ -856,13 +836,13 @@ end
 -- ----------------------------------------------------------------------
 t.test('k9_track_certified: absent when ScentTracking, BloodTracking, and GunpowderSniffing are all false', function()
     local f = newRadialFixture()
-    t.isNil(f.findInMenu('k9unit', 'k9_track_certified'))
+    t.isNil(f.findK9Item('k9_track_certified'))
 end)
 
 for _, flag in ipairs({ 'ScentTracking', 'BloodTracking', 'GunpowderSniffing' }) do
     t.test(('k9_track_certified: appears when ONLY %s is true (the item is gated on an OR of the three, not an AND)'):format(flag), function()
         local f = newRadialFixture({ features = { [flag] = true } })
-        t.isNotNil(f.findInMenu('k9unit', 'k9_track_certified'), ('k9_track_certified must appear once %s alone is true'):format(flag))
+        t.isNotNil(f.findK9Item('k9_track_certified'), ('k9_track_certified must appear once %s alone is true'):format(flag))
     end)
 end
 
@@ -875,19 +855,19 @@ end
 -- ----------------------------------------------------------------------
 t.test('k9_thermal_vision: absent when ThermalVision is false (this baseline)', function()
     local f = newRadialFixture()
-    t.isNil(f.findInMenu('k9unit', 'k9_thermal_vision'))
+    t.isNil(f.findK9Item('k9_thermal_vision'))
 end)
 
 t.test('k9_thermal_vision: present when ThermalVision is true, even with NightVision false, with the real locale-backed label', function()
     local f = newRadialFixture({ features = { ThermalVision = true, NightVision = false } })
-    local item = f.findInMenu('k9unit', 'k9_thermal_vision')
+    local item = f.findK9Item('k9_thermal_vision')
     t.isNotNil(item)
     t.equals(item.label, locale('radial.thermal_vision_label'))
 end)
 
 t.test('k9_thermal_vision: onSelect calls ToggleThermalVision() exactly once, and consults NEITHER CanShowK9UI NOR HasK9Access', function()
     local f = newRadialFixture({ features = { ThermalVision = true }, canShowK9UI = false, hasK9Access = false })
-    f.findInMenu('k9unit', 'k9_thermal_vision').onSelect()
+    f.findK9Item('k9_thermal_vision').onSelect()
     t.equals(#f.calls.ToggleThermalVision, 1)
     t.equals(f.canShowK9UICallCount(), 0, 'k9_thermal_vision must never call CanShowK9UI -- gating is ToggleThermalVision()\'s own job (IsOwnModelK9() only)')
     t.equals(f.hasK9AccessCallCount(), 0, 'k9_thermal_vision must never call HasK9Access either, for the same reason')
@@ -896,24 +876,24 @@ end)
 
 t.test('FIXED-SHAPE GUARD: k9_thermal_vision does not throw when ToggleThermalVision is entirely absent', function()
     local f = newRadialFixture({ features = { ThermalVision = true }, omit = { 'ToggleThermalVision' } })
-    assertGuardDoesNotThrow(f.findInMenu('k9unit', 'k9_thermal_vision'))
+    assertGuardDoesNotThrow(f.findK9Item('k9_thermal_vision'))
 end)
 
 t.test('k9_night_vision: absent when NightVision is false (this baseline)', function()
     local f = newRadialFixture()
-    t.isNil(f.findInMenu('k9unit', 'k9_night_vision'))
+    t.isNil(f.findK9Item('k9_night_vision'))
 end)
 
 t.test('k9_night_vision: present when NightVision is true, even with ThermalVision false, with the real locale-backed label', function()
     local f = newRadialFixture({ features = { NightVision = true, ThermalVision = false } })
-    local item = f.findInMenu('k9unit', 'k9_night_vision')
+    local item = f.findK9Item('k9_night_vision')
     t.isNotNil(item)
     t.equals(item.label, locale('radial.night_vision_label'))
 end)
 
 t.test('k9_night_vision: onSelect calls ToggleNightVision() exactly once, and consults NEITHER CanShowK9UI NOR HasK9Access', function()
     local f = newRadialFixture({ features = { NightVision = true }, canShowK9UI = false, hasK9Access = false })
-    f.findInMenu('k9unit', 'k9_night_vision').onSelect()
+    f.findK9Item('k9_night_vision').onSelect()
     t.equals(#f.calls.ToggleNightVision, 1)
     t.equals(f.canShowK9UICallCount(), 0, 'k9_night_vision must never call CanShowK9UI -- gating is ToggleNightVision()\'s own job (IsOwnModelK9() only)')
     t.equals(f.hasK9AccessCallCount(), 0, 'k9_night_vision must never call HasK9Access either, for the same reason')
@@ -921,13 +901,13 @@ end)
 
 t.test('FIXED-SHAPE GUARD: k9_night_vision does not throw when ToggleNightVision is entirely absent', function()
     local f = newRadialFixture({ features = { NightVision = true }, omit = { 'ToggleNightVision' } })
-    assertGuardDoesNotThrow(f.findInMenu('k9unit', 'k9_night_vision'))
+    assertGuardDoesNotThrow(f.findK9Item('k9_night_vision'))
 end)
 
 t.test('k9_thermal_vision and k9_night_vision are INDEPENDENT items: both present at once when both flags are true, and each survives the OTHER flag being off', function()
     local f = newRadialFixture({ features = { ThermalVision = true, NightVision = true } })
-    t.isNotNil(f.findInMenu('k9unit', 'k9_thermal_vision'))
-    t.isNotNil(f.findInMenu('k9unit', 'k9_night_vision'))
+    t.isNotNil(f.findK9Item('k9_thermal_vision'))
+    t.isNotNil(f.findK9Item('k9_night_vision'))
 end)
 
 -- ----------------------------------------------------------------------
@@ -942,19 +922,19 @@ end)
 -- ----------------------------------------------------------------------
 t.test('k9_vision_cycle: absent when NightVision and ThermalVision are both false (this baseline)', function()
     local f = newRadialFixture()
-    t.isNil(f.findInMenu('k9unit', 'k9_vision_cycle'))
+    t.isNil(f.findK9Item('k9_vision_cycle'))
 end)
 
 for _, flag in ipairs({ 'NightVision', 'ThermalVision' }) do
     t.test(('k9_vision_cycle: appears when ONLY %s is true (gated on an OR of the two, not an AND)'):format(flag), function()
         local f = newRadialFixture({ features = { [flag] = true } })
-        t.isNotNil(f.findInMenu('k9unit', 'k9_vision_cycle'), ('k9_vision_cycle must appear once %s alone is true'):format(flag))
+        t.isNotNil(f.findK9Item('k9_vision_cycle'), ('k9_vision_cycle must appear once %s alone is true'):format(flag))
     end)
 end
 
 t.test('k9_vision_cycle: onSelect calls CycleVision() exactly once, and consults NEITHER CanShowK9UI NOR HasK9Access -- deliberately ungated, matching client/vision.lua\'s own IsOwnModelK9()-only philosophy', function()
     local f = newRadialFixture({ features = { NightVision = true }, canShowK9UI = false, hasK9Access = false })
-    f.findInMenu('k9unit', 'k9_vision_cycle').onSelect()
+    f.findK9Item('k9_vision_cycle').onSelect()
     t.equals(#f.calls.CycleVision, 1)
     t.equals(f.canShowK9UICallCount(), 0, 'k9_vision_cycle must never call CanShowK9UI -- gating is CycleVision()/Toggle*Vision()\'s own job (IsOwnModelK9() only)')
     t.equals(f.hasK9AccessCallCount(), 0, 'k9_vision_cycle must never call HasK9Access either, for the same reason')
@@ -963,7 +943,7 @@ end)
 
 t.test('FIXED-SHAPE GUARD: k9_vision_cycle does not throw when CycleVision is entirely absent', function()
     local f = newRadialFixture({ features = { ThermalVision = true }, omit = { 'CycleVision' } })
-    assertGuardDoesNotThrow(f.findInMenu('k9unit', 'k9_vision_cycle'))
+    assertGuardDoesNotThrow(f.findK9Item('k9_vision_cycle'))
 end)
 
 -- ----------------------------------------------------------------------
@@ -980,12 +960,12 @@ local TRUE_BY_DEFAULT_SINGLE_ITEM_CASES = {
 for _, case in ipairs(TRUE_BY_DEFAULT_SINGLE_ITEM_CASES) do
     t.test(('%s: present under this spec\'s baseline (Config.Features.%s = true)'):format(case.itemId, case.flag), function()
         local f = newRadialFixture()
-        t.isNotNil(f.findInMenu('k9unit', case.itemId))
+        t.isNotNil(f.findK9Item(case.itemId))
     end)
 
     t.test(('%s: absent when Config.Features.%s is explicitly turned off'):format(case.itemId, case.flag), function()
         local f = newRadialFixture({ features = { [case.flag] = false } })
-        t.isNil(f.findInMenu('k9unit', case.itemId))
+        t.isNil(f.findK9Item(case.itemId))
     end)
 end
 
@@ -1006,16 +986,16 @@ end)
 
 t.test('HandlerPartnership explicitly false: no partnership item appears', function()
     local f = newRadialFixture()
-    t.isNil(f.findInMenu('k9unit', 'k9_partner'))
+    t.isNil(f.findK9Item('k9_partner'))
 end)
 
 t.test('HandlerPartnership true: ONE "Partner Up / Break Partnership" item, not two', function()
     local f = newRadialFixture({ features = { HandlerPartnership = true } })
-    local item = f.findInMenu('k9unit', 'k9_partner')
+    local item = f.findK9Item('k9_partner')
     t.isNotNil(item)
     t.equals(item.label, locale('radial.partner_toggle_label'))
-    t.isNil(f.findInMenu('k9unit', 'k9_break_partnership'))
-    t.isNil(f.findInMenu('k9unit', 'k9_partner_up'))
+    t.isNil(f.findK9Item('k9_break_partnership'))
+    t.isNil(f.findK9Item('k9_partner_up'))
 end)
 
 -- ----------------------------------------------------------------------
@@ -1026,12 +1006,12 @@ end)
 t.test('FetchMechanic explicitly false: no Fetch item and no fetch sub-menu', function()
     local f = newRadialFixture()
     t.isNil(f.findMenu('k9unit_fetch'))
-    t.isNil(f.findInMenu('k9unit', 'k9_fetch'))
+    t.isNil(f.findK9Item('k9_fetch'))
 end)
 
 t.test('FetchMechanic true: ONE Fetch item that acts in a single click -- no sub-menu to open first', function()
     local f = newRadialFixture({ features = { FetchMechanic = true } })
-    local item = f.findInMenu('k9unit', 'k9_fetch')
+    local item = f.findK9Item('k9_fetch')
     t.isNotNil(item)
     t.isNil(item.menu, 'not a sub-menu link')
     t.isNil(f.findMenu('k9unit_fetch'), 'the old Throw/Recall sub-menu is gone')
@@ -1042,7 +1022,7 @@ end)
 
 t.test('FetchMechanic true: a missing FetchContextual does not throw', function()
     local f = newRadialFixture({ features = { FetchMechanic = true }, omit = { 'FetchContextual' } })
-    assertGuardDoesNotThrow(f.findInMenu('k9unit', 'k9_fetch'))
+    assertGuardDoesNotThrow(f.findK9Item('k9_fetch'))
 end)
 
 -- ----------------------------------------------------------------------
@@ -1052,19 +1032,19 @@ end)
 
 t.test('BasicBarkSounds false: k9_bark is entirely absent, even though AdvancedBarkRadial defaults to false too (nothing to layer onto)', function()
     local f = newRadialFixture({ features = { BasicBarkSounds = false } })
-    t.isNil(f.findInMenu('k9unit', 'k9_bark'))
+    t.isNil(f.findK9Item('k9_bark'))
     t.isNil(f.findMenu('k9unit_bark'))
 end)
 
 t.test('BasicBarkSounds false: staying off even with AdvancedBarkRadial forced true still yields no k9_bark item at all (Bark requires BasicBarkSounds underneath it)', function()
     local f = newRadialFixture({ features = { BasicBarkSounds = false, AdvancedBarkRadial = true } })
-    t.isNil(f.findInMenu('k9unit', 'k9_bark'))
+    t.isNil(f.findK9Item('k9_bark'))
     t.isNil(f.findMenu('k9unit_bark'), 'the nested variant submenu must not be built at all when the prerequisite flag is off')
 end)
 
 t.test('BasicBarkSounds true, AdvancedBarkRadial false: a single k9_bark item with its own onSelect, sending the literal barkType "bark"', function()
     local f = newRadialFixture()
-    local item = f.findInMenu('k9unit', 'k9_bark')
+    local item = f.findK9Item('k9_bark')
     t.isNotNil(item)
     t.isNil(item.menu, 'without AdvancedBarkRadial this must be a terminal action, not a submenu link')
     t.isNotNil(item.onSelect)
@@ -1082,13 +1062,13 @@ end)
 -- basic (non-Advanced) Bark item's access gate at all before this pass.
 t.test('BasicBarkSounds true, AdvancedBarkRadial false: k9_bark is gated on HasK9Access() alone (widened) -- denied with combat.no_access; a bypass holder (HasK9Access true, CanShowK9UI false) is offered', function()
     local fDenied = newRadialFixture({ hasK9Access = false, canShowK9UI = false })
-    fDenied.findInMenu('k9unit', 'k9_bark').onSelect()
+    fDenied.findK9Item('k9_bark').onSelect()
     t.equals(fDenied.denyCallCount(), 1)
     t.equals(fDenied.lastDenyReason(), 'combat.no_access')
     t.equals(#fDenied.triggerServerEventCalls, 0)
 
     local fBypass = newRadialFixture({ hasK9Access = true, canShowK9UI = false })
-    fBypass.findInMenu('k9unit', 'k9_bark').onSelect()
+    fBypass.findK9Item('k9_bark').onSelect()
     t.equals(fBypass.denyCallCount(), 0)
     t.equals(#fBypass.triggerServerEventCalls, 1)
     t.equals(fBypass.triggerServerEventCalls[1].args[1], 'bark')
@@ -1096,7 +1076,7 @@ end)
 
 t.test('BasicBarkSounds true + AdvancedBarkRadial true: k9_bark becomes a pure navigation link into k9unit_bark, carrying no onSelect of its own', function()
     local f = newRadialFixture({ features = { AdvancedBarkRadial = true } })
-    local item = f.findInMenu('k9unit', 'k9_bark')
+    local item = f.findK9Item('k9_bark')
     t.isNotNil(item)
     t.equals(item.menu, 'k9unit_bark')
     t.isNil(item.onSelect)
@@ -1154,15 +1134,15 @@ end)
 
 t.test('k9_open_tablet: absent when Config.Features.CommandTablet is false, regardless of AdvancedBarkRadial', function()
     local fBasic = newRadialFixture({ features = { CommandTablet = false, AdvancedBarkRadial = false } })
-    t.isNil(fBasic.findInMenu('k9unit', 'k9_open_tablet'))
+    t.isNil(fBasic.findK9Item('k9_open_tablet'))
 
     local fAdvanced = newRadialFixture({ features = { CommandTablet = false, AdvancedBarkRadial = true } })
-    t.isNil(fAdvanced.findInMenu('k9unit', 'k9_open_tablet'))
+    t.isNil(fAdvanced.findK9Item('k9_open_tablet'))
 end)
 
 t.test('THE BUG THIS PASS FIXES: k9_open_tablet is present when CommandTablet is true AND AdvancedBarkRadial is false -- it used to be silently absent in exactly this combination', function()
     local f = newRadialFixture({ features = { CommandTablet = true, AdvancedBarkRadial = false } })
-    local item = f.findInMenu('k9unit', 'k9_open_tablet')
+    local item = f.findK9Item('k9_open_tablet')
     t.isNotNil(item, 'k9_open_tablet must appear whenever CommandTablet is true, independent of AdvancedBarkRadial -- this is the exact nesting bug this pass fixes')
     t.equals(item.label, locale('radial.tablet_label'))
 
@@ -1172,12 +1152,12 @@ end)
 
 t.test('k9_open_tablet: also present when BOTH CommandTablet and AdvancedBarkRadial are true (the one combination that already worked before this fix)', function()
     local f = newRadialFixture({ features = { CommandTablet = true, AdvancedBarkRadial = true } })
-    t.isNotNil(f.findInMenu('k9unit', 'k9_open_tablet'))
+    t.isNotNil(f.findK9Item('k9_open_tablet'))
 end)
 
 t.test('k9_open_tablet: guarded -- absent OpenTablet does not throw', function()
     local f = newRadialFixture({ features = { CommandTablet = true }, omit = { 'OpenTablet' } })
-    assertGuardDoesNotThrow(f.findInMenu('k9unit', 'k9_open_tablet'))
+    assertGuardDoesNotThrow(f.findK9Item('k9_open_tablet'))
 end)
 
 -- ----------------------------------------------------------------------
@@ -1256,10 +1236,10 @@ end)
 
 t.test('k9_partner: hands straight to TogglePartnership (which decides break vs partner up) -- never gated here, and a missing TogglePartnership does not throw', function()
     local fAbsent = newRadialFixture({ features = { HandlerPartnership = true }, omit = { 'TogglePartnership' }, canShowK9UI = false })
-    assertGuardDoesNotThrow(fAbsent.findInMenu('k9unit', 'k9_partner'))
+    assertGuardDoesNotThrow(fAbsent.findK9Item('k9_partner'))
 
     local f = newRadialFixture({ features = { HandlerPartnership = true }, canShowK9UI = false })
-    f.findInMenu('k9unit', 'k9_partner').onSelect()
+    f.findK9Item('k9_partner').onSelect()
     f.stepThreads()
     t.equals(#f.calls.TogglePartnership, 1, 'the one shared toggle ran')
     t.equals(f.denyCallCount(), 0, 'the menu item adds no gate of its own -- breaking must always be reachable')
@@ -1403,38 +1383,38 @@ end)
 
 t.test('FIXED: k9_vehicle is now guarded -- absent IsInK9Vehicle/EnterNearestK9Vehicle/ExitK9Vehicle does not throw in either direction', function()
     local fEnter = newRadialFixture({ features = { VehicleEntryExit = true }, omit = { 'IsInK9Vehicle', 'EnterNearestK9Vehicle' } })
-    assertGuardDoesNotThrow(fEnter.findInMenu('k9unit', 'k9_vehicle'))
+    assertGuardDoesNotThrow(fEnter.findK9Item('k9_vehicle'))
 
     local fExit = newRadialFixture({ features = { VehicleEntryExit = true }, omit = { 'IsInK9Vehicle', 'ExitK9Vehicle' } })
     fExit.setState('isInK9Vehicle', true)
-    assertGuardDoesNotThrow(fExit.findInMenu('k9unit', 'k9_vehicle'))
+    assertGuardDoesNotThrow(fExit.findK9Item('k9_vehicle'))
 end)
 
 t.test('FIXED: k9_track_certified is guarded -- absent IsTracking/StartCertifiedTrack does not throw in either branch', function()
     local fStart = newRadialFixture({ features = { ScentTracking = true }, omit = { 'IsTracking', 'StartCertifiedTrack' } })
-    assertGuardDoesNotThrow(fStart.findInMenu('k9unit', 'k9_track_certified'))
+    assertGuardDoesNotThrow(fStart.findK9Item('k9_track_certified'))
 
     local fStop = newRadialFixture({ features = { ScentTracking = true }, omit = { 'StopTracking' } })
     fStop.setState('isTracking', true)
-    assertGuardDoesNotThrow(fStop.findInMenu('k9unit', 'k9_track_certified'))
+    assertGuardDoesNotThrow(fStop.findK9Item('k9_track_certified'))
 end)
 
 t.test('FIXED: k9_bite_hold/k9_takedown/k9_drag are now guarded -- absent targets do not throw in either branch', function()
     local fStart = newRadialFixture({ features = { BiteAndHold = true, NonLethalTakedown = true, PropDragging = true }, omit = { 'IsBiteHoldEngaged', 'RequestBiteHold', 'RequestTakedown', 'IsDragEngaged', 'RequestDrag' } })
-    assertGuardDoesNotThrow(fStart.findInMenu('k9unit', 'k9_bite_hold'))
-    assertGuardDoesNotThrow(fStart.findInMenu('k9unit', 'k9_takedown'))
-    assertGuardDoesNotThrow(fStart.findInMenu('k9unit', 'k9_drag'))
+    assertGuardDoesNotThrow(fStart.findK9Item('k9_bite_hold'))
+    assertGuardDoesNotThrow(fStart.findK9Item('k9_takedown'))
+    assertGuardDoesNotThrow(fStart.findK9Item('k9_drag'))
 
     local fRelease = newRadialFixture({ features = { BiteAndHold = true, PropDragging = true }, omit = { 'ReleaseBiteHold', 'ReleaseDrag' } })
     fRelease.setState('isBiteHoldEngaged', true)
     fRelease.setState('isDragEngaged', true)
-    assertGuardDoesNotThrow(fRelease.findInMenu('k9unit', 'k9_bite_hold'))
-    assertGuardDoesNotThrow(fRelease.findInMenu('k9unit', 'k9_drag'))
+    assertGuardDoesNotThrow(fRelease.findK9Item('k9_bite_hold'))
+    assertGuardDoesNotThrow(fRelease.findK9Item('k9_drag'))
 end)
 
 t.test('k9_takedown: present RequestTakedown is called once access is granted (the one call-through this file had not yet pinned)', function()
     local f = newRadialFixture({ features = { NonLethalTakedown = true } })
-    f.findInMenu('k9unit', 'k9_takedown').onSelect()
+    f.findK9Item('k9_takedown').onSelect()
     t.equals(#f.calls.RequestTakedown, 1)
 end)
 
@@ -1459,14 +1439,14 @@ end)
 t.test('k9_leash: while leashed, Detach fires UNGATED (CanShowK9UI never even asked); while not leashed, Attach is GATED', function()
     local fDetach = newRadialFixture({ features = { LeashMechanics = true }, canShowK9UI = false })
     fDetach.setState('isLeashed', true)
-    fDetach.findInMenu('k9unit', 'k9_leash').onSelect()
+    fDetach.findK9Item('k9_leash').onSelect()
     t.equals(#fDetach.calls.DetachLeash, 1)
     t.equals(fDetach.canShowK9UICallCount(), 0, 'Detach must never consult CanShowK9UI at all, per the "no unbounded trap" comment')
     t.equals(fDetach.denyCallCount(), 0)
 
     local fAttachDenied = newRadialFixture({ features = { LeashMechanics = true }, canShowK9UI = false })
     fAttachDenied.setState('isLeashed', false)
-    fAttachDenied.findInMenu('k9unit', 'k9_leash').onSelect()
+    fAttachDenied.findK9Item('k9_leash').onSelect()
     t.equals(fAttachDenied.denyCallCount(), 1)
     t.isNil(fAttachDenied.calls.RequestLeashAttach)
 end)
@@ -1482,7 +1462,7 @@ t.test('k9_leash: Attach finds the nearest in-range candidate and calls RequestL
     f.setPedCoords(101, vec3(2, 0, 0)) -- in range
     f.setPlayerServerId(5, 222)
 
-    f.findInMenu('k9unit', 'k9_leash').onSelect()
+    f.findK9Item('k9_leash').onSelect()
     t.equals(#f.calls.RequestLeashAttach, 1)
     t.equals(f.calls.RequestLeashAttach[1][1], 222, 'must pick the in-range candidate, never the out-of-range one, and pass their real server id')
 end)
@@ -1491,7 +1471,7 @@ t.test('k9_leash: Attach with nobody in range notifies radial.no_leash_candidate
     local f = newRadialFixture({ features = { LeashMechanics = true } })
     f.setState('isLeashed', false)
     f.setActivePlayers({})
-    f.findInMenu('k9unit', 'k9_leash').onSelect()
+    f.findK9Item('k9_leash').onSelect()
     t.isNil(f.calls.RequestLeashAttach)
     t.equals(#f.notifyCalls, 1)
     t.equals(f.notifyCalls[1].description, locale('radial.no_leash_candidate'))
@@ -1501,12 +1481,12 @@ t.test('k9_kennel: UNCONDITIONAL REGISTRATION (trap-hunt fix) -- present with EV
     local f = newRadialFixture({ features = {
         DeployableKennel = false, LeashMechanics = false, VehicleEntryExit = false, BasicBarkSounds = false,
     } })
-    t.isNotNil(f.findInMenu('k9unit', 'k9_kennel'), 'must be present regardless of every feature flag -- a confining-mechanic escape hatch must never be hideable')
+    t.isNotNil(f.findK9Item('k9_kennel'), 'must be present regardless of every feature flag -- a confining-mechanic escape hatch must never be hideable')
 end)
 
 t.test('k9_kennel: onSelect fires UNGATED -- CanShowK9UI/DenyK9UIAccess are never even consulted, unlike Deploy Kennel immediately above it', function()
     local f = newRadialFixture({ features = { DeployableKennel = false }, canShowK9UI = false })
-    f.findInMenu('k9unit', 'k9_kennel').onSelect()
+    f.findK9Item('k9_kennel').onSelect()
     t.equals(#f.calls.RequestKennelContextual, 1, 'must call RequestKennelContextual() regardless of CanShowK9UI() -- it carries the exit path')
     t.equals(f.canShowK9UICallCount(), 0, 'an exit path must never even ask CanShowK9UI() -- gate the START of a thing, never the STOP')
     t.equals(f.denyCallCount(), 0)
@@ -1514,7 +1494,7 @@ end)
 
 t.test('k9_kennel: onSelect tolerates RequestKennelContextual being entirely absent (soft dependency) -- must not throw', function()
     local f = newRadialFixture({ omit = { 'RequestKennelContextual' } })
-    assertGuardDoesNotThrow(f.findInMenu('k9unit', 'k9_kennel'))
+    assertGuardDoesNotThrow(f.findK9Item('k9_kennel'))
 end)
 
 -- INVERTED, THIS PASS (coordinator review) -- an earlier version of THIS
@@ -1552,7 +1532,7 @@ end)
 -- look.
 t.test('k9_kennel: UNCONDITIONAL REGISTRATION GRANTS NOTHING OF ITS OWN -- this ITEM adds no notify/server-event/native call beyond the single RequestKennelContextual() call itself. Every real decision (which of deploy/enter/exit/close/open is meant, and every gate on those except the exit) lives in client/kennel.lua and is proven against the REAL implementation in tests/clientkennel_spec.lua; this file stubs the global as a bare recorder, so it can only prove THIS file adds no second, independent side effect on top', function()
     local f = newRadialFixture({ features = { DeployableKennel = false } })
-    f.findInMenu('k9unit', 'k9_kennel').onSelect()
+    f.findK9Item('k9_kennel').onSelect()
 
     t.equals(#f.calls.RequestKennelContextual, 1, 'exactly one call, straight through -- no branching/gating logic of this item\'s own')
     t.equals(#f.notifyCalls, 0, 'this ITEM never notifies directly -- any notification is client/kennel.lua\'s own responsibility, proven elsewhere')
@@ -1569,7 +1549,7 @@ end)
 t.test('k9_vehicle: Exit is now UNGATED (ordering fix -- checked before the access gate, never denied); Enter is gated on HasK9Access() alone (widened)', function()
     local fEnterDenied = newRadialFixture({ features = { VehicleEntryExit = true }, hasK9Access = false, canShowK9UI = false })
     fEnterDenied.setState('isInK9Vehicle', false)
-    fEnterDenied.findInMenu('k9unit', 'k9_vehicle').onSelect()
+    fEnterDenied.findK9Item('k9_vehicle').onSelect()
     t.equals(fEnterDenied.denyCallCount(), 1)
     t.equals(fEnterDenied.lastDenyReason(), 'combat.no_access')
     t.isNil(fEnterDenied.calls.EnterNearestK9Vehicle)
@@ -1578,7 +1558,7 @@ t.test('k9_vehicle: Exit is now UNGATED (ordering fix -- checked before the acce
     -- had it) must still be able to exit via this item -- never denied.
     local fExitNoAccess = newRadialFixture({ features = { VehicleEntryExit = true }, hasK9Access = false, canShowK9UI = false })
     fExitNoAccess.setState('isInK9Vehicle', true)
-    fExitNoAccess.findInMenu('k9unit', 'k9_vehicle').onSelect()
+    fExitNoAccess.findK9Item('k9_vehicle').onSelect()
     t.equals(fExitNoAccess.denyCallCount(), 0, 'exiting a vehicle must never be denied -- this was the exact bug this pass fixes')
     t.equals(#fExitNoAccess.calls.ExitK9Vehicle, 1)
 
@@ -1590,7 +1570,7 @@ t.test('k9_vehicle: Exit is now UNGATED (ordering fix -- checked before the acce
     -- comment on this item for the full writeup.
     local fEnterBypass = newRadialFixture({ features = { VehicleEntryExit = true }, hasK9Access = true, canShowK9UI = false })
     fEnterBypass.setState('isInK9Vehicle', false)
-    fEnterBypass.findInMenu('k9unit', 'k9_vehicle').onSelect()
+    fEnterBypass.findK9Item('k9_vehicle').onSelect()
     t.equals(fEnterBypass.denyCallCount(), 0)
     t.equals(#fEnterBypass.calls.EnterNearestK9Vehicle, 1)
 end)
@@ -1598,13 +1578,13 @@ end)
 t.test('k9_vehicle: granted access chooses Enter or Exit based on IsInK9Vehicle()', function()
     local fEnter = newRadialFixture({ features = { VehicleEntryExit = true } })
     fEnter.setState('isInK9Vehicle', false)
-    fEnter.findInMenu('k9unit', 'k9_vehicle').onSelect()
+    fEnter.findK9Item('k9_vehicle').onSelect()
     t.equals(#fEnter.calls.EnterNearestK9Vehicle, 1)
     t.isNil(fEnter.calls.ExitK9Vehicle)
 
     local fExit = newRadialFixture({ features = { VehicleEntryExit = true } })
     fExit.setState('isInK9Vehicle', true)
-    fExit.findInMenu('k9unit', 'k9_vehicle').onSelect()
+    fExit.findK9Item('k9_vehicle').onSelect()
     t.equals(#fExit.calls.ExitK9Vehicle, 1)
     t.isNil(fExit.calls.EnterNearestK9Vehicle)
 end)
@@ -1618,8 +1598,8 @@ t.test('k9_bite_hold / k9_drag: the Release branch is UNGATED; the Start branch 
     local fRelease = newRadialFixture({ features = { BiteAndHold = true, PropDragging = true }, hasK9Access = false, canShowK9UI = false })
     fRelease.setState('isBiteHoldEngaged', true)
     fRelease.setState('isDragEngaged', true)
-    fRelease.findInMenu('k9unit', 'k9_bite_hold').onSelect()
-    fRelease.findInMenu('k9unit', 'k9_drag').onSelect()
+    fRelease.findK9Item('k9_bite_hold').onSelect()
+    fRelease.findK9Item('k9_drag').onSelect()
     t.equals(#fRelease.calls.ReleaseBiteHold, 1)
     t.equals(#fRelease.calls.ReleaseDrag, 1)
     t.equals(fRelease.denyCallCount(), 0, 'neither release branch may ever call DenyK9UIAccess')
@@ -1627,8 +1607,8 @@ t.test('k9_bite_hold / k9_drag: the Release branch is UNGATED; the Start branch 
     local fStartDenied = newRadialFixture({ features = { BiteAndHold = true, PropDragging = true }, hasK9Access = false, canShowK9UI = false })
     fStartDenied.setState('isBiteHoldEngaged', false)
     fStartDenied.setState('isDragEngaged', false)
-    fStartDenied.findInMenu('k9unit', 'k9_bite_hold').onSelect()
-    fStartDenied.findInMenu('k9unit', 'k9_drag').onSelect()
+    fStartDenied.findK9Item('k9_bite_hold').onSelect()
+    fStartDenied.findK9Item('k9_drag').onSelect()
     t.equals(fStartDenied.denyCallCount(), 2)
     t.equals(fStartDenied.lastDenyReason(), 'combat.no_access')
     t.isNil(fStartDenied.calls.RequestBiteHold)
@@ -1643,8 +1623,8 @@ t.test('k9_bite_hold / k9_drag: the Release branch is UNGATED; the Start branch 
     local fBypass = newRadialFixture({ features = { BiteAndHold = true, PropDragging = true }, hasK9Access = true, canShowK9UI = false })
     fBypass.setState('isBiteHoldEngaged', false)
     fBypass.setState('isDragEngaged', false)
-    fBypass.findInMenu('k9unit', 'k9_bite_hold').onSelect()
-    fBypass.findInMenu('k9unit', 'k9_drag').onSelect()
+    fBypass.findK9Item('k9_bite_hold').onSelect()
+    fBypass.findK9Item('k9_drag').onSelect()
     t.equals(fBypass.denyCallCount(), 0)
     t.equals(#fBypass.calls.RequestBiteHold, 1)
     t.equals(#fBypass.calls.RequestDrag, 1)
@@ -1666,7 +1646,7 @@ end)
 t.test('k9_track_certified: any active tracking session (regardless of type) makes this item a Stop, UNGATED', function()
     local f = newRadialFixture({ features = { ScentTracking = true }, canShowK9UI = false })
     f.setState('isTracking', true)
-    f.findInMenu('k9unit', 'k9_track_certified').onSelect()
+    f.findK9Item('k9_track_certified').onSelect()
     t.equals(#f.calls.StopTracking, 1)
     t.equals(f.denyCallCount(), 0, 'stopping an active trail must never be gated')
     t.isNil(f.calls.StartCertifiedTrack, 'must never also start a new search on the same click')
@@ -1680,7 +1660,7 @@ end)
 t.test('k9_track_certified: nothing active -- starting the merged search is GATED on HasK9Access() alone (widened)', function()
     local f = newRadialFixture({ features = { ScentTracking = true }, hasK9Access = false, canShowK9UI = false })
     f.setState('isTracking', false)
-    f.findInMenu('k9unit', 'k9_track_certified').onSelect()
+    f.findK9Item('k9_track_certified').onSelect()
     t.equals(f.denyCallCount(), 1)
     t.equals(f.lastDenyReason(), 'combat.no_access')
     t.isNil(f.calls.StartCertifiedTrack)
@@ -1694,7 +1674,7 @@ t.test('k9_track_certified: nothing active -- starting the merged search is GATE
     -- item genuinely unlocks the ability end-to-end for a bypass holder.
     local fBypass = newRadialFixture({ features = { ScentTracking = true }, hasK9Access = true, canShowK9UI = false })
     fBypass.setState('isTracking', false)
-    fBypass.findInMenu('k9unit', 'k9_track_certified').onSelect()
+    fBypass.findK9Item('k9_track_certified').onSelect()
     t.equals(fBypass.denyCallCount(), 0)
     t.equals(#fBypass.calls.StartCertifiedTrack, 1)
 end)
@@ -1702,7 +1682,7 @@ end)
 t.test('k9_track_certified: nothing active, access granted -- calls StartCertifiedTrack (the ONE merged action, never a specific Start*Track)', function()
     local f = newRadialFixture({ features = { ScentTracking = true } })
     f.setState('isTracking', false)
-    f.findInMenu('k9unit', 'k9_track_certified').onSelect()
+    f.findK9Item('k9_track_certified').onSelect()
     t.equals(#f.calls.StartCertifiedTrack, 1)
     t.isNil(f.calls.StartScentTrack, 'the collapsed item must never call the old per-type globals directly')
     t.isNil(f.calls.StartBloodTrack)
@@ -1747,7 +1727,7 @@ t.test('Re-registering (via a simulated ox_lib restart) rebuilds fresh onSelect 
     f.wipeOxLibRadialState()
     f.fireResourceStart('ox_lib')
 
-    f.findInMenu('k9unit', 'k9_takedown').onSelect()
+    f.findK9Item('k9_takedown').onSelect()
     t.equals(#f.calls.RequestTakedown, 1, 'a freshly re-registered item\'s onSelect must still genuinely call through once access is granted')
 end)
 
@@ -1818,12 +1798,12 @@ end)
 t.test('AdvancedBarkRadial blocked for this specific client: Bark degrades to the SAME single, flat, generic item this file ships when the GLOBAL flag is false -- basic barking is unaffected', function()
     local f = newRadialFixture({ features = { AdvancedBarkRadial = true } })
     t.isNotNil(f.findMenu('k9unit_bark'), 'sanity: unblocked, the variant submenu IS registered')
-    t.equals(f.findInMenu('k9unit', 'k9_bark').menu, 'k9unit_bark')
+    t.equals(f.findK9Item('k9_bark').menu, 'k9unit_bark')
 
     f.setBlocked('AdvancedBarkRadial', true)
     f.fireFeatureBlocksApplied()
 
-    local bark = f.findInMenu('k9unit', 'k9_bark')
+    local bark = f.findK9Item('k9_bark')
     t.isNotNil(bark, 'Bark itself must still be offered -- only the ADVANCED variant submenu is withheld')
     t.isNil(bark.menu, 'must be a terminal action again, not a navigation link into the (now unreachable) variant submenu')
     t.isNotNil(bark.onSelect)
@@ -1844,12 +1824,12 @@ t.test('AdvancedBarkRadial block is LIVE and reversible via the featureBlocksApp
     -- calls an unverified removal API (see production code's own comment).
     -- What actually matters -- and what this test checks -- is that
     -- NOTHING REACHABLE from 'k9unit' still links to it.
-    t.isNil(f.findInMenu('k9unit', 'k9_bark').menu, 'k9_bark must not navigate into the (possibly orphaned) k9unit_bark while blocked')
+    t.isNil(f.findK9Item('k9_bark').menu, 'k9_bark must not navigate into the (possibly orphaned) k9unit_bark while blocked')
 
     f.setBlocked('AdvancedBarkRadial', false)
     f.fireFeatureBlocksApplied()
     t.isNotNil(f.findMenu('k9unit_bark'), 'unblocking must restore the variant submenu on the next rebuild')
-    t.equals(f.findInMenu('k9unit', 'k9_bark').menu, 'k9unit_bark')
+    t.equals(f.findK9Item('k9_bark').menu, 'k9unit_bark')
 end)
 
 t.test('a block on a DIFFERENT feature name never affects RadialMenu or AdvancedBarkRadial', function()
@@ -2061,7 +2041,7 @@ end)
 -- ========================================================================
 t.test('k9_takedown: NOT engaged -> requests a takedown, exactly as before', function()
     local f = newRadialFixture({ features = { NonLethalTakedown = true } })
-    f.findInMenu('k9unit', 'k9_takedown').onSelect()
+    f.findK9Item('k9_takedown').onSelect()
     t.equals(#(f.calls.RequestTakedown or {}), 1)
     t.equals(#(f.calls.ReleaseTakedown or {}), 0)
 end)
@@ -2069,7 +2049,7 @@ end)
 t.test('k9_takedown: ENGAGED -> releases instead, and never falls through to fire a second request', function()
     local f = newRadialFixture({ features = { NonLethalTakedown = true } })
     f.setState('isTakedownEngaged', true)
-    f.findInMenu('k9unit', 'k9_takedown').onSelect()
+    f.findK9Item('k9_takedown').onSelect()
     t.equals(#(f.calls.ReleaseTakedown or {}), 1, 'the wrongly-taken-down target must be releasable from the radial too, not only the keybind')
     t.equals(#(f.calls.RequestTakedown or {}), 0)
 end)
@@ -2077,7 +2057,7 @@ end)
 t.test('k9_takedown: the Release branch is UNGATED -- it fires with no K9 access at all, because that is the STOP half', function()
     local f = newRadialFixture({ features = { NonLethalTakedown = true }, hasK9Access = false, canShowK9UI = false })
     f.setState('isTakedownEngaged', true)
-    f.findInMenu('k9unit', 'k9_takedown').onSelect()
+    f.findK9Item('k9_takedown').onSelect()
     t.equals(#(f.calls.ReleaseTakedown or {}), 1, 'a K9 decertified mid-takedown must still be able to let go -- gate the start, never the stop')
     t.equals(f.denyCallCount(), 0, 'and must never be told it cannot use K9 features while doing so')
 end)
@@ -2085,14 +2065,14 @@ end)
 t.test('CONTROL: the Start branch still carries its access gate -- wiring the release must not have widened the start', function()
     local f = newRadialFixture({ features = { NonLethalTakedown = true }, hasK9Access = false, canShowK9UI = false })
     f.setState('isTakedownEngaged', false)
-    f.findInMenu('k9unit', 'k9_takedown').onSelect()
+    f.findK9Item('k9_takedown').onSelect()
     t.equals(#(f.calls.RequestTakedown or {}), 0)
     t.isTrue(f.denyCallCount() > 0)
 end)
 
 t.test('CONTROL: tolerates IsTakedownEngaged/ReleaseTakedown being entirely absent (soft dependency), exactly as the bite-hold and drag releases already are', function()
     local f = newRadialFixture({ features = { NonLethalTakedown = true }, omit = { 'IsTakedownEngaged', 'ReleaseTakedown' } })
-    local ok = pcall(function() f.findInMenu('k9unit', 'k9_takedown').onSelect() end)
+    local ok = pcall(function() f.findK9Item('k9_takedown').onSelect() end)
     t.isTrue(ok)
 end)
 
@@ -2111,38 +2091,38 @@ end)
 
 t.test('k9_scent_vision: present at the shipped default (Config.Features.ScentVision defaults true), with the real locale-backed label', function()
     local f = newRadialFixture()
-    local item = f.findInMenu('k9unit', 'k9_scent_vision')
+    local item = f.findK9Item('k9_scent_vision')
     t.isNotNil(item, 'an ability with a command and a keybind but no wheel entry is one only keybind-list readers ever find')
     t.equals(item.label, locale('radial.scent_vision_label'))
 end)
 
 t.test('k9_scent_vision: absent when Config.Features.ScentVision is off', function()
     local f = newRadialFixture({ features = { ScentVision = false } })
-    t.isNil(f.findInMenu('k9unit', 'k9_scent_vision'))
+    t.isNil(f.findK9Item('k9_scent_vision'))
 end)
 
 t.test('k9_scent_vision: onSelect calls ToggleScentVision() exactly once, and gates on nothing itself', function()
     local f = newRadialFixture({ canShowK9UI = false, hasK9Access = false })
-    f.findInMenu('k9unit', 'k9_scent_vision').onSelect()
+    f.findK9Item('k9_scent_vision').onSelect()
     t.equals(#f.calls.ToggleScentVision, 1)
     t.equals(f.canShowK9UICallCount(), 0, 'the item must not pre-gate -- ToggleScentVision() does the real CanShowK9UI() check on its turning-ON branch, and turning OFF is never gated')
 end)
 
 t.test('FIXED-SHAPE GUARD: k9_scent_vision does not throw when ToggleScentVision is entirely absent', function()
     local f = newRadialFixture({ omit = { 'ToggleScentVision' } })
-    assertGuardDoesNotThrow(f.findInMenu('k9unit', 'k9_scent_vision'))
+    assertGuardDoesNotThrow(f.findK9Item('k9_scent_vision'))
 end)
 
 t.test('k9_camera_feed: present at the shipped default (Config.Features.CameraFeedPiP defaults true), with the real locale-backed label', function()
     local f = newRadialFixture()
-    local item = f.findInMenu('k9unit', 'k9_camera_feed')
+    local item = f.findK9Item('k9_camera_feed')
     t.isNotNil(item)
     t.equals(item.label, locale('radial.camera_feed_label'))
 end)
 
 t.test('k9_camera_feed: absent when Config.Features.CameraFeedPiP is off', function()
     local f = newRadialFixture({ features = { CameraFeedPiP = false } })
-    t.isNil(f.findInMenu('k9unit', 'k9_camera_feed'))
+    t.isNil(f.findK9Item('k9_camera_feed'))
 end)
 
 t.test('k9_camera_feed: onSelect calls ToggleCameraFeed() exactly once, and is NOT pre-filtered on partnership', function()
@@ -2151,20 +2131,20 @@ t.test('k9_camera_feed: onSelect calls ToggleCameraFeed() exactly once, and is N
     -- see their dog, replacing ToggleCameraFeed()'s own "you are not
     -- partnered with anyone" message with nothing at all.
     local f = newRadialFixture({ canShowK9UI = false, hasK9Access = false })
-    f.findInMenu('k9unit', 'k9_camera_feed').onSelect()
+    f.findK9Item('k9_camera_feed').onSelect()
     t.equals(#f.calls.ToggleCameraFeed, 1)
     t.equals(f.canShowK9UICallCount(), 0)
 end)
 
 t.test('FIXED-SHAPE GUARD: k9_camera_feed does not throw when ToggleCameraFeed is entirely absent', function()
     local f = newRadialFixture({ omit = { 'ToggleCameraFeed' } })
-    assertGuardDoesNotThrow(f.findInMenu('k9unit', 'k9_camera_feed'))
+    assertGuardDoesNotThrow(f.findK9Item('k9_camera_feed'))
 end)
 
 t.test('the two new items are INDEPENDENT: switching one flag off leaves the other in place', function()
     local f = newRadialFixture({ features = { ScentVision = false } })
-    t.isNil(f.findInMenu('k9unit', 'k9_scent_vision'))
-    t.isNotNil(f.findInMenu('k9unit', 'k9_camera_feed'), 'one perception ability being off must never take another down with it')
+    t.isNil(f.findK9Item('k9_scent_vision'))
+    t.isNotNil(f.findK9Item('k9_camera_feed'), 'one perception ability being off must never take another down with it')
 end)
 
 os.exit(t.summary())
