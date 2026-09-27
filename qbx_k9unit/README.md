@@ -88,6 +88,40 @@ its code.
 
 ---
 
+## Default keys
+
+Every player can change any of these in **Settings > Key Bindings >
+FiveM**; a key they have already changed keeps their choice. The same list
+is at the top of the tablet's **Guide** tab (only the keys for features
+switched on on your server).
+
+| Key | What it does |
+|---|---|
+| **Z** | Open the K9 menu (ox_lib's radial menu) — every action is in here |
+| **Left Alt** | Third eye (ox_target) — look at a person, vehicle or kennel to see what you can do |
+| **G** | Sit |
+| **U** | Bark |
+| **.** (full stop) | Scent vision on / off |
+| **B** | Bite & hold / let go |
+| **[** | Take down a fleeing suspect |
+| **Y** | Drag / let go |
+| **X** | Jump a low obstacle |
+| **N** | Pursuit sprint |
+| **L** | First-person view on / off |
+| **H** | Partner camera on / off |
+| **K** | Thermal vision on / off |
+| **J** | Night vision on / off |
+| **I** | Cycle vision: off, night, thermal |
+| **O** | Leave the kennel |
+
+Bite & hold, takedown, drag and scent vision take their default from
+`config.lua` (`Config.Combat.*` and `Config.Tracking.ScentVision.keybind`);
+the camera feed, thermal and night vision keys from `Config.CameraFeed` and
+`Config.Vision`. Changing a default there never moves a key a player has
+already set.
+
+---
+
 ## How a K9 gets made
 
 A certification is held by both halves of a team: the human **handler**

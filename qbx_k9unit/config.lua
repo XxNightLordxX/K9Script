@@ -2593,7 +2593,7 @@ Config.Tracking = {
         -- lowercase):
         --
         --   'keybind' (RECOMMENDED, and the default) -- a handler presses
-        --   the key below (Z by default, rebindable per-player in their own
+        --   the key below (. -- the full stop / period -- by default, rebindable per-player in their own
         --   FiveM Settings) to see the coloured dots, and presses it again
         --   to stop. This is the original brief exactly as asked for, and
         --   costs nothing extra: nobody sees anything on their screen until
@@ -2661,7 +2661,12 @@ Config.Tracking = {
         -- call -- a collision shipped here once for exactly that reason.
         -- The resolved defaults in use are listed in
         -- DEVELOPER_REFERENCE.md §22.
-        keybind = 'Z',
+        --
+        -- NOT 'Z': ox_lib's radial menu -- the menu every K9 action here
+        -- lives in -- defaults to Z, so a Z default toggled scent vision
+        -- every time a K9 opened their menu. tests/keybindcollisions_spec.lua
+        -- now checks defaults against the keys ox_lib and ox_target own.
+        keybind = 'PERIOD',
 
         -- One colour per visible trail. A person's colour is derived from
         -- their own citizenid, so the same person looks the same to every

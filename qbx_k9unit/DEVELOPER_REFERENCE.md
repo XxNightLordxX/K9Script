@@ -3141,7 +3141,11 @@ once. That trade was the point of the request.
 
 ### Keybind defaults, and the collision that shipped
 
-`Config.Tracking.ScentVision.keybind` defaults to `'Z'`, not `'B'`. A first
+`Config.Tracking.ScentVision.keybind` defaults to `'PERIOD'` (the full stop).
+It was `'Z'` until the rework pass found that ox_lib's own radial menu -- the
+menu every K9 action lives in -- defaults to Z, so opening the menu toggled
+scent vision; tests/keybindcollisions_spec.lua now also checks defaults against
+keys ox_lib and ox_target own. Before that it was briefly `'B'`. A first
 pass shipped `'B'` without noticing that the bite-and-hold toggle further down
 the same file also defaults to `'B'` -- a real, ship-blocking collision found
 while wiring the tablet's Commands page.

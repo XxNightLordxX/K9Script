@@ -3949,9 +3949,59 @@
      */
     function buildGuideScreen() {
         var wrap = mk('div', { class: 'k9tablet-screen k9tablet-help' });
+        var keys = buildKeysListSection();
+        if (keys) wrap.appendChild(keys);
         wrap.appendChild(buildHelpScreen());
         wrap.appendChild(buildCommandReferenceScreen());
         return wrap;
+    }
+
+    /**
+     * YOUR KEYS -- every key in one short list, at the top of the Guide (the
+     * owner's rework pass: "do not remove keybinds, just make a list").
+     *
+     * Built from COMMAND_REFERENCE -- the same entries, and the same
+     * "is this feature switched on here" test (commandReferenceIsVisible()),
+     * as the full command table further down -- so it never lists a key
+     * for something this server has turned off, and never a key that does
+     * not exist. tests/keybindreference_spec.lua checks every
+     * defaultKeybind against the key the resource actually registers.
+     *
+     * The first two rows are the gateways to everything else: ox_lib's
+     * radial menu (the K9 menu lives in it) and ox_target's third eye. They
+     * belong to those resources, not this one, so they are shown as their
+     * shipped defaults.
+     *
+     * Defaults only: FiveM lets each player rebind any of these, and the
+     * page cannot see their personal bindings -- the intro line says so.
+     * @returns {HTMLElement|null}
+     */
+    function buildKeysListSection() {
+        var rows = [];
+        if (commandReferenceIsVisible({ gate: { kind: 'open', featureKey: 'RadialMenu' } })) {
+            rows.push({ key: S('keys_name_radial'), label: S('keys_action_radial') });
+        }
+        rows.push({ key: S('keys_name_third_eye'), label: S('keys_action_third_eye') });
+        for (var i = 0; i < COMMAND_REFERENCE.length; i++) {
+            var entry = COMMAND_REFERENCE[i];
+            if (typeof entry.defaultKeybind !== 'string' || entry.defaultKeybind.length === 0) continue;
+            if (typeof entry.keyLabelKey !== 'string') continue;
+            if (!commandReferenceIsVisible(entry)) continue;
+            rows.push({ key: entry.defaultKeybind, label: S(entry.keyLabelKey) });
+        }
+
+        var section = mk('div', { class: 'k9tablet-home-section k9tablet-keys-section' });
+        section.appendChild(mk('h2', { class: 'k9tablet-section-heading', text: S('keys_heading') }));
+        section.appendChild(mk('p', { class: 'k9tablet-hint', text: S('keys_intro') }));
+        var list = mk('ul', { class: 'k9tablet-keys-list' });
+        for (var r = 0; r < rows.length; r++) {
+            var li = mk('li', { class: 'k9tablet-keys-row' });
+            li.appendChild(mk('kbd', { class: 'k9tablet-key', text: rows[r].key }));
+            li.appendChild(mk('span', { class: 'k9tablet-keys-label', text: rows[r].label }));
+            list.appendChild(li);
+        }
+        section.appendChild(list);
+        return section;
     }
 
     function buildHelpScreen() {

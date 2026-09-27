@@ -1503,6 +1503,40 @@ body {
 }
 
 /*
+    YOUR KEYS -- html/tablet.js's own buildKeysListSection(): a key cap and
+    what it does, one per row, two columns where there is room. Uses the
+    theme's own colours; layout only otherwise.
+*/
+.k9tablet-keys-list {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 6px 16px;
+}
+
+.k9tablet-keys-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.k9tablet-key {
+    display: inline-block;
+    min-width: 2.2em;
+    padding: 2px 8px;
+    text-align: center;
+    font-family: inherit;
+    font-weight: 700;
+    border: 1px solid rgba(127, 127, 127, 0.45);
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    background: rgba(127, 127, 127, 0.12);
+    white-space: nowrap;
+}
+
+/*
     SERVER SETTINGS section picker -- html/tablet.js's own
     buildSettingsSectionNav(). The buttons are plain .k9tablet-tab /
     .k9tablet-tab--active (the same nested-tab look as the Audit Trail's

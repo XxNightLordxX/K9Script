@@ -804,6 +804,29 @@
         // is simply omitted from `strings` until added there, and this
         // DEFAULT_STRINGS table covers that exact gap in the meantime,
         // same resilience-net role it already plays for every other key.
+        // ---- YOUR KEYS -- html/tablet.js's buildKeysListSection(), the list at
+        // the top of the Guide. keys_name_* are the two gateway keys owned by
+        // ox_lib (radial menu) and ox_target (third eye), shown as their defaults.
+        keys_heading: "Your Keys",
+        keys_intro: "The default key for everything you can do. Change any of them in Settings > Key Bindings > FiveM -- a key you have already changed keeps your choice.",
+        keys_action_radial: "Open your K9 menu -- every action is in here",
+        keys_action_third_eye: "Look at a person, vehicle or kennel to see what you can do with it",
+        keys_action_sit: "Sit",
+        keys_action_bark: "Bark",
+        keys_action_scent_vision: "Scent vision on / off",
+        keys_action_bite_hold: "Bite & hold / let go",
+        keys_action_takedown: "Take down a fleeing suspect",
+        keys_action_drag: "Drag / let go",
+        keys_action_vault: "Jump a low obstacle",
+        keys_action_pursuit_sprint: "Pursuit sprint",
+        keys_action_toggle_camera: "First-person view on / off",
+        keys_action_camera_feed: "Partner camera on / off",
+        keys_action_thermal: "Thermal vision on / off",
+        keys_action_night: "Night vision on / off",
+        keys_action_vision_cycle: "Cycle vision: off, night, thermal",
+        keys_action_exit_kennel: "Leave the kennel",
+        keys_name_radial: "Z",
+        keys_name_third_eye: "Left Alt",
         cmdref_heading: 'Command Reference',
         cmdref_intro: 'Every command this resource registers, grouped by what you are trying to do. A command you cannot currently use is marked, with the reason why -- the server still decides what actually works; this list only tells you the truth about it.',
         cmdref_search_placeholder: 'Search commands...',
@@ -1179,7 +1202,7 @@
         help_task_stop_being_k9_3: "3. It always works. They can do it even if your certification has lapsed, your access was revoked, or you hold no grants at all -- there is no state you can end up in where the button stops working.",
         help_task_stop_being_k9_4: "4. Your original appearance was saved when you were turned into the K9, so you get your own character back, not a default one. Logging out and back in does NOT revert you: you stay the K9 across sessions until someone presses that button.",
         help_task_scent_vision_heading: "Use Scent Vision",
-        help_task_scent_vision_1: "1. As the K9, press the \"K9: Toggle Scent Vision\" key (Z by default, rebindable in Settings > Key Bindings > FiveM) to show coloured dots marking where nearby people have recently walked. Press it again to turn it off.",
+        help_task_scent_vision_1: "1. As the K9, press the \"K9: Toggle Scent Vision\" key (. -- the full stop -- by default, rebindable in Settings > Key Bindings > FiveM) to show coloured dots marking where nearby people have recently walked. Press it again to turn it off.",
         help_task_scent_vision_2: "2. Only a handful of the closest people's trails are shown at once, each its own colour, and the dots fade out and disappear as they get older.",
         help_task_scent_vision_3: "3. If pressing the key does nothing, either this feature is turned off on this server, or this server has set it to run for everyone automatically instead of needing the key -- ask High Command.",
         help_task_hc_certify_someone_heading: "Certify Someone",
@@ -1450,15 +1473,15 @@
         // load-bearing caveat (cmdref_keybind_caveat, shown once in this
         // screen's own intro) that a default only applies to a player who
         // has never rebound that key, and never moves an existing one. ----
-        { command: 'k9sit', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9sit_usage', doesKey: 'cmdref_k9sit_does', needsKey: 'cmdref_k9sit_needs', gate: { kind: 'access' }, defaultKeybind: 'V' },
-        { command: 'k9bark', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9bark_usage', doesKey: 'cmdref_k9bark_does', needsKey: 'cmdref_k9bark_needs', gate: { kind: 'access', featureKey: 'BasicBarkSounds' }, defaultKeybind: 'C' },
-        { command: 'k9scentvision', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9scentvision_usage', doesKey: 'cmdref_k9scentvision_does', needsKey: 'cmdref_k9scentvision_needs', gate: { kind: 'access', featureKey: 'ScentVision' }, defaultKeybind: 'Z' },
+        { command: 'k9sit', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9sit_usage', doesKey: 'cmdref_k9sit_does', needsKey: 'cmdref_k9sit_needs', gate: { kind: 'access' }, defaultKeybind: 'G', keyLabelKey: 'keys_action_sit' },
+        { command: 'k9bark', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9bark_usage', doesKey: 'cmdref_k9bark_does', needsKey: 'cmdref_k9bark_needs', gate: { kind: 'access', featureKey: 'BasicBarkSounds' }, defaultKeybind: 'U', keyLabelKey: 'keys_action_bark' },
+        { command: 'k9scentvision', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9scentvision_usage', doesKey: 'cmdref_k9scentvision_does', needsKey: 'cmdref_k9scentvision_needs', gate: { kind: 'access', featureKey: 'ScentVision' }, defaultKeybind: '.', keyLabelKey: 'keys_action_scent_vision' },
 
         // ---- Combat & Restraint (client/keybinds.lua) -- same
         // `defaultKeybind` provenance note as Basic K9 Commands above.
-        { command: 'k9bitehold', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9bitehold_usage', doesKey: 'cmdref_k9bitehold_does', needsKey: 'cmdref_k9bitehold_needs', gate: { kind: 'access', featureKey: 'BiteAndHold' }, defaultKeybind: 'B' },
-        { command: 'k9takedown', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9takedown_usage', doesKey: 'cmdref_k9takedown_does', needsKey: 'cmdref_k9takedown_needs', gate: { kind: 'access', featureKey: 'NonLethalTakedown' }, defaultKeybind: 'T' },
-        { command: 'k9dragtoggle', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9dragtoggle_usage', doesKey: 'cmdref_k9dragtoggle_does', needsKey: 'cmdref_k9dragtoggle_needs', gate: { kind: 'access', featureKey: 'PropDragging' }, defaultKeybind: 'Y' },
+        { command: 'k9bitehold', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9bitehold_usage', doesKey: 'cmdref_k9bitehold_does', needsKey: 'cmdref_k9bitehold_needs', gate: { kind: 'access', featureKey: 'BiteAndHold' }, defaultKeybind: 'B', keyLabelKey: 'keys_action_bite_hold' },
+        { command: 'k9takedown', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9takedown_usage', doesKey: 'cmdref_k9takedown_does', needsKey: 'cmdref_k9takedown_needs', gate: { kind: 'access', featureKey: 'NonLethalTakedown' }, defaultKeybind: '[', keyLabelKey: 'keys_action_takedown' },
+        { command: 'k9dragtoggle', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9dragtoggle_usage', doesKey: 'cmdref_k9dragtoggle_does', needsKey: 'cmdref_k9dragtoggle_needs', gate: { kind: 'access', featureKey: 'PropDragging' }, defaultKeybind: 'Y', keyLabelKey: 'keys_action_drag' },
         // qbx_k9unit:vault/qbx_k9unit:pursuitsprint (integration-sweep
         // fix): two REAL, working keybind commands that had ZERO
         // COMMAND_REFERENCE entry before that pass -- see
@@ -1474,10 +1497,10 @@
         // client/pursuitsprint.lua pair a RegisterKeyMapping, whose own id
         // must be globally unique across every resource a server loads,
         // unlike a chat-only command.
-        { command: 'qbx_k9unit:vault', category: 'combat', adminOnly: false, usageKey: 'cmdref_vault_usage', doesKey: 'cmdref_vault_does', needsKey: 'cmdref_vault_needs', gate: { kind: 'access', featureKey: 'AgilityAdvanced' }, defaultKeybind: 'X' },
-        { command: 'qbx_k9unit:pursuitsprint', category: 'combat', adminOnly: false, usageKey: 'cmdref_pursuitsprint_usage', doesKey: 'cmdref_pursuitsprint_does', needsKey: 'cmdref_pursuitsprint_needs', gate: { kind: 'access', featureKey: 'PursuitSprint' }, defaultKeybind: 'N' },
-        { command: 'qbx_k9unit:toggleCamera', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_camera_usage', doesKey: 'cmdref_toggle_camera_does', needsKey: 'cmdref_toggle_camera_needs', gate: { kind: 'open' }, defaultKeybind: 'L' },
-        { command: 'qbx_k9unit:toggleCameraFeed', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_camera_feed_usage', doesKey: 'cmdref_toggle_camera_feed_does', needsKey: 'cmdref_toggle_camera_feed_needs', gate: { kind: 'access', featureKey: 'CameraFeedPiP' }, defaultKeybind: 'H', defaultKeybindConfigurable: true },
+        { command: 'qbx_k9unit:vault', category: 'combat', adminOnly: false, usageKey: 'cmdref_vault_usage', doesKey: 'cmdref_vault_does', needsKey: 'cmdref_vault_needs', gate: { kind: 'access', featureKey: 'AgilityAdvanced' }, defaultKeybind: 'X', keyLabelKey: 'keys_action_vault' },
+        { command: 'qbx_k9unit:pursuitsprint', category: 'combat', adminOnly: false, usageKey: 'cmdref_pursuitsprint_usage', doesKey: 'cmdref_pursuitsprint_does', needsKey: 'cmdref_pursuitsprint_needs', gate: { kind: 'access', featureKey: 'PursuitSprint' }, defaultKeybind: 'N', keyLabelKey: 'keys_action_pursuit_sprint' },
+        { command: 'qbx_k9unit:toggleCamera', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_camera_usage', doesKey: 'cmdref_toggle_camera_does', needsKey: 'cmdref_toggle_camera_needs', gate: { kind: 'open' }, defaultKeybind: 'L', keyLabelKey: 'keys_action_toggle_camera' },
+        { command: 'qbx_k9unit:toggleCameraFeed', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_camera_feed_usage', doesKey: 'cmdref_toggle_camera_feed_does', needsKey: 'cmdref_toggle_camera_feed_needs', gate: { kind: 'access', featureKey: 'CameraFeedPiP' }, defaultKeybind: 'H', keyLabelKey: 'keys_action_camera_feed', defaultKeybindConfigurable: true },
         // qbx_k9unit:toggleThermalVision / qbx_k9unit:toggleNightVision --
         // OWNER REVERSAL (coder-architect, this pass): an earlier pass had
         // folded these two into a single 'k9vision' cycle entry and removed
@@ -1491,14 +1514,14 @@
         // tests/commandreferenceregistry_spec.lua's HIDDEN_ALIAS_COMMANDS
         // ('vision' family, now empty) / COMMANDS_TAB_CLEANUP_COMPLETE
         // (vision reverted to not-complete).
-        { command: 'qbx_k9unit:toggleThermalVision', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_thermal_vision_usage', doesKey: 'cmdref_toggle_thermal_vision_does', needsKey: 'cmdref_toggle_thermal_vision_needs', gate: { kind: 'open', featureKey: 'ThermalVision' }, defaultKeybind: 'K', defaultKeybindConfigurable: true },
-        { command: 'qbx_k9unit:toggleNightVision', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_night_vision_usage', doesKey: 'cmdref_toggle_night_vision_does', needsKey: 'cmdref_toggle_night_vision_needs', gate: { kind: 'open', featureKey: 'NightVision' }, defaultKeybind: 'J', defaultKeybindConfigurable: true },
+        { command: 'qbx_k9unit:toggleThermalVision', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_thermal_vision_usage', doesKey: 'cmdref_toggle_thermal_vision_does', needsKey: 'cmdref_toggle_thermal_vision_needs', gate: { kind: 'open', featureKey: 'ThermalVision' }, defaultKeybind: 'K', keyLabelKey: 'keys_action_thermal', defaultKeybindConfigurable: true },
+        { command: 'qbx_k9unit:toggleNightVision', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_night_vision_usage', doesKey: 'cmdref_toggle_night_vision_does', needsKey: 'cmdref_toggle_night_vision_needs', gate: { kind: 'open', featureKey: 'NightVision' }, defaultKeybind: 'J', keyLabelKey: 'keys_action_night', defaultKeybindConfigurable: true },
         // 'k9vision' (Off -> Night -> Thermal -> Off) is KEPT as an extra,
         // optional convenience alongside the two explicit toggles above --
         // owner's own steer ("keep it as an extra... someone may prefer
         // it"), same additive shape as 'k9kennel' alongside
         // k9deploykennel/k9exitkennel (docs/history/COMMAND_CONSOLIDATION_SPEC.md #5).
-        { command: 'k9vision', category: 'vision', adminOnly: false, usageKey: 'cmdref_k9vision_usage', doesKey: 'cmdref_k9vision_does', needsKey: 'cmdref_k9vision_needs', gate: { kind: 'open' }, defaultKeybind: 'I' },
+        { command: 'k9vision', category: 'vision', adminOnly: false, usageKey: 'cmdref_k9vision_usage', doesKey: 'cmdref_k9vision_does', needsKey: 'cmdref_k9vision_needs', gate: { kind: 'open' }, defaultKeybind: 'I', keyLabelKey: 'keys_action_vision_cycle' },
 
         // ---- Field Gear & Equipment ----
         // k9leash/k9vehicle/k9partner/k9gear/k9treat -- menu-parity pass
@@ -1530,7 +1553,7 @@
         // ExitKennelRest() never gates on DeployableKennel, HasK9Access, or
         // certification -- this is a confining-mechanic escape hatch, never
         // gated on the way out.
-        { command: 'k9exitkennel', category: 'field_gear', adminOnly: false, usageKey: 'cmdref_k9exitkennel_usage', doesKey: 'cmdref_k9exitkennel_does', needsKey: 'cmdref_k9exitkennel_needs', gate: { kind: 'open' }, defaultKeybind: 'O' },
+        { command: 'k9exitkennel', category: 'field_gear', adminOnly: false, usageKey: 'cmdref_k9exitkennel_usage', doesKey: 'cmdref_k9exitkennel_does', needsKey: 'cmdref_k9exitkennel_needs', gate: { kind: 'open' }, defaultKeybind: 'O', keyLabelKey: 'keys_action_exit_kennel' },
         // k9kennel -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #5's merged, ADDITIVE
         // entry point (client/kennel.lua) -- reported as
         // PENDING_NEW_CANONICAL_COMMANDS while html/tablet.js was a hot

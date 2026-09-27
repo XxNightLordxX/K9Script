@@ -1284,7 +1284,7 @@ local TABLET_STRING_KEYS = {
     -- mid-pass -- server/permissions.lua registered both concurrently
     -- while this list was being written; tests/commandreferenceregistry_spec.lua
     -- is what actually caught the gap.)
-    'cmdref_heading', 'cmdref_intro', 'cmdref_search_placeholder', 'cmdref_status_unknown',
+    'keys_heading', 'keys_intro', 'keys_action_radial', 'keys_action_third_eye', 'keys_action_sit', 'keys_action_bark', 'keys_action_scent_vision', 'keys_action_bite_hold', 'keys_action_takedown', 'keys_action_drag', 'keys_action_vault', 'keys_action_pursuit_sprint', 'keys_action_toggle_camera', 'keys_action_camera_feed', 'keys_action_thermal', 'keys_action_night', 'keys_action_vision_cycle', 'keys_action_exit_kennel', 'keys_name_radial', 'keys_name_third_eye', 'cmdref_heading', 'cmdref_intro', 'cmdref_search_placeholder', 'cmdref_status_unknown',
     'cmdref_filter_label', 'cmdref_filter_no_matches',
     'cmdref_status_unavailable_loading', 'cmdref_status_unavailable_error',
         'cmdref_empty', 'cmdref_column_command', 'cmdref_column_does', 'cmdref_column_needs',
