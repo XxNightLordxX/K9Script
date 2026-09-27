@@ -369,7 +369,7 @@ t.test('a viewer with ZERO active certifications and no console access sees real
     // THE "PRE-FACE" STATE (this pass) -- a concrete next step, not just an
     // explanation of the current state, naming the two tabs this resource
     // already has for exactly this question.
-    t.isTrue(findByText(h.getRoot(), 'Not sure how to get started? The Help tab walks you through it, and the Commands tab shows everything there is to earn.').length >= 1);
+    t.isTrue(findByText(h.getRoot(), 'Not sure how to get started? The Guide tab walks you through it, and lists everything there is to earn.').length >= 1);
     t.equals(findByText(h.getRoot(), 'Open Command Console').length, 0, 'no console access for this viewer -- the quick action is correctly absent, never a dead-click');
     t.equals(findByText(h.getRoot(), 'Command Console').length, 0, 'the Console TAB is also absent for the same reason');
 

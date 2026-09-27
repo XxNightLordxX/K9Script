@@ -175,7 +175,7 @@ t.test('role-based Start Here: a K9-model viewer sees the K9 track, never the Ha
     await openHelpScreen(h);
 
     t.isTrue(findByTextContaining(h.getRoot(), 'You are playing as the dog').length >= 1, 'K9 track step 1 renders');
-    t.equals(findByTextContaining(h.getRoot(), 'Look at the top of the Home tab. It shows your name').length, 0, 'Handler track step 1 does NOT render at the same time');
+    t.equals(findByTextContaining(h.getRoot(), 'Look at the top of the My Record tab. It shows your name').length, 0, 'Handler track step 1 does NOT render at the same time');
 });
 
 t.test('role-based Start Here: a non-K9 viewer sees the Handler track, never the K9 track', async () => {
@@ -186,7 +186,7 @@ t.test('role-based Start Here: a non-K9 viewer sees the Handler track, never the
     });
     await openHelpScreen(h);
 
-    t.isTrue(findByTextContaining(h.getRoot(), 'Look at the top of the Home tab. It shows your name').length >= 1, 'Handler track step 1 renders');
+    t.isTrue(findByTextContaining(h.getRoot(), 'Look at the top of the My Record tab. It shows your name').length >= 1, 'Handler track step 1 renders');
     t.equals(findByTextContaining(h.getRoot(), 'You are playing as the dog').length, 0, 'K9 track step 1 does NOT render at the same time');
 });
 
