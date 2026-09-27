@@ -5644,6 +5644,30 @@ t.test('tabletCertify: ONLINE grant is COMPLETELY UNAFFECTED by this pass -- sti
     t.isFalse(insertCalled)
 end)
 
+t.test('requireK9ModelForRole on: Certify as K9 WITH a breed is not refused for the target not being a dog yet -- the certify is what makes them one', function()
+    local f = tabletFixture({ k9Appearance = { requireK9ModelForRole = true, applyPedModelOnCertify = true } })
+    f.registerPlayer(1, 'G1', { name = 'police', isboss = true })
+    f.registerPlayer(2, 'T1', { name = 'police', grade = { level = 1 } })
+    f.setPed(1, 100, vec3(0, 0, 0))
+    f.setPed(2, 200, vec3(1, 0, 0), NON_K9_HASH)
+
+    local result = f.callbacks['qbx_k9unit:server:tabletCertify'](1, 'T1', 'police', 'a_c_shepherd')
+    t.isTrue(result.ok, 'got ' .. tostring(result.error))
+    t.equals(#f.appearanceApplyCalls, 1)
+end)
+
+t.test('requireK9ModelForRole on: certifying a HUMAN as a handler (no breed) is still refused, as the operator opted in', function()
+    local f = tabletFixture({ k9Appearance = { requireK9ModelForRole = true, applyPedModelOnCertify = true } })
+    f.registerPlayer(1, 'G1', { name = 'police', isboss = true })
+    f.registerPlayer(2, 'T1', { name = 'police', grade = { level = 1 } })
+    f.setPed(1, 100, vec3(0, 0, 0))
+    f.setPed(2, 200, vec3(1, 0, 0), NON_K9_HASH)
+
+    local result = f.callbacks['qbx_k9unit:server:tabletCertify'](1, 'T1', 'police')
+    t.isFalse(result.ok)
+    t.equals(result.error, 'target_not_k9_model')
+end)
+
 t.test('tabletCertify: ONLINE grant STILL succeeds against a real K9 model, unaffected by this pass, when requireK9ModelForRole is true', function()
     local f = tabletFixture({ k9Appearance = { requireK9ModelForRole = true } })
     f.registerPlayer(10, 'G1', { name = 'police', isboss = true })

@@ -2347,6 +2347,17 @@ end
 --- @param targetCitizenid string
 --- @param granterCitizenid string?
 --- @param k9Model string?
+--- True when this certify will itself turn the person into the chosen
+--- breed. Config.K9Appearance.requireK9ModelForRole ("only someone already
+--- on a K9 model may be certified") must not refuse a Certify-as-K9 for
+--- not being a dog YET -- becoming one is what this certify does.
+--- @param k9Model string?
+--- @return boolean
+local function WillApplyChosenK9Look(k9Model)
+    return k9Model ~= nil and Config.K9Appearance ~= nil and Config.K9Appearance.applyPedModelOnCertify == true
+        and type(ApplyK9AppearanceOnGrant) == 'function'
+end
+
 local function ApplyChosenK9Look(targetCitizenid, granterCitizenid, k9Model)
     if k9Model == nil then return end
     if Config.K9Appearance and Config.K9Appearance.applyPedModelOnCertify
@@ -2463,7 +2474,7 @@ local function GrantCertification(granterSrc, targetServerId, k9Model)
     -- does, at ITS OWN load time), so a config predating this feature or a
     -- config.lua edited out from under this table would otherwise throw
     -- here instead of falling back to the pre-decoupling behavior.
-    if Config.K9Appearance and Config.K9Appearance.requireK9ModelForRole == true then
+    if Config.K9Appearance and Config.K9Appearance.requireK9ModelForRole == true and not WillApplyChosenK9Look(k9Model) then
         local targetModel = GetEntityModel(GetPlayerPed(targetServerId))
         if not IsConfiguredK9Model(targetModel) then
             NotifyPlayer(granterSrc, locale('certifications.target_not_k9_model_hint'), 'error')
@@ -2744,7 +2755,7 @@ local function GrantCertificationOffline(granterSrc, citizenid, jobName, k9Model
     -- GrantCertificationForTablet's own header (immediately below) for the
     -- full "why this is the ONE deliberate refusal, never a silent
     -- no-model-check exception" writeup.
-    if Config.K9Appearance and Config.K9Appearance.requireK9ModelForRole == true then
+    if Config.K9Appearance and Config.K9Appearance.requireK9ModelForRole == true and not WillApplyChosenK9Look(k9Model) then
         NotifyPlayer(granterSrc, locale('certifications.certify_offline_requires_online_model_check'), 'error')
         return false, 'model_check_requires_online'
     end

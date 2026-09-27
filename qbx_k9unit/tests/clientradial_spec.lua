@@ -745,6 +745,21 @@ t.test('NO "MORE..." PAGES: with every optional feature on, the K9 menu has at m
     end
 end)
 
+t.test('rebuilding the menu (it re-registers on every state change) never duplicates an item moved into a group or into Utility', function()
+    local f = newRadialFixture({ features = { FetchMechanic = true, BiteAndHold = true, NonLethalTakedown = true } })
+    f.fireLeashStateChanged()
+    f.fireLeashStateChanged()
+    local function count(menuId, id)
+        local n = 0
+        for _, item in ipairs(f.findMenu(menuId) or {}) do if item.id == id then n = n + 1 end end
+        return n
+    end
+    t.equals(count('k9unit_utility', 'k9_fetch'), 1)
+    t.equals(count('k9unit_utility', 'k9_kennel'), 1)
+    t.equals(count('k9unit_combat', 'k9_bite_hold'), 1)
+    t.equals(count('k9unit', 'k9_group_combat'), 1)
+end)
+
 t.test('a group with only ONE item available on this server is not wrapped -- that item stays in the top menu, no sub-menu for a single button', function()
     local f = newRadialFixture({ features = { VehicleEntryExit = false } })
     local item, menuId = f.findK9Item('k9_leash')
