@@ -333,6 +333,27 @@ body {
     margin-top: -4px;
 }
 
+/* Find a person: the label is a caption on its own line (see
+   .k9tablet-feature-filter-label), so this row must wrap -- without it the
+   full-width label pushed the search box and its Open button off the
+   right-hand edge of the tablet. */
+.k9tablet-find-person-toolbar {
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.k9tablet-find-person-toolbar .k9tablet-search {
+    flex: 1 1 260px;
+    max-width: 420px;
+}
+
+/* The two "how this works" sentences under Find a person / Open my own
+   record read as hints, like every other hint on the tablet. */
+.k9tablet-open-by-id-hint {
+    color: #9aa0ab;
+    font-size: 13px;
+}
+
 .k9tablet-warning-note {
     margin: 0 0 12px 0;
     padding: 8px 12px;
@@ -1031,7 +1052,8 @@ body {
     flex-wrap: wrap;
 }
 
-.k9tablet-role-select {
+.k9tablet-role-select,
+.k9tablet-certify-as-select {
     background: #1c1f26;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
@@ -1100,7 +1122,9 @@ body {
 
 .k9tablet-theme-density-select,
 .k9tablet-cert-tier-key-input,
-.k9tablet-cert-tier-label-input {
+.k9tablet-cert-tier-label-input,
+.k9tablet-role-name-input,
+.k9tablet-role-xp-input {
     background: #14161a;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
@@ -1638,4 +1662,33 @@ body {
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 16px;
+}
+
+/*
+    Buttons inside the person page's column layouts (Renew under a
+    certification; Keep as a Dog / Revert to Human under K9 Role) size to
+    their label instead of stretching across the whole tablet, matching
+    every other button on the page.
+*/
+.k9tablet-cert-detail > .k9tablet-btn,
+.k9tablet-role-control > .k9tablet-btn {
+    align-self: flex-start;
+}
+
+/* Roster Role's K9 / Handler buttons sat touching each other. */
+.k9tablet-roster-role-section .k9tablet-btn + .k9tablet-btn {
+    margin-left: 8px;
+}
+
+/* Roles editor: the "Unlocks" caption sits in a column, where the shared
+   label's fixed 140px basis turned into 140px of empty height. */
+.k9tablet-cert-tier-capabilities > .k9tablet-theme-field-label {
+    flex: 0 0 auto;
+    margin: 0 0 2px 0;
+}
+
+.k9tablet-role-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }

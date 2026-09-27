@@ -79,7 +79,7 @@
     "expiry_lapsed_notice": "Your K9 certification has expired. Contact a certifying officer to renew it.",
     "expiry_warning": "Your K9 certification expires in %s day(s). Contact a certifying officer to renew it.",
     "grant_error": "An error occurred while certifying the target.",
-    "grant_success_granter": "Target has been certified as a K9 handler.",
+    "grant_success_granter": "Certified as a handler.",
     "grant_success_target": "You have been certified. Open your tablet with /k9tablet and read the Guide tab to see what you can now do.",
     "invalid_revoke_reason": "Invalid reason. Valid reasons: retired, reassigned, disciplinary, performance, other.",
     "invalid_target": "Invalid target.",
@@ -141,14 +141,15 @@
     "invalid_specialization_hint": "That is not a K9 role. Roles: %s.",
     "specialization_requires_active_cert_hint": "That person must hold an active certification for this department before they can be given a role -- certify them first on the tablet.",
     "specialization_requires_tier_capability_hint": "That person's certification tier does not permit specializations for this department -- change their tier with /k9settier, or ask a High Command officer to grant this capability to their tier from the tablet.",
-    "grant_success_next_steps": "Certified. They have no roles yet -- give them roles on their page on the tablet. %d feature(s) on this server also need a separate grant (on the same page) before they will work for them.",
-    "grant_success_next_steps_no_grants": "Certified. They have no roles yet -- give them roles on their page on the tablet.",
+    "grant_success_next_steps": "They have no roles yet -- give them roles on their page on the tablet. %d feature(s) on this server also need a separate grant (on the same page) before they will work for them.",
+    "grant_success_next_steps_no_grants": "They have no roles yet -- give them roles on their page on the tablet.",
     "revoked_notice_online_with_reason": "Your K9 certification has been revoked (reason: %s).",
     "renew_success_granter_detail": "Target's certification has been renewed -- it now expires in %s day(s).",
     "renew_success_target_detail": "Your K9 certification has been renewed -- it now expires in %s day(s).",
     "k9_access_lost_department_change": "You are no longer employed by an eligible K9 department, so your K9 access permission no longer applies here. Any active K9 pairing has ended.",
     "k9_access_lost_grade_change": "Your K9 access has ended -- your current rank no longer qualifies you, and you hold no separate certification for this department. Any active K9 pairing has ended.",
-    "revoked_notice_job_change_next_steps": "If you need K9 access in your new department, ask a certifying officer there to certify you."
+    "revoked_notice_job_change_next_steps": "If you need K9 access in your new department, ask a certifying officer there to certify you.",
+    "grant_success_granter_k9": "Certified as a K9 -- they are being turned into the dog now."
   },
   "roles": {
     "unlock_track_template": "Tracks %s trails",
@@ -156,8 +157,8 @@
     "unlock_bite_takedown": "Bite & takedown (once any role has this, only its holders may bite or take down)"
   },
   "warrants": {
-    "found": "Warrant! Player %s has an active %s.",
-    "found_partner": "Your partner sniffed player %s and found an active %s."
+    "found": "Warrant! %s has an active %s.",
+    "found_partner": "Your partner sniffed %s and found an active %s."
   },
   "combat": {
     "bite_hold_keybind_label": "K9: Bite & Hold / Release",
@@ -1259,7 +1260,7 @@
     "roster_hire_role_handler": "Handler",
     "roster_fire_label": "Fire",
     "roster_fire_confirm_prompt": "Firing ends this person's working status immediately -- click twice to confirm.",
-    "roster_fire_self_warning": "You are about to fire yourself. If self-certification changes are disabled on this server, this will be refused exactly like a self-typed /k9decertify.",
+    "roster_fire_self_warning": "You are about to fire yourself. If self-certification changes are disabled on this server, this will be refused, just like decertifying yourself.",
     "roster_role_change_label": "Roster Role",
     "roster_role_change_confirm_prompt": "Changing this person's roster role clears their current callsign -- a K9 callsign and a Handler callsign mean different things, so it is never carried over automatically. You will need to set a new one afterward.",
     "roster_sort_label": "Sort by",
@@ -1301,7 +1302,10 @@
     "shop_item_legacy_tier_template": "old tier: {tier}",
     "shop_item_legacy_tier_hint": "Tiers were replaced by roles. Pick None to remove this old requirement; leave it to keep it.",
     "roles_error_in_use_by_shop_template": "Shop items still need this role: {items}. Change their Required Role first, then delete it.",
-    "settings_overview_roles_template": "{count} role(s) set up."
+    "settings_overview_roles_template": "{count} role(s) set up.",
+    "roles_audit_created": "Created",
+    "roles_audit_edited": "Edited",
+    "roles_audit_deleted": "Deleted"
   },
   "inventory": {
     "open_gear_target_label": "Open K9 Gear",
@@ -1497,7 +1501,8 @@
     "thermal_vision_label": "Thermal Vision",
     "scent_vision_label": "Scent Vision",
     "night_vision_label": "Night Vision",
-    "vision_cycle_label": "Cycle Vision"
+    "vision_cycle_label": "Cycle Vision",
+    "kennel_label_handler": "Kennel (Put Down / Open or Close)"
   },
   "pursuitsprint": {
     "activated": "Pursuit sprint! Closing the distance.",

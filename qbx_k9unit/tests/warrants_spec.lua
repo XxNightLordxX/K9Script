@@ -108,9 +108,10 @@ end)
 
 t.test('SNIFF: an approved ARREST warrant is reported to the K9 and its partner -- information only, nothing else changes', function()
     local f = fixture({ mysql = warrantsFor({ SUSPECT = { { type = 'Arrest Warrant' } } }) })
+    f.env.CharacterNameForSource = function(src) return src == 3 and 'Sam Suspect' or ('player ' .. src) end
     t.equals(f.env.CheckWarrantOnSniff(2, 3), 'Arrest Warrant')
-    t.equals(f.lastTo(2), Sandbox.locale('warrants.found', 3, 'Arrest Warrant'))
-    t.equals(f.lastTo(1), Sandbox.locale('warrants.found_partner', 3, 'Arrest Warrant'))
+    t.equals(f.lastTo(2), Sandbox.locale('warrants.found', 'Sam Suspect', 'arrest warrant'), 'names the person, not their server id')
+    t.equals(f.lastTo(1), Sandbox.locale('warrants.found_partner', 'Sam Suspect', 'arrest warrant'))
     t.contains(f.queries[1].sql, "COALESCE(approval_status, 'approved') = 'approved'", 'only approved warrants, like sc-dispatch itself')
     t.contains(f.queries[1].sql, 'active = 1')
     t.equals(f.queries[1].params[1], 'SUSPECT')

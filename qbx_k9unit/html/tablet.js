@@ -9301,6 +9301,9 @@
      * @param {'certTiers'|'permissionKeys'|'xpTiers'|'shopItems'|'shopLocations'|'k9Profiles'|'runtimeOverrides'|'tabletThemes'} catalogName
      * @returns {Array<{header:string, render:(row:object)=>string}>}
      */
+    /** Role audit action codes (server/roles.lua) -> the words shown. */
+    var ROLE_AUDIT_ACTION_KEYS = { role_create: 'roles_audit_created', role_update: 'roles_audit_edited', role_delete: 'roles_audit_deleted' };
+
     function auditColumnsForCatalog(catalogName) {
         var changedByColumn = { header: S('column_changed_by'), render: function (r) { return auditIdWithName(r.changed_by, r.changed_by_name); } };
         var changedAtColumn = { header: S('column_changed_at'), render: function (r) { return auditText(r.changed_at); } };
@@ -9309,7 +9312,11 @@
 
         switch (catalogName) {
             case 'roles':
-                return [actionColumn, { header: S('roles_column_name'), render: function (r) { return auditText(r.role_key); } }, detailColumn, changedByColumn, changedAtColumn];
+                return [
+                    { header: S('column_action'), render: function (r) { return auditText(ROLE_AUDIT_ACTION_KEYS[r.action] ? S(ROLE_AUDIT_ACTION_KEYS[r.action]) : r.action); } },
+                    { header: S('roles_column_name'), render: function (r) { return auditText(r.role_key); } },
+                    detailColumn, changedByColumn, changedAtColumn,
+                ];
             case 'certTiers':
                 return [actionColumn, { header: S('cert_tier_key_label'), render: function (r) { return auditText(r.tier_key); } }, detailColumn, changedByColumn, changedAtColumn];
             case 'permissionKeys':

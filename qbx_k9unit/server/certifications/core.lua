@@ -2685,7 +2685,7 @@ local function GrantCertification(granterSrc, targetServerId, k9Model)
         -- already does for a plain 'k9.access' grant.
         ApplyChosenK9Look(targetCitizenid, granterCitizenid, k9Model)
 
-        NotifyPlayer(granterSrc, locale('certifications.grant_success_granter'), 'success')
+        NotifyPlayer(granterSrc, locale(k9Model and 'certifications.grant_success_granter_k9' or 'certifications.grant_success_granter'), 'success')
         NotifyPlayer(targetServerId, locale('certifications.grant_success_target'), 'success')
 
         -- WORKFLOW CLARITY (this pass, item 1 — "a certifier is never told
@@ -2876,7 +2876,7 @@ local function GrantCertificationOffline(granterSrc, citizenid, jobName, k9Model
         -- fires for them, per server/appearance.lua's own header).
         ApplyChosenK9Look(citizenid, granterCitizenid, k9Model)
 
-        NotifyPlayer(granterSrc, locale('certifications.grant_success_granter'), 'success')
+        NotifyPlayer(granterSrc, locale(k9Model and 'certifications.grant_success_granter_k9' or 'certifications.grant_success_granter'), 'success')
         -- WORKFLOW CLARITY (this pass, item 1) -- see GrantCertification's
         -- own identical call for the full writeup; computed from the same
         -- just-refreshed real state, only reached via the offline path here.
@@ -2982,15 +2982,30 @@ local function GrantCertificationForTablet(granterSrc, citizenid, departmentKey,
 
     local onlineTarget = exports.qbx_core:GetPlayerByCitizenId(citizenid)
     local onlineTargetSrc = onlineTarget and onlineTarget.PlayerData and onlineTarget.PlayerData.source
+    local ok, outcome
     if onlineTargetSrc then
         local liveJob = onlineTarget.PlayerData.job
         if not liveJob or liveJob.name ~= departmentKey then
             return false, 'department_mismatch'
         end
-        return GrantCertification(granterSrc, onlineTargetSrc, k9Model)
+        ok, outcome = GrantCertification(granterSrc, onlineTargetSrc, k9Model)
+    else
+        ok, outcome = GrantCertificationOffline(granterSrc, citizenid, departmentKey, k9Model)
     end
 
-    return GrantCertificationOffline(granterSrc, citizenid, departmentKey, k9Model)
+    -- The roster follows the certify choice: a breed puts them on the K9
+    -- roster, Handler on the Handler roster -- one press, not a second
+    -- "Hire as K9 / Handler" step for something the chief just chose.
+    -- server/roster.lua's RosterAssignPersonnelRole is the hook its own
+    -- header set aside for exactly this; it refuses harmlessly (e.g. an
+    -- offline target whose job cannot be confirmed) and never undoes the
+    -- certification.
+    if ok and type(RosterAssignPersonnelRole) == 'function' then
+        local granter = exports.qbx_core:GetPlayer(granterSrc)
+        local granterCid = granter and granter.PlayerData and granter.PlayerData.citizenid or 'unknown'
+        pcall(RosterAssignPersonnelRole, citizenid, departmentKey, k9Model and 'k9' or 'handler', granterCid)
+    end
+    return ok, outcome
 end
 
 --- DEVELOPER_REFERENCE.md §4.2/§4.3 revoke flow (manual). Called by both event 3 and

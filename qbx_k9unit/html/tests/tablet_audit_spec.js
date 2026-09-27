@@ -455,7 +455,7 @@ t.test('Catalog Changes mode: sends {catalogName, limit}, renders the shared act
     t.equals(sentBody.catalogName, 'roles');
     t.equals(sentBody.limit, 20);
     t.isTrue(findByText(h.getRoot(), 'Role changes (created, edited, deleted)').length >= 1, 'server label rendered verbatim');
-    t.isTrue(findByText(h.getRoot(), 'role_update').length >= 1);
+    t.isTrue(findByText(h.getRoot(), 'Edited').length >= 1, 'the action reads as a word, not a code');
     t.isTrue(findByText(h.getRoot(), 'master').length >= 1);
     t.isTrue(findByText(h.getRoot(), 'label=Master xp=1200 unlocks=bite_takedown').length >= 1);
     t.isTrue(findByText(h.getRoot(), 'Chief (HC1)').length >= 1, 'changed_by pairs the raw id with its resolved name, same as every other audit mode');

@@ -777,6 +777,13 @@ t.test('ONE MENU PER PLAYER: a human handler gets the handler\'s buttons -- no S
     t.isNil(f.findK9Item('k9_mark_suspect'), 'suspect marking was removed -- a K9 can act on anyone')
 end)
 
+t.test('ONE MENU PER PLAYER: the Kennel button says what each player can do with it -- the dog enters, a person puts it down or works the door', function()
+    local dog = newRadialFixture({ playingDog = true, features = { DeployableKennel = true } })
+    local person = newRadialFixture({ playingDog = false, features = { DeployableKennel = true } })
+    t.equals(dog.findK9Item('k9_kennel').label, Sandbox.locale('radial.kennel_label'))
+    t.equals(person.findK9Item('k9_kennel').label, Sandbox.locale('radial.kennel_label_handler'))
+end)
+
 t.test('ONE MENU PER PLAYER: the dog never gets Treat K9 (a person\'s action)', function()
     local dog = newRadialFixture({ features = { K9Medkit = true, BiteAndHold = true } })
     t.isNil(dog.findK9Item('k9_treat_nearest'))

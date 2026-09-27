@@ -1614,7 +1614,9 @@ local function RegisterK9RadialMenu()
     --- access gate entirely on the way out of a mechanic.
     k9SubmenuItems[#k9SubmenuItems + 1] = {
         id = 'k9_kennel',
-        label = locale('radial.kennel_label'),
+        -- A person can put a kennel down, pick it up and open or close its
+        -- door; only the dog can get in -- so the label says which.
+        label = (type(IsOwnModelK9) == 'function' and not IsOwnModelK9()) and locale('radial.kennel_label_handler') or locale('radial.kennel_label'),
         icon = 'house-chimney',
         onSelect = function()
             if type(RequestKennelContextual) == 'function' then

@@ -115,8 +115,9 @@ function CheckWarrantOnSniff(sniffSrc, targetSrc)
     end
     if not found then return nil end
 
-    NotifyPlayer(sniffSrc, locale('warrants.found', targetSrc, found), 'success')
+    local name = type(CharacterNameForSource) == 'function' and CharacterNameForSource(targetSrc) or ('player ' .. tostring(targetSrc))
+    NotifyPlayer(sniffSrc, locale('warrants.found', name, found:lower()), 'success')
     local partnerSrc = PartnerSrcOf(sniffSrc)
-    if partnerSrc then NotifyPlayer(partnerSrc, locale('warrants.found_partner', targetSrc, found), 'inform') end
+    if partnerSrc then NotifyPlayer(partnerSrc, locale('warrants.found_partner', name, found:lower()), 'inform') end
     return found
 end

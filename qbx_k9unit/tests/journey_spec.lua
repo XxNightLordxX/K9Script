@@ -231,8 +231,8 @@ t.test('4c2. Rex sniffs Vic, who has an approved arrest warrant in sc-dispatch -
     local r = cb('qbx_k9unit:server:searchTarget', 2, 'person', players[5].ped)
     env.MySQL = realMySQL
     check(r and r.ok, 'the sniff finished: ' .. tostring(r and (r.reason or r.ok)))
-    check(lastNotify(2) == env.locale('warrants.found', 5, 'Arrest Warrant'), 'Rex hears about the warrant, got ' .. tostring(lastNotify(2)))
-    check(lastNotify(3) == env.locale('warrants.found_partner', 5, 'Arrest Warrant'), 'Sam hears too, got ' .. tostring(lastNotify(3)))
+    check(lastNotify(2) == env.locale('warrants.found', 'Vic Test', 'arrest warrant'), 'Rex hears about the warrant, got ' .. tostring(lastNotify(2)))
+    check(lastNotify(3) == env.locale('warrants.found_partner', 'Vic Test', 'arrest warrant'), 'Sam hears too, got ' .. tostring(lastNotify(3)))
 end)
 
 t.test('4d. Rex bites and holds Joe -- no warrant, no mark, nothing to ask anyone: a K9 can go after anyone', function()

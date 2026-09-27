@@ -819,7 +819,7 @@ AddEventHandler('onResourceStart', function(resourceName)
             return
         end
 
-        NotifyPlayer(source, locale('highcommand.grant_success_granter', amount, recipientCitizenid, newTotal or amount), 'success')
+        NotifyPlayer(source, locale('highcommand.grant_success_granter', amount, (type(CharacterNameForCitizenId) == 'function' and CharacterNameForCitizenId(recipientCitizenid) or recipientCitizenid), newTotal or amount), 'success')
 
         if redirectedToPartner then
             -- directCitizenid (the handler actually targeted) is the one
@@ -891,7 +891,7 @@ AddEventHandler('onResourceStart', function(resourceName)
                 return { ok = false, error = outcome }
             end
 
-            return { ok = true, message = locale('highcommand.grant_success_granter', amount, recipientCitizenid, newTotal or amount) }
+            return { ok = true, message = locale('highcommand.grant_success_granter', amount, (type(CharacterNameForCitizenId) == 'function' and CharacterNameForCitizenId(recipientCitizenid) or recipientCitizenid), newTotal or amount) }
         end)
     end
 

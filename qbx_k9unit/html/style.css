@@ -50,7 +50,11 @@ body {
 
 #k9hud {
     position: fixed;
-    left: 24px;
+    /* Bottom-RIGHT: bottom-left is GTA's minimap, and Qbox's own status HUD
+       sits beside it -- this box used to cover both. Vanilla GTA and
+       qbx_hud leave the bottom-right corner empty on foot, and a K9 is on
+       foot almost all the time. */
+    right: 24px;
     bottom: 24px;
     display: flex;
     flex-direction: column;
@@ -61,12 +65,9 @@ body {
     color: #f2f2f2;
     font-size: 13px;
     line-height: 1.2;
-    /* TODO(coder-ui): placement (bottom-left), background, and exact
-       sizing are provisional defaults, not a signed-off design — revisit
-       once coder-ui's own layout/UX pass lands. Also flagged in
-       DEVELOPER_REFERENCE.md#hud-bridge: a K9-model character may show this
-       alongside the server's own core HUD; differentiate styling/placement
-       if that turns out to double up. */
+    /* Placement revisited (see above). A K9-model character may still show
+       this alongside the server's own core HUD -- DEVELOPER_REFERENCE.md
+       #hud-bridge. */
 }
 
 /* Hidden until the first `hud:updateVitals` push with `data.visible ===

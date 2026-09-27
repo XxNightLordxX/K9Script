@@ -1182,6 +1182,9 @@ local TABLET_STRING_KEYS = {
     'roles_error_in_use_by_shop_template',
     'roles_saved',
     'roles_deleted',
+    'roles_audit_created',
+    'roles_audit_edited',
+    'roles_audit_deleted',
     -- XP RANK EDITOR (owner-directed "...set experience level for each
     -- rank up" pass, server/xptiers.lua) -- sits alongside the
     -- cert-tier/permission-key/shop-location/runtime-control tabs above.

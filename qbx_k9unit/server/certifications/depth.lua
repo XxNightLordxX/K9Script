@@ -103,6 +103,13 @@ local function LogTabletCertAuditInvocation(granterSrc, action, detail, outcome)
     print(('[qbx_k9unit] AUDIT: %s ran %s(%s) -> %s'):format(whoLabel, action, detail, outcome))
 end
 
+--- A role's display name for a message (server/notify.lua's
+--- RoleDisplayName), or its key when that file is not loaded.
+local function RoleNameForMessage(roleKey)
+    if type(RoleDisplayName) == 'function' then return RoleDisplayName(roleKey) end
+    return tostring(roleKey)
+end
+
 --- ======================================================================
 --- TABLET DECERTIFY -- THE FIX (this pass, coordinator-directed follow-up
 --- confirming docs/history/COMMAND_CONSOLIDATION_SPEC.md §6). RevokeCertification and
@@ -1183,8 +1190,8 @@ local function GrantSpecialization(granterSrc, targetServerId, specializationKey
         RefreshSpecializationCache(targetCitizenid, jobName)
         FireOutboundEvent('qbx_k9unit:events:specializationGranted', targetCitizenid, jobName, specializationKey, granterCitizenid)
 
-        NotifyPlayer(granterSrc, locale('certifications.specialization_grant_success_granter', specializationKey), 'success')
-        NotifyPlayer(targetServerId, locale('certifications.specialization_grant_success_target', specializationKey), 'success')
+        NotifyPlayer(granterSrc, locale('certifications.specialization_grant_success_granter', RoleNameForMessage(specializationKey)), 'success')
+        NotifyPlayer(targetServerId, locale('certifications.specialization_grant_success_target', RoleNameForMessage(specializationKey)), 'success')
         outcome = 'ok'
     end
 
@@ -1336,8 +1343,8 @@ local function RevokeSpecialization(granterSrc, targetServerId, specializationKe
     RefreshSpecializationCache(targetCitizenid, jobName)
     FireOutboundEvent('qbx_k9unit:events:specializationRevoked', targetCitizenid, jobName, specializationKey, 'manual')
 
-    NotifyPlayer(granterSrc, locale('certifications.specialization_revoke_success_granter', specializationKey), 'success')
-    NotifyPlayer(targetServerId, locale('certifications.specialization_revoke_success_target', specializationKey), 'error')
+    NotifyPlayer(granterSrc, locale('certifications.specialization_revoke_success_granter', RoleNameForMessage(specializationKey)), 'success')
+    NotifyPlayer(targetServerId, locale('certifications.specialization_revoke_success_target', RoleNameForMessage(specializationKey)), 'error')
     return true, 'ok'
 end
 
@@ -1400,7 +1407,7 @@ local function RevokeSpecializationOffline(granterSrc, citizenid, job, specializ
     RefreshSpecializationCache(citizenid, job)
     FireOutboundEvent('qbx_k9unit:events:specializationRevoked', citizenid, job, specializationKey, 'manual_offline')
 
-    NotifyPlayer(granterSrc, locale('certifications.specialization_revoke_success_granter', specializationKey), 'success')
+    NotifyPlayer(granterSrc, locale('certifications.specialization_revoke_success_granter', RoleNameForMessage(specializationKey)), 'success')
     return true, 'ok'
 end
 
