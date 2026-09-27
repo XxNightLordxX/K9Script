@@ -139,6 +139,51 @@ t.test('high command sees Assign K9 Role (populated from the peds list sent at o
     t.equals(summaryCalls, 2, 'person summary refreshed after assigning');
 });
 
+t.test('a pinned dog character shows "Kept as a dog permanently" with the breed name, and Stop sends the unpin', async () => {
+    let unpinBody = null;
+    const h = createHarness({
+        fetchImpl: routeFetch(baseHandlers({
+            'tablet:requestRoster': () => ({ ok: true, rows: [{ citizenid: 'TARGET1', name: 'K9 Rex', departmentLabel: 'Police', certified: true, xp: 0, tierLabel: null }], truncated: false }),
+            'tablet:requestPersonSummary': () => ({ ok: true, target: { citizenid: 'TARGET1', name: 'K9 Rex' }, certifications: [], xp: 0, tierLabel: null, permissions: [], pinnedDogModel: 'a_c_husky' }),
+            'tablet:requestPersonFeatures': () => ({ ok: true, target: { citizenid: 'TARGET1', name: 'K9 Rex' }, features: [] }),
+            'tablet:unpinDogCharacter': (body) => { unpinBody = body; return { ok: true }; },
+        })),
+    });
+    h.postMessage('tablet:open', { peds: [{ model: 'a_c_shepherd', label: 'German Shepherd' }, { model: 'a_c_husky', label: 'Husky' }] });
+    await settle();
+    findByText(h.getRoot(), 'Command Console')[0].click();
+    await settle();
+    findByText(h.getRoot(), 'Manage')[0].click();
+    await settle(4);
+
+    t.equals(findByText(h.getRoot(), 'Kept as a dog permanently: Husky.').length, 1, 'the pin survives the summary normalisation and names the breed');
+    t.equals(findByText(h.getRoot(), 'Keep as a Dog Permanently').length, 0, 'no second Pin button while already pinned');
+    findByText(h.getRoot(), 'Stop Keeping as a Dog')[0].click();
+    await new Promise((r) => setTimeout(r, 30));
+    t.equals(unpinBody.targetCitizenId, 'TARGET1');
+});
+
+t.test('My Record shows each role as Active or "Unlocks at N XP" against the viewer\'s own XP', async () => {
+    const h = createHarness({
+        fetchImpl: routeFetch(baseHandlers({
+            'tablet:requestMyRecord': () => ({
+                ok: true, viewer: CONSOLE_ONLY_VIEWER, xp: 900, tierLabel: null, myFeatures: [], roleXp: 900,
+                roleCatalog: [
+                    { key: 'patrol', label: 'Patrol / apprehension', xpRequired: 0, unlocks: [] },
+                    { key: 'explosives', label: 'Explosives detection', xpRequired: 1250, unlocks: [] },
+                ],
+                certifications: [{ departmentKey: 'police', departmentLabel: 'Police', active: true, grantedBy: 'HC1', tier: null, expiresAtUnix: null, expired: false, specializations: ['patrol', 'explosives'] }],
+            }),
+        })),
+    });
+    await openTablet(h);
+    const myRecordTab = findByText(h.getRoot(), 'My Record')[0];
+    if (myRecordTab) { myRecordTab.click(); await settle(); }
+    t.isTrue(findByText(h.getRoot(), 'Patrol / apprehension').length >= 1, 'the role label comes from the role catalog');
+    t.isTrue(findByText(h.getRoot(), 'Active').length >= 1, 'a 0 XP role is active');
+    t.isTrue(findByText(h.getRoot(), 'Unlocks at 1250 XP').length >= 1, 'a role above the viewer\'s XP says when it switches on');
+});
+
 t.test('Revert to Human is reachable and enabled for a target holding ZERO certifications/permissions -- NO UNBOUNDED TRAP at the UI layer', async () => {
     let revertBody = null;
     const h = createHarness({
@@ -456,278 +501,164 @@ t.test('a non-object themeUpdated push (null or a bare string) is ignored entire
 });
 
 // ======================================================================
-// CERTIFICATION TIER EDITING -- server/certtiers.lua
+// K9 ROLES EDITOR -- server/roles.lua
+// Tiers and specializations were merged into one list of roles high
+// command creates: a name, the XP it switches on at, and what it unlocks.
 // ======================================================================
 
-t.test('a non-high-command viewer never sees the Certification Tiers tab', async () => {
-    const h = createHarness({
-        fetchImpl: routeFetch(baseHandlers({
-            'tablet:requestMyRecord': () => ({ ok: true, viewer: CONSOLE_ONLY_VIEWER, certifications: [], xp: null, tierLabel: null, myFeatures: [] }),
-        })),
-    });
+const ROLE_UNLOCK_OPTIONS = [
+    { key: 'track_blood', label: 'Track: blood' },
+    { key: 'detect_narcotics', label: 'Detect: narcotics' },
+    { key: 'bite_takedown', label: 'Bite / takedown' },
+];
+const SAMPLE_ROLES = [
+    { key: 'zzz_novel_role', label: 'Zzyzx Novel Role', xpRequired: 0, unlocks: ['detect_narcotics'] },
+    { key: 'tactical', label: 'Tactical K9', xpRequired: 4000, unlocks: ['track_blood', 'bite_takedown'] },
+];
+
+function rolesHandlers(overrides) {
+    return baseHandlers(Object.assign({
+        'tablet:rolesList': () => ({ ok: true, roles: SAMPLE_ROLES, unlockOptions: ROLE_UNLOCK_OPTIONS, canManage: true }),
+        'tablet:permKeysList': () => ({ ok: true, keys: [] }),
+        'tablet:xpTiersList': () => ({ ok: true, tiers: [] }),
+    }, overrides || {}));
+}
+
+async function openRoles(h) {
     await openTablet(h);
+    openSettingsSection(h.getRoot(), 'Catalogs');
+    await settle();
+}
+
+t.test('the old Certification Tiers editor is gone -- the Catalogs section shows Roles instead', async () => {
+    const h = createHarness({ fetchImpl: routeFetch(rolesHandlers()) });
+    await openRoles(h);
     t.equals(findByText(h.getRoot(), 'Certification Tiers').length, 0);
+    t.equals(findByText(h.getRoot(), 'Add New Tier').length, 0);
+    t.isTrue(findByText(h.getRoot(), 'Roles').length >= 1);
+    t.isFalse(h.fetchCalls.some((c) => c.url.endsWith('tablet:certTiersList')), 'the Catalogs section no longer loads the tier list');
 });
 
-t.test('DYNAMIC CATALOGUE: tiers rendered come ENTIRELY from tablet:certTiersList -- invented keys/labels appearing nowhere in tablet.js source render correctly', async () => {
-    const h = createHarness({
-        fetchImpl: routeFetch(baseHandlers({
-            'tablet:certTiersList': () => ({
-                ok: true,
-                tiers: [
-                    { key: 'zzz_novel_tier', label: 'Zzyzx Novel Rank', ordinal: 1, capabilities: { specializations_eligible: true } },
-                    { key: 'certified', label: 'Certified', ordinal: 2, capabilities: {} },
-                ],
-                capabilityCatalog: { specializations_eligible: { label: 'Eligible to hold K9 specializations' } },
-            }),
-        })),
-    });
-    await openTablet(h);
-    openSettingsSection(h.getRoot(), 'Catalogs');
-    await settle();
-
-    t.isTrue(findByText(h.getRoot(), 'Zzyzx Novel Rank').length >= 1, 'a tier this test invented on the fly renders correctly -- proves no hardcoded tier list');
-    t.isTrue(findByText(h.getRoot(), 'zzz_novel_tier').length >= 1);
-    t.isTrue(findByText(h.getRoot(), 'Eligible to hold K9 specializations').length >= 1, 'capability label resolved from the FETCHED capabilityCatalog, not hardcoded');
+t.test('DYNAMIC CATALOGUE: roles come entirely from tablet:rolesList, with their XP and unlock labels', async () => {
+    const h = createHarness({ fetchImpl: routeFetch(rolesHandlers()) });
+    await openRoles(h);
+    t.isTrue(findByText(h.getRoot(), 'Zzyzx Novel Role').length >= 1, 'a role invented by this test renders -- no hardcoded list');
+    t.isTrue(findByText(h.getRoot(), '4000').length >= 1, 'its XP requirement is shown');
+    t.isTrue(findByText(h.getRoot(), 'Track: blood, Bite / takedown').length >= 1, 'unlock labels come from the fetched unlockOptions');
 });
 
-t.test('Add New Tier: opens a blank form, and Save submits {key,label,capabilities} with capabilities as an ARRAY', async () => {
-    let upsertBody = null;
+t.test('someone who is not high command sees the roles but no Add / Edit / Delete controls', async () => {
     const h = createHarness({
-        fetchImpl: routeFetch(baseHandlers({
-            'tablet:certTiersList': () => ({
-                ok: true,
-                tiers: [{ key: 'certified', label: 'Certified', ordinal: 1, capabilities: {} }],
-                capabilityCatalog: { advanced_tracking: { label: 'Advanced tracking' } },
-            }),
-            'tablet:certTiersUpsert': (body) => { upsertBody = body; return { ok: true, tiers: [], capabilityCatalog: {} }; },
+        fetchImpl: routeFetch(rolesHandlers({
+            'tablet:rolesList': () => ({ ok: true, roles: SAMPLE_ROLES, unlockOptions: ROLE_UNLOCK_OPTIONS, canManage: false }),
         })),
     });
-    await openTablet(h);
-    openSettingsSection(h.getRoot(), 'Catalogs');
+    await openRoles(h);
+    t.isTrue(findByText(h.getRoot(), 'Tactical K9').length >= 1);
+    t.equals(findByText(h.getRoot(), 'Add Role').length, 0);
+    t.equals(findByText(h.getRoot(), 'Edit').length, 0);
+    t.equals(findByText(h.getRoot(), 'Delete').length, 0);
+});
+
+t.test('Add Role: a blank form; Save sends {label, xpRequired as a number, unlocks as an ARRAY} and no key', async () => {
+    let saveBody = null;
+    const h = createHarness({
+        fetchImpl: routeFetch(rolesHandlers({
+            'tablet:rolesSave': (body) => { saveBody = body; return { ok: true, key: 'scout', roles: SAMPLE_ROLES.concat([{ key: 'scout', label: 'Scout', xpRequired: 250, unlocks: ['track_blood'] }]) }; },
+        })),
+    });
+    await openRoles(h);
+    findByText(h.getRoot(), 'Add Role')[0].click();
     await settle();
 
-    findByText(h.getRoot(), 'Add New Tier')[0].click();
-    await settle();
+    const nameInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-role-name-input'))[0];
+    const xpInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-role-xp-input'))[0];
+    t.isDefined(nameInput);
+    t.equals(nameInput.value, '');
+    nameInput.typeValue('Scout');
+    xpInput.typeValue('250');
+    const box = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('type') === 'checkbox')[0];
+    box.checked = true;
+    box._dispatch('change');
 
-    const keyInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-cert-tier-key-input'))[0];
-    const labelInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-cert-tier-label-input'))[0];
-    t.isDefined(keyInput);
-    t.equals(keyInput.getAttribute('disabled'), null, 'key is editable for a BRAND NEW tier');
-    keyInput.typeValue('master');
-    labelInput.typeValue('Master Handler');
-
-    const checkbox = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('type') === 'checkbox')[0];
-    t.isDefined(checkbox);
-    checkbox.checked = true;
-    checkbox._dispatch('change');
-
-    findByText(h.getRoot(), 'Save Tier')[0].click();
+    findByText(h.getRoot(), 'Save Role')[0].click();
     await new Promise((r) => setTimeout(r, 30));
 
-    t.equals(upsertBody.key, 'master');
-    t.equals(upsertBody.label, 'Master Handler');
-    t.isTrue(Array.isArray(upsertBody.capabilities));
-    t.equals(upsertBody.capabilities[0], 'advanced_tracking');
+    t.equals(saveBody.label, 'Scout');
+    t.equals(saveBody.xpRequired, 250);
+    t.isTrue(Array.isArray(saveBody.unlocks));
+    t.equals(saveBody.unlocks.join(','), 'track_blood');
+    t.isTrue(saveBody.key == null, 'a new role has no key -- the server makes one from the name');
+    t.isTrue(findByText(h.getRoot(), 'Scout').length >= 1, 'the saved list is shown straight away');
+    t.isTrue(findByText(h.getRoot(), 'Role saved.').length >= 1);
 });
 
-t.test('Edit an existing tier: the key input is DISABLED (no rename concept), label/capabilities remain editable', async () => {
+t.test('Edit keeps the role\'s key and pre-fills its name, XP and unlocks', async () => {
+    let saveBody = null;
     const h = createHarness({
-        fetchImpl: routeFetch(baseHandlers({
-            'tablet:certTiersList': () => ({
-                ok: true,
-                tiers: [{ key: 'senior', label: 'Senior', ordinal: 3, capabilities: {} }],
-                capabilityCatalog: {},
-            }),
+        fetchImpl: routeFetch(rolesHandlers({
+            'tablet:rolesSave': (body) => { saveBody = body; return { ok: true, key: body.key, roles: SAMPLE_ROLES }; },
         })),
     });
-    await openTablet(h);
-    openSettingsSection(h.getRoot(), 'Catalogs');
+    await openRoles(h);
+    findByText(h.getRoot(), 'Edit')[1].click(); // Tactical K9's row
     await settle();
-
-    findByText(h.getRoot(), 'Edit')[0].click();
-    await settle();
-
-    const keyInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-cert-tier-key-input'))[0];
-    t.equals(keyInput.value, 'senior');
-    t.equals(keyInput.getAttribute('disabled'), 'disabled');
-});
-
-t.test('Move Up/Down submits the FULL reordered key list (not just the two swapped) and surfaces the retroactive-rerank warning prominently', async () => {
-    let reorderBody = null;
-    const h = createHarness({
-        fetchImpl: routeFetch(baseHandlers({
-            'tablet:certTiersList': () => ({
-                ok: true,
-                tiers: [
-                    { key: 'trainee', label: 'Trainee', ordinal: 1, capabilities: {} },
-                    { key: 'certified', label: 'Certified', ordinal: 2, capabilities: {} },
-                    { key: 'senior', label: 'Senior', ordinal: 3, capabilities: {} },
-                ],
-                capabilityCatalog: {},
-            }),
-            'tablet:certTiersReorder': (body) => {
-                reorderBody = body;
-                return {
-                    ok: true,
-                    tiers: [
-                        { key: 'certified', label: 'Certified', ordinal: 1, capabilities: {} },
-                        { key: 'trainee', label: 'Trainee', ordinal: 2, capabilities: {} },
-                        { key: 'senior', label: 'Senior', ordinal: 3, capabilities: {} },
-                    ],
-                    warning: 'Reordering tiers changes rank comparisons RETROACTIVELY.',
-                };
-            },
-        })),
-    });
-    await openTablet(h);
-    openSettingsSection(h.getRoot(), 'Catalogs');
-    await settle();
-
-    // Move the SECOND row ("certified", index 1) up, ahead of "trainee".
-    const moveUpButtons = findAll(h.getRoot(), (n) => n.tagName === 'button' && n._textContent === '↑');
-    t.equals(moveUpButtons.length, 3);
-    t.equals(moveUpButtons[0].getAttribute('disabled'), 'disabled', 'the FIRST row cannot move up');
-    moveUpButtons[1].click();
+    const nameInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-role-name-input'))[0];
+    t.equals(nameInput.value, 'Tactical K9');
+    const boxes = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('type') === 'checkbox');
+    t.equals(boxes.filter((b) => b.checked).length, 2, 'its two unlocks start ticked');
+    findByText(h.getRoot(), 'Save Role')[0].click();
     await new Promise((r) => setTimeout(r, 30));
-
-    t.isTrue(Array.isArray(reorderBody.orderedKeys));
-    t.equals(reorderBody.orderedKeys.length, 3, 'the FULL permutation is sent, never a partial reorder');
-    t.equals(reorderBody.orderedKeys[0], 'certified');
-    t.equals(reorderBody.orderedKeys[1], 'trainee');
-    t.equals(reorderBody.orderedKeys[2], 'senior');
-
-    t.isTrue(findByText(h.getRoot(), 'Reordering tiers changes rank comparisons RETROACTIVELY.').length >= 1, 'the non-optional warning is actually rendered, not discarded');
+    t.equals(saveBody.key, 'tactical');
+    t.equals(saveBody.xpRequired, 4000);
 });
 
-t.test('Delete: "certified" is disabled client-side as a UX hint, but a normal tier can be deleted after confirm', async () => {
+t.test('a refused save explains itself in plain words and keeps the form open', async () => {
+    const h = createHarness({
+        fetchImpl: routeFetch(rolesHandlers({
+            'tablet:rolesSave': () => ({ ok: false, error: 'invalid_xp', field: 'xpRequired' }),
+        })),
+    });
+    await openRoles(h);
+    findByText(h.getRoot(), 'Add Role')[0].click();
+    await settle();
+    findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-role-name-input'))[0].typeValue('Scout');
+    findByText(h.getRoot(), 'Save Role')[0].click();
+    await new Promise((r) => setTimeout(r, 30));
+    t.isTrue(findByText(h.getRoot(), 'XP needed must be a whole number, 0 or more.').length >= 1);
+    t.isTrue(findByText(h.getRoot(), 'Save Role').length >= 1, 'the form stays open to fix');
+});
+
+t.test('Delete asks for a second press, then sends the role key and shows the new list', async () => {
     let deleteBody = null;
     const h = createHarness({
-        fetchImpl: routeFetch(baseHandlers({
-            'tablet:certTiersList': () => ({
-                ok: true,
-                tiers: [
-                    { key: 'certified', label: 'Certified', ordinal: 1, capabilities: {} },
-                    { key: 'trainee', label: 'Trainee', ordinal: 2, capabilities: {} },
-                ],
-                capabilityCatalog: {},
-            }),
-            'tablet:certTiersDelete': (body) => { deleteBody = body; return { ok: true, tiers: [{ key: 'certified', label: 'Certified', ordinal: 1, capabilities: {} }] }; },
+        fetchImpl: routeFetch(rolesHandlers({
+            'tablet:rolesDelete': (body) => { deleteBody = body; return { ok: true, roles: [SAMPLE_ROLES[1]] }; },
         })),
     });
-    await openTablet(h);
-    openSettingsSection(h.getRoot(), 'Catalogs');
+    await openRoles(h);
+    findByText(h.getRoot(), 'Delete')[0].click();
     await settle();
-
-    const deleteButtons = findByText(h.getRoot(), 'Delete');
-    t.equals(deleteButtons.length, 2);
-    // Row order matches server ordinal order: certified first, trainee second.
-    t.equals(deleteButtons[0].getAttribute('disabled'), 'disabled', '"certified" is disabled client-side (UX hint only -- server refuses unconditionally regardless)');
-    t.equals(deleteButtons[1].getAttribute('disabled'), null);
-
-    deleteButtons[1].click(); // arm confirm
-    deleteButtons[1].click(); // confirm
+    t.equals(deleteBody, null, 'the first press only arms the button');
+    findByText(h.getRoot(), 'Confirm?')[0].click();
     await new Promise((r) => setTimeout(r, 30));
-
-    t.equals(deleteBody.key, 'trainee');
+    t.equals(deleteBody.key, 'zzz_novel_role');
+    t.equals(findByText(h.getRoot(), 'Zzyzx Novel Role').length, 0);
+    t.isTrue(findByText(h.getRoot(), 'Role deleted.').length >= 1);
 });
 
-t.test('Delete refusal "tier_in_use" renders "cannot, and here is why" WITH the reference count, inline on that row -- never a bare failure message', async () => {
+t.test('a failed roles load shows the error and a Retry that fetches again', async () => {
+    let calls = 0;
     const h = createHarness({
-        fetchImpl: routeFetch(baseHandlers({
-            'tablet:certTiersList': () => ({
-                ok: true,
-                tiers: [{ key: 'trainee', label: 'Trainee', ordinal: 1, capabilities: {} }],
-                capabilityCatalog: {},
-            }),
-            'tablet:certTiersDelete': () => ({ ok: false, error: 'tier_in_use', referenceCount: 12 }),
+        fetchImpl: routeFetch(rolesHandlers({
+            'tablet:rolesList': () => { calls++; return calls === 1 ? { ok: false, error: 'unknown_error' } : { ok: true, roles: SAMPLE_ROLES, unlockOptions: ROLE_UNLOCK_OPTIONS, canManage: true }; },
         })),
     });
-    await openTablet(h);
-    openSettingsSection(h.getRoot(), 'Catalogs');
+    await openRoles(h);
+    findByText(h.getRoot(), 'Retry')[0].click();
     await settle();
-
-    const deleteBtn = findByText(h.getRoot(), 'Delete')[0];
-    deleteBtn.click();
-    deleteBtn.click();
-    await new Promise((r) => setTimeout(r, 30));
-
-    const matches = findAll(h.getRoot(), (n) => typeof n._textContent === 'string' && n._textContent.indexOf('12 certification record(s)') !== -1);
-    t.isTrue(matches.length >= 1, 'the specific reference count is interpolated into the refusal text, rendered inline on the row');
-});
-
-// coordinator hand-off, 2026-08-26 (server/certtiers.lua commit a32a554):
-// a tier a supply shop item still requires is the OTHER referrer
-// DeleteTier now checks -- a SEPARATE refusal reason from 'tier_in_use'
-// (certification records) on purpose, since "N certification records" and
-// "N shop items" send the reader to two different screens to actually fix
-// it.
-t.test('Delete refusal "tier_in_use_by_shop_items" renders its own "cannot, and here is why" text WITH the count and the actual item keys, distinct from the certification-record refusal', async () => {
-    const h = createHarness({
-        fetchImpl: routeFetch(baseHandlers({
-            'tablet:certTiersList': () => ({
-                ok: true,
-                tiers: [{ key: 'senior', label: 'Senior', ordinal: 1, capabilities: {} }],
-                capabilityCatalog: {},
-            }),
-            'tablet:certTiersDelete': () => ({ ok: false, error: 'tier_in_use_by_shop_items', referenceCount: 2, shopItemKeys: ['k9_vest', 'k9_muzzle'] }),
-        })),
-    });
-    await openTablet(h);
-    openSettingsSection(h.getRoot(), 'Catalogs');
-    await settle();
-
-    const deleteBtn = findByText(h.getRoot(), 'Delete')[0];
-    deleteBtn.click();
-    deleteBtn.click();
-    await new Promise((r) => setTimeout(r, 30));
-
-    const matches = findAll(h.getRoot(), (n) => typeof n._textContent === 'string' && n._textContent.indexOf('2 supply shop item(s) still require it: k9_vest, k9_muzzle') !== -1);
-    t.isTrue(matches.length >= 1, 'the count AND the real, comma-joined item keys are interpolated into the refusal text, rendered inline on the row');
-    t.equals(findAll(h.getRoot(), (n) => typeof n._textContent === 'string' && n._textContent.indexOf('certification record(s)') !== -1).length, 0, 'never confused with the certification-record refusal text -- these are two different reasons with two different fixes');
-});
-
-t.test('a PARTIAL tier-reorder write names the tiers that did not save, instead of a bare failure', async () => {
-    const h = createHarness({
-        fetchImpl: routeFetch(baseHandlers({
-            'tablet:certTiersList': () => ({
-                ok: true,
-                tiers: [
-                    { key: 'trainee', label: 'Trainee', ordinal: 1, capabilities: {} },
-                    { key: 'certified', label: 'Certified', ordinal: 2, capabilities: {} },
-                ],
-                capabilityCatalog: {},
-            }),
-            // server/certtiers.lua's real partial-failure shape. Until
-            // 2026-08-31 `ordinal_write_failed` had no case in
-            // certTierErrorText, so it fell to the generic "action failed"
-            // line and `failedKeys` was thrown away -- on a PARTIAL write,
-            // where knowing what did NOT save is the whole point.
-            'tablet:certTiersReorder': () => ({
-                ok: false, reason: undefined, error: 'ordinal_write_failed',
-                failedKeys: ['certified'],
-                tiers: [
-                    { key: 'trainee', label: 'Trainee', ordinal: 1, capabilities: {} },
-                    { key: 'certified', label: 'Certified', ordinal: 2, capabilities: {} },
-                ],
-            }),
-        })),
-    });
-    await openTablet(h);
-    openSettingsSection(h.getRoot(), 'Catalogs');
-    await settle();
-
-    const moveDown = findAll(h.getRoot(), (n) => n.tagName === 'button' && n._textContent === '\u2193');
-    moveDown[0].click();
-    await new Promise((r) => setTimeout(r, 30));
-
-    // Asserted against the full rendered sentence, never a bare search for
-    // 'certified' -- that key is already on screen in its own tier row, so a
-    // substring search would pass with or without the fix.
-    const expected = 'The new order could not be saved for these tiers: certified. Nothing else was changed'
-        + ' \u2014 reopen this screen to see the order that is actually stored, then try again.';
-    t.isTrue(findByText(h.getRoot(), expected).length > 0,
-        'the failing tier key must be named IN THE ERROR, not collapsed into a generic failure');
+    t.equals(calls, 2);
+    t.isTrue(findByText(h.getRoot(), 'Tactical K9').length >= 1);
 });
 
 t.run();

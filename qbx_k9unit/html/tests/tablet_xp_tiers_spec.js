@@ -72,7 +72,7 @@ function baseHandlers(overrides) {
         // successfully and empty: this file is about the XP ladder, and a
         // failure in a neighbouring section would put a second Retry button
         // on screen and make the error assertions below ambiguous.
-        'tablet:certTiersList': () => ({ ok: true, tiers: [] }),
+        'tablet:rolesList': () => ({ ok: true, roles: [], unlockOptions: [], canManage: true }),
         'tablet:permKeysList': () => ({ ok: true, keys: [] }),
     }, overrides || {});
 }

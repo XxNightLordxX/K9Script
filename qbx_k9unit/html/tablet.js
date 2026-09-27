@@ -1148,6 +1148,15 @@
         certTierFieldError: null, // 'key' | 'label' | 'capabilities' | null -- which of the draft form's own inputs the server's last certTiersUpsert rejected
         certTierActionError: null, // { key, text } -- a delete REFUSAL (tier_in_use/protected_tier) rendered inline on that specific row, not just the generic top-of-panel notice
 
+        // K9 ROLES (server/roles.lua) -- tiers and specializations merged
+        // into one catalog high command edits in Server Settings > Catalogs.
+        roles: null, // [{ key, label, xpRequired, unlocks: [unlockKey] }] sorted by XP needed
+        rolesUnlockOptions: [], // [{ key, label }] -- the closed unlock list, from the server
+        rolesLoading: false,
+        rolesError: null,
+        roleDraft: null, // { key|null, label, xpRequired, unlocks: {unlockKey:true} } -- the add/edit form; null = closed
+        roleFieldError: null, // 'label' | 'xpRequired' | 'unlocks' | null
+
         // Permission-key catalog editing -- server/permissionkeycatalog.lua
         // (owner-directed "...even add or remove permissions" pass). Sits
         // alongside the cert-tier screen above, same "never hardcoded,
@@ -1492,6 +1501,25 @@
      * operator-added specialization key must render correctly with no UI
      * change.
      * @param {any} key @returns {string} */
+    /** Replaces the role list with the server's live one (roles high
+     * command created included). Ignores anything that is not an array. */
+    function applyRoleCatalog(list) {
+        if (!Array.isArray(list)) return;
+        var map = {};
+        for (var i = 0; i < list.length; i++) {
+            var r = list[i];
+            if (!r || typeof r.key !== 'string') continue;
+            map[r.key] = { label: typeof r.label === 'string' ? r.label : r.key, xpRequired: typeof r.xpRequired === 'number' ? r.xpRequired : 0, unlocks: Array.isArray(r.unlocks) ? r.unlocks : [] };
+        }
+        state.specializations = map;
+    }
+
+    /** @param {string} key @returns {number} the XP a role needs (0 if unknown) */
+    function roleXpRequired(key) {
+        var def = state.specializations && state.specializations[key];
+        return (def && typeof def.xpRequired === 'number') ? def.xpRequired : 0;
+    }
+
     function specializationDisplayLabel(key) {
         var catalog = state.specializations;
         if (catalog && typeof catalog === 'object' && catalog[key] && typeof catalog[key].label === 'string' && catalog[key].label.length > 0) {
@@ -3231,7 +3259,7 @@
         // the same reason: buildLadderBlock() below says everything it said
         // and then where that total sits on the ladder.
         wrap.appendChild(mk('h2', { class: 'k9tablet-section-heading', text: S('my_certifications_heading') }));
-        wrap.appendChild(buildCertificationList(state.myRecord.certifications, null));
+        wrap.appendChild(buildCertificationList(state.myRecord.certifications, null, { roleXp: state.myRecord.roleXp }));
 
         wrap.appendChild(mk('h2', { class: 'k9tablet-section-heading', text: S('my_xp_heading') }));
         wrap.appendChild(mk('p', { class: 'k9tablet-muted', text: S('progression_intro') }));
@@ -4078,7 +4106,7 @@
         // holds k9.certify (see buildCertificationDetail's own doc comment
         // for exactly which controls need which additional preconditions).
         if (entry.active) {
-            row.appendChild(buildCertificationDetail(entry, onAction));
+            row.appendChild(buildCertificationDetail(entry, onAction, opts));
         }
 
         // PERSONNEL ROSTER ROLE + CALLSIGN (docs/history/ROSTER_SPEC.md, Phase B) --
@@ -4190,11 +4218,12 @@
      * @param {object} entry
      * @param {((kind:string, departmentKey:string, extra?:string) => void)|null} onAction
      */
-    function buildCertificationDetail(entry, onAction) {
+    function buildCertificationDetail(entry, onAction, opts) {
         var wrap = mk('div', { class: 'k9tablet-cert-detail' });
 
+        // TIERS ARE GONE FROM THE TABLET (owner: tiers and specializations
+        // merged into roles). Only the expiry is left on this line.
         var tierLine = mk('div', { class: 'k9tablet-cert-tier-line' });
-        tierLine.appendChild(mk('span', { class: 'k9tablet-cert-tier-label', text: S('tier_label') + ': ' + tierDisplayLabel(entry.tier) }));
         if (entry.expired) {
             tierLine.appendChild(mk('span', { class: 'k9tablet-cert-expired-badge', text: S('expired_badge') }));
         } else if (typeof entry.expiresAtUnix === 'number') {
@@ -4203,36 +4232,15 @@
                 text: S('expires_label') + ': ' + new Date(entry.expiresAtUnix * 1000).toLocaleDateString(),
             }));
         }
-        wrap.appendChild(tierLine);
+        if (tierLine.children && tierLine.children.length > 0) wrap.appendChild(tierLine);
 
         if (onAction) {
-            var tiers = Array.isArray(state.certTiers) ? state.certTiers : null;
-            if (tiers && tiers.length > 0) {
-                var tierRow = mk('div', { class: 'k9tablet-cert-tier-controls' });
-                var select = mk('select', { class: 'k9tablet-cert-tier-select k9tablet-role-select' });
-                for (var i = 0; i < tiers.length; i++) {
-                    var tier = tiers[i];
-                    if (!tier || typeof tier.key !== 'string' || tier.key.length === 0) continue;
-                    var option = mk('option', { text: (typeof tier.label === 'string' && tier.label.length > 0) ? tier.label : tier.key });
-                    option.setAttribute('value', tier.key);
-                    select.appendChild(option);
-                }
-                if (typeof entry.tier === 'string') select.value = entry.tier;
-                tierRow.appendChild(select);
-                tierRow.appendChild(mkButton(S('tier_set_label'), 'k9tablet-btn', function () {
-                    var chosen = select.value;
-                    if (!chosen || chosen === entry.tier) return;
-                    onAction('setTier', entry.departmentKey, chosen);
-                }, { disabled: state.pendingAction }));
-                wrap.appendChild(tierRow);
-            }
-
             wrap.appendChild(mkButton(S('renew_label'), 'k9tablet-btn', function () {
                 onAction('renew', entry.departmentKey);
             }, { disabled: state.pendingAction }));
         }
 
-        wrap.appendChild(buildSpecializationsBlock(entry, onAction));
+        wrap.appendChild(buildSpecializationsBlock(entry, onAction, opts && opts.roleXp));
 
         return wrap;
     }
@@ -4249,7 +4257,7 @@
      * @param {object} entry
      * @param {((kind:string, departmentKey:string, extra?:string) => void)|null} onAction
      */
-    function buildSpecializationsBlock(entry, onAction) {
+    function buildSpecializationsBlock(entry, onAction, roleXp) {
         var wrap = mk('div', { class: 'k9tablet-specializations' });
         wrap.appendChild(mk('span', { class: 'k9tablet-specializations-heading', text: S('specializations_heading') }));
 
@@ -4258,7 +4266,7 @@
             wrap.appendChild(mk('p', { class: 'k9tablet-muted', text: S('no_specializations') }));
         } else {
             for (var i = 0; i < held.length; i++) {
-                wrap.appendChild(buildSpecializationRow(held[i], entry, onAction));
+                wrap.appendChild(buildSpecializationRow(held[i], entry, onAction, roleXp));
             }
         }
 
@@ -4274,7 +4282,8 @@
                 var addRow = mk('div', { class: 'k9tablet-specialization-add' });
                 var select = mk('select', { class: 'k9tablet-specialization-select k9tablet-role-select' });
                 for (var j = 0; j < available.length; j++) {
-                    var option = mk('option', { text: specializationDisplayLabel(available[j]) });
+                    var needXp = roleXpRequired(available[j]);
+                    var option = mk('option', { text: specializationDisplayLabel(available[j]) + (needXp > 0 ? ' (' + formatTemplate(S('role_option_xp_template'), { xp: needXp }) + ')' : '') });
                     option.setAttribute('value', available[j]);
                     select.appendChild(option);
                 }
@@ -4292,9 +4301,18 @@
     }
 
     /** @param {string} key @param {object} entry @param {((kind:string, departmentKey:string, extra?:string) => void)|null} onAction */
-    function buildSpecializationRow(key, entry, onAction) {
+    function buildSpecializationRow(key, entry, onAction, roleXp) {
         var row = mk('div', { class: 'k9tablet-specialization-row' });
         row.appendChild(mk('span', { class: 'k9tablet-specialization-label', text: specializationDisplayLabel(key) }));
+        // A role switches on once the holder's XP reaches its requirement.
+        if (typeof roleXp === 'number') {
+            var need = roleXpRequired(key);
+            var active = roleXp >= need;
+            row.appendChild(mk('span', {
+                class: 'k9tablet-feature-state k9tablet-feature-state--' + (active ? 'available' : 'requires_grant_missing'),
+                text: active ? S('role_status_active') : formatTemplate(S('role_status_locked_template'), { xp: need }),
+            }));
+        }
         if (onAction) {
             row.appendChild(mkConfirmButton(S('revoke_label'), 'k9tablet-btn k9tablet-btn--danger', function () {
                 onAction('revokeSpecialization', entry.departmentKey, key);
@@ -5462,7 +5480,7 @@
             // are UNCHANGED, so this section only ever appears here, on
             // THIS screen, exactly like the capability/feature/role
             // sections immediately below already do.
-            wrap.appendChild(buildCertificationList(state.personSummary.certifications, canCertify ? handlePersonCertAction : null, { showRosterControls: true }));
+            wrap.appendChild(buildCertificationList(state.personSummary.certifications, canCertify ? handlePersonCertAction : null, { showRosterControls: true, roleXp: state.personSummary.roleXp }));
 
             // K9 ROLE right under Certifications (the owner's rework pass):
             // making someone the K9, changing their breed, and the
@@ -6735,7 +6753,7 @@
      */
     function buildCatalogsScreen() {
         var wrap = mk('div', { class: 'k9tablet-screen' });
-        wrap.appendChild(buildCertTiersScreen());
+        wrap.appendChild(buildRolesScreen());
         if (surfaceEnabled('permission_keys')) {
             wrap.appendChild(buildPermissionKeysScreen());
         }
@@ -6743,6 +6761,207 @@
             wrap.appendChild(buildXpTiersScreen());
         }
         return wrap;
+    }
+
+    // ---- K9 Roles editor (Server Settings > Catalogs) ----
+    // server/roles.lua. Tiers and specializations merged into one list of
+    // roles: a name, the XP it switches on at, and what it unlocks. Anyone
+    // may view the list; only high command sees the edit controls (the
+    // server checks again on every save and delete).
+
+    function buildRolesScreen() {
+        var wrap = mk('div', { class: 'k9tablet-home-section' });
+        wrap.appendChild(mk('h2', { class: 'k9tablet-section-heading', text: S('roles_heading') }));
+        wrap.appendChild(mk('p', { class: 'k9tablet-muted k9tablet-hint', text: S('roles_intro') }));
+
+        if (state.rolesLoading && !state.roles) {
+            wrap.appendChild(mk('p', { text: S('loading') }));
+            return wrap;
+        }
+        if (state.rolesError && !state.roles) {
+            wrap.appendChild(mk('p', { class: 'k9tablet-error-text', text: errorText(state.rolesError) }));
+            wrap.appendChild(mkButton(S('retry_label'), 'k9tablet-btn', loadRoles));
+            return wrap;
+        }
+        if (!state.roles) {
+            wrap.appendChild(mk('p', { text: S('loading') }));
+            return wrap;
+        }
+
+        var table = mk('table', { class: 'k9tablet-table k9tablet-roles-table' });
+        var thead = mk('thead');
+        var headRow = mk('tr');
+        [S('roles_column_name'), S('roles_column_xp'), S('roles_column_unlocks'), S('column_actions')].forEach(function (h) {
+            headRow.appendChild(mk('th', { text: h }));
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+        var tbody = mk('tbody');
+        for (var i = 0; i < state.roles.length; i++) tbody.appendChild(buildRoleEditorRow(state.roles[i]));
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+
+        if (state.rolesCanManage) {
+            if (state.roleDraft) {
+                wrap.appendChild(buildRoleDraftForm());
+            } else {
+                wrap.appendChild(mkButton(S('roles_add_label'), 'k9tablet-btn', function () {
+                    state.roleDraft = { key: null, label: '', xpRequired: 0, unlocks: {} };
+                    state.roleFieldError = null;
+                    render();
+                }, { disabled: state.pendingAction }));
+            }
+        }
+        return wrap;
+    }
+
+    /** @param {string} unlockKey @returns {string} */
+    function roleUnlockLabel(unlockKey) {
+        for (var i = 0; i < state.rolesUnlockOptions.length; i++) {
+            if (state.rolesUnlockOptions[i].key === unlockKey) return state.rolesUnlockOptions[i].label;
+        }
+        return unlockKey;
+    }
+
+    function buildRoleEditorRow(role) {
+        var tr = mk('tr');
+        tr.appendChild(mk('td', { text: role.label }));
+        tr.appendChild(mk('td', { text: String(role.xpRequired) }));
+        var unlockLabels = (role.unlocks || []).map(roleUnlockLabel);
+        tr.appendChild(mk('td', { class: 'k9tablet-muted', text: unlockLabels.length > 0 ? unlockLabels.join(', ') : S('roles_no_unlocks') }));
+        var actions = mk('td', { class: 'k9tablet-cert-tier-actions' });
+        if (state.rolesCanManage) {
+            actions.appendChild(mkButton(S('roles_edit_label'), 'k9tablet-btn', function () {
+                var set = {};
+                (role.unlocks || []).forEach(function (u) { set[u] = true; });
+                state.roleDraft = { key: role.key, label: role.label, xpRequired: role.xpRequired, unlocks: set };
+                state.roleFieldError = null;
+                render();
+            }, { disabled: state.pendingAction }));
+            actions.appendChild(mkConfirmButton(S('roles_delete_label'), 'k9tablet-btn k9tablet-btn--danger', function () {
+                deleteRole(role.key);
+            }, { disabled: state.pendingAction }));
+        }
+        tr.appendChild(actions);
+        return tr;
+    }
+
+    function buildRoleDraftForm() {
+        var draft = state.roleDraft;
+        var wrap = mk('div', { class: 'k9tablet-cert-tier-form k9tablet-role-form' });
+
+        var nameRow = mk('div', { class: 'k9tablet-theme-field' + (state.roleFieldError === 'label' ? ' k9tablet-theme-field--invalid' : '') });
+        nameRow.appendChild(mk('label', { class: 'k9tablet-theme-field-label', text: S('roles_name_label') }));
+        var nameInput = mk('input', { class: 'k9tablet-role-name-input', attrs: { type: 'text', maxlength: '60' } });
+        nameInput.value = draft.label;
+        nameInput.addEventListener('input', function (e) { draft.label = e.target.value; });
+        nameRow.appendChild(nameInput);
+        wrap.appendChild(nameRow);
+
+        var xpRow = mk('div', { class: 'k9tablet-theme-field' + (state.roleFieldError === 'xpRequired' ? ' k9tablet-theme-field--invalid' : '') });
+        xpRow.appendChild(mk('label', { class: 'k9tablet-theme-field-label', text: S('roles_xp_label') }));
+        var xpInput = mk('input', { class: 'k9tablet-role-xp-input', attrs: { type: 'number', min: '0', step: '1' } });
+        xpInput.value = String(draft.xpRequired);
+        xpInput.addEventListener('input', function (e) { draft.xpRequired = e.target.value; });
+        xpRow.appendChild(xpInput);
+        wrap.appendChild(xpRow);
+
+        var unlocksWrap = mk('div', { class: 'k9tablet-cert-tier-capabilities' + (state.roleFieldError === 'unlocks' ? ' k9tablet-theme-field--invalid' : '') });
+        unlocksWrap.appendChild(mk('p', { class: 'k9tablet-theme-field-label', text: S('roles_unlocks_label') }));
+        state.rolesUnlockOptions.forEach(function (opt) {
+            var row = mk('label', { class: 'k9tablet-cert-tier-capability-row' });
+            var box = mk('input', { attrs: { type: 'checkbox' } });
+            box.checked = draft.unlocks[opt.key] === true;
+            box.addEventListener('change', function (e) { draft.unlocks[opt.key] = !!(e.target && e.target.checked); });
+            row.appendChild(box);
+            row.appendChild(mk('span', { text: opt.label }));
+            unlocksWrap.appendChild(row);
+        });
+        wrap.appendChild(unlocksWrap);
+
+        var actions = mk('div', { class: 'k9tablet-theme-actions' });
+        actions.appendChild(mkButton(S('roles_save_label'), 'k9tablet-btn', saveRoleDraft, { disabled: state.pendingAction }));
+        actions.appendChild(mkButton(S('roles_cancel_label'), 'k9tablet-link-btn', function () {
+            state.roleDraft = null;
+            state.roleFieldError = null;
+            render();
+        }));
+        wrap.appendChild(actions);
+        return wrap;
+    }
+
+    function loadRoles() {
+        state.rolesLoading = true;
+        state.rolesError = null;
+        render();
+        fetchNui('tablet:rolesList', {}).then(function (result) {
+            state.rolesLoading = false;
+            if (!result || result.ok !== true) {
+                state.rolesError = result || { error: 'unknown_error' };
+                render();
+                return;
+            }
+            state.roles = Array.isArray(result.roles) ? result.roles : [];
+            state.rolesUnlockOptions = Array.isArray(result.unlockOptions) ? result.unlockOptions : [];
+            state.rolesCanManage = result.canManage === true;
+            applyRoleCatalog(state.roles);
+            render();
+        });
+    }
+
+    /** @param {object} result @returns {string} */
+    function roleErrorText(result) {
+        switch (result && result.error) {
+            case 'invalid_label': return S('roles_error_invalid_label');
+            case 'invalid_xp': return S('roles_error_invalid_xp');
+            case 'invalid_unlocks': return S('roles_error_invalid_unlocks');
+            case 'too_many_roles': return S('roles_error_too_many');
+            case 'unknown_role': return S('roles_error_unknown');
+            default: return errorText(result);
+        }
+    }
+
+    function saveRoleDraft() {
+        if (state.pendingAction || !state.roleDraft) return;
+        var draft = state.roleDraft;
+        var unlocks = [];
+        for (var k in draft.unlocks) {
+            if (Object.prototype.hasOwnProperty.call(draft.unlocks, k) && draft.unlocks[k] === true) unlocks.push(k);
+        }
+        var xp = Number(draft.xpRequired);
+        state.pendingAction = true;
+        state.roleFieldError = null;
+        state.actionNotice = { kind: 'ok', text: S('action_working') };
+        render();
+        fetchNui('tablet:rolesSave', { key: draft.key, label: draft.label, xpRequired: xp, unlocks: unlocks }).then(function (result) {
+            state.pendingAction = false;
+            if (result && result.ok === true) {
+                if (Array.isArray(result.roles)) { state.roles = result.roles; applyRoleCatalog(result.roles); }
+                state.roleDraft = null;
+                state.actionNotice = { kind: 'ok', text: S('roles_saved') };
+            } else {
+                state.roleFieldError = (result && result.field) || null;
+                state.actionNotice = { kind: 'error', text: roleErrorText(result) };
+            }
+            render();
+        });
+    }
+
+    function deleteRole(key) {
+        if (state.pendingAction) return;
+        state.pendingAction = true;
+        state.actionNotice = { kind: 'ok', text: S('action_working') };
+        render();
+        fetchNui('tablet:rolesDelete', { key: key }).then(function (result) {
+            state.pendingAction = false;
+            if (result && result.ok === true) {
+                if (Array.isArray(result.roles)) { state.roles = result.roles; applyRoleCatalog(result.roles); }
+                state.actionNotice = { kind: 'ok', text: S('roles_deleted') };
+            } else {
+                state.actionNotice = { kind: 'error', text: roleErrorText(result) };
+            }
+            render();
+        });
     }
 
     function buildCertTiersScreen() {
@@ -10344,8 +10563,10 @@
         state.xpTierFieldError = null;
         state.xpTierActionError = null;
         state.xpTierWarning = null;
+        state.roleDraft = null;
+        state.roleFieldError = null;
         render();
-        loadCertTiers();
+        loadRoles();
         if (surfaceEnabled('permission_keys')) loadPermissionKeys();
         if (surfaceEnabled('xp_tiers')) loadXpTiers();
     }
@@ -10430,8 +10651,10 @@
                 return;
             }
             state.viewer = result.viewer || null;
+            applyRoleCatalog(result.roleCatalog);
             state.myRecord = {
                 certifications: result.certifications || [],
+                roleXp: typeof result.roleXp === 'number' ? result.roleXp : null,
                 xp: typeof result.xp === 'number' ? result.xp : null,
                 tierLabel: typeof result.tierLabel === 'string' ? result.tierLabel : null,
                 // HANDLER LADDER + BOTH LADDER SHAPES (owner-directed
@@ -10841,8 +11064,12 @@
                 render();
                 return;
             }
+            applyRoleCatalog(result.roleCatalog);
             state.personSummary = {
                 certifications: result.certifications || [],
+                roleXp: typeof result.roleXp === 'number' ? result.roleXp : null,
+                // The dog-character pin's breed, or null (server/tablet.lua).
+                pinnedDogModel: typeof result.pinnedDogModel === 'string' && result.pinnedDogModel.length > 0 ? result.pinnedDogModel : null,
                 xp: typeof result.xp === 'number' ? result.xp : null,
                 tierLabel: typeof result.tierLabel === 'string' ? result.tierLabel : null,
                 // HANDLER ladder, carried alongside the K9 pair above and

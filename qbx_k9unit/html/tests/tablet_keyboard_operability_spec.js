@@ -345,30 +345,27 @@ t.test('Enter in a draft form field fires the form\'s own Save, when Save is the
     const h = createHarness({
         fetchImpl: routeFetch({
             'tablet:requestMyRecord': () => ({ ok: true, viewer: HIGH_COMMAND_VIEWER, certifications: [], xp: null, tierLabel: null, myFeatures: [] }),
-            'tablet:certTiersList': () => ({ ok: true, tiers: [], capabilityCatalog: {} }),
-            'tablet:certTiersUpsert': (body) => ({ ok: true, tiers: [{ key: body.key, label: body.label, ordinal: 1, capabilities: body.capabilities }] }),
+            'tablet:rolesList': () => ({ ok: true, roles: [], unlockOptions: [], canManage: true }),
+            'tablet:rolesSave': (body) => ({ ok: true, key: 'elite', roles: [{ key: 'elite', label: body.label, xpRequired: body.xpRequired, unlocks: [] }] }),
         }),
     });
     h.postMessage('tablet:open', {});
     await settle();
     openSettingsSection(h.getRoot(), 'Catalogs');
     await settle();
-    findFirstButtonByText(h.getRoot(), 'Add New Tier').click();
+    findFirstButtonByText(h.getRoot(), 'Add Role').click();
     await settle();
 
-    const labelInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-cert-tier-label-input'))[0];
-    t.isDefined(labelInput, 'the new-tier draft\'s own Label field exists');
+    const labelInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-role-name-input'))[0];
+    t.isDefined(labelInput, 'the new-role draft\'s own Name field exists');
     labelInput.focus();
     labelInput.value = 'Elite';
     labelInput._dispatch('input', { target: labelInput });
-    const keyInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-cert-tier-key-input'))[0];
-    keyInput.value = 'elite';
-    keyInput._dispatch('input', { target: keyInput });
 
     h.dispatchKeydown('Enter');
     await settle(4);
 
-    t.isTrue(h.fetchCalls.some((c) => c.url.endsWith('tablet:certTiersUpsert') && c.body.key === 'elite' && c.body.label === 'Elite'), 'Enter fired the SAME tablet:certTiersUpsert callback the Save button uses, with the real drafted fields');
+    t.isTrue(h.fetchCalls.some((c) => c.url.endsWith('tablet:rolesSave') && c.body.label === 'Elite'), 'Enter fired the SAME tablet:rolesSave callback the Save button uses, with the real drafted fields');
 });
 
 t.test('Enter is a safe no-op when more than one button is in scope -- never guesses, never fires a destructive one', async () => {
