@@ -1736,21 +1736,27 @@ end)
 -- A test whose justification has quietly expired is worse than no test,
 -- because it reads as a deliberate decision. When the reasoning in a pin's
 -- own name stops matching the code, the pin must be re-derived, not trusted.
-t.test('HandlerPartnership: toggles exactly like Leash -- partnered releases ungated, else attempts + seam-guarded', function()
-    local f = newTabletFixture()
-    f.setQueryState('isPartnered', true)
-    f.callNui('tablet:triggerFeature', { feature = 'HandlerPartnership' })
-    t.equals(#f.calls['BreakPartnership'], 1)
-    t.equals(f.canShowK9UICalls(), 0)
+t.test('HandlerPartnership: the tablet button is the same one action as /k9partner and the radial -- it hands to TogglePartnership and reports its result', function()
+    local f = newTabletFixture({ canShowK9UI = false })
+    local called = 0
+    f.env.TogglePartnership = function() called = called + 1; return true end
+    local result = f.callNui('tablet:triggerFeature', { feature = 'HandlerPartnership' })
+    t.isTrue(result.ok)
+    t.equals(called, 1)
+    t.equals(f.canShowK9UICalls(), 0, 'the button adds no gate of its own -- TogglePartnership decides, and breaking is never gated')
+
+    f.env.TogglePartnership = function() return false, 'not_available' end
+    local refused = f.callNui('tablet:triggerFeature', { feature = 'HandlerPartnership' })
+    t.isFalse(refused.ok)
+    t.equals(refused.error, 'not_available')
 end)
 
-t.test('HandlerPartnership NOT-WIDENED PIN: a High Command/autoAccessGrade-bypass holder (HasK9Access true, CanShowK9UI false) is still denied -- server/partnership.lua\'s CheckPartnershipEligibility requires model-or-role for at least one party before HasK9Access is ever consulted, matching radial.lua\'s own "k9_partner_up" item exactly', function()
-    local f = newTabletFixture({ canShowK9UI = false, hasK9Access = true })
+t.test('HandlerPartnership: client/partnership.lua not loaded -> not_available, never an error', function()
+    local f = newTabletFixture()
+    f.env.TogglePartnership = nil
     local result = f.callNui('tablet:triggerFeature', { feature = 'HandlerPartnership' })
     t.isFalse(result.ok)
     t.equals(result.error, 'not_available')
-    t.equals(#(f.calls['RequestPartnerUp'] or {}), 0)
-    t.equals(f.denyCalls(), 1)
 end)
 
 t.test('K9Inventory: gated on the full CanShowK9UI() combinator -- a normal, on-duty certified K9 opens their own gear', function()

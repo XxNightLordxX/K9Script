@@ -2082,43 +2082,14 @@ local FEATURE_TRIGGERS = {
         if type(RequestDrag) == 'function' then RequestDrag() end
         return true
     end,
-    -- DISCLOSED SIMPLIFICATION: radial.lua exposes Partner Up and Break
-    -- Partnership as two SEPARATE always-offered items specifically to
-    -- dodge IsPartnered()'s own documented cache-staleness gap (see that
-    -- file's "KNOWN CACHE-STALENESS GAP" section). This single-button
-    -- contract cannot offer both, so this toggles off the same local cache
-    -- read anyway -- a reconnected, genuinely-partnered player who hits
-    -- staleness here gets RequestPartnerUp()'s own "already partnered"
-    -- server rejection instead of the Break option, same bounded failure
-    -- mode client/partnership.lua's own ox_target predicate already
-    -- tolerates for the identical reason.
-    --
-    -- NOT WIDENED (permission audit finding, this pass, checked and
-    -- rejected -- matches client/radial.lua's own 'k9_partner_up' item
-    -- verbatim): server/partnership.lua's CheckPartnershipEligibility
-    -- requires AT LEAST ONE party to be a real K9 by model OR the decoupled
-    -- K9 role (IsConfiguredK9Model(...) or HasK9Role(...)) BEFORE
-    -- HasK9Access is ever consulted for whichever party is cast as the K9 --
-    -- a bypass-only holder with no model and no role fails that check
-    -- regardless of what this button offers, same class as LeashMechanics
-    -- above. Left on the broader combinator on purpose. Break Partnership
-    -- (the branch immediately above) is a termination path and stays
-    -- UNGATED, matching the identical reasoning given for every other
-    -- release branch in this table.
+    -- Partner Up / Break Partnership: client/partnership.lua's
+    -- TogglePartnership(), the same one action /k9partner and the radial
+    -- use. It asks the server whether you are partnered before choosing,
+    -- so a reconnected player is offered Break, not a refused Partner Up.
+    -- The break branch is ungated; the partner-up branch keeps its checks.
     HandlerPartnership = function()
-        if type(IsPartnered) == 'function' and IsPartnered() then
-            if type(BreakPartnership) == 'function' then BreakPartnership() end
-            return true
-        end
-        if not CanShowK9UI() then DenyK9UIAccess('common.no_k9_role_or_access'); return false, 'not_available' end
-        if type(FindNearestPartnerCandidate) ~= 'function' then return false, 'not_available' end
-        local candidateServerId = FindNearestPartnerCandidate()
-        if not candidateServerId then
-            lib.notify({ title = locale('common.notify_title'), description = locale('radial.no_partner_candidate'), type = 'error' })
-            return false, 'not_available'
-        end
-        if type(RequestPartnerUp) == 'function' then RequestPartnerUp(candidateServerId) end
-        return true
+        if type(TogglePartnership) ~= 'function' then return false, 'not_available' end
+        return TogglePartnership()
     end,
     -- DISCLOSED SIMPLIFICATION: throw/release toggle only (radial.lua's
     -- own Throw item shape) -- Recall Fetch Ball is a separate action in

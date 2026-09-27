@@ -383,6 +383,7 @@ local function newRadialFixture(opts)
         RequestDrag = record('RequestDrag'),
         BreakPartnership = record('BreakPartnership'),
         RequestPartnerUp = record('RequestPartnerUp'),
+        TogglePartnership = record('TogglePartnership'),
         IsFetchCarryEngaged = queryFn('IsFetchCarryEngaged', 'isFetchCarryEngaged'),
         ReleaseFetchBall = record('ReleaseFetchBall'),
         RequestThrowFetchBall = record('RequestThrowFetchBall'),
@@ -622,6 +623,9 @@ local function newRadialFixture(opts)
             threadRunner.step()
             threadRunner.step()
         end,
+        --- Runs every captured thread one step -- enough for a one-shot
+        --- CreateThread body (no Wait) to finish.
+        stepThreads = function() threadRunner.step() end,
     }
 end
 
@@ -665,7 +669,7 @@ t.test('this spec\'s baseline flags: Bark, Leash, Vehicle, Utility (Phase 1 + re
         'k9_sit', -- moved into 'k9unit_utility', see above
         'k9_track_certified',
         'k9_bite_hold', 'k9_takedown', 'k9_drag',
-        'k9_break_partnership', 'k9_partner_up',
+        'k9_partner',
         'k9_fetch',
         -- k9_prop_attachment/k9_open_inventory/k9_treat_nearest also MOVED
         -- into 'k9unit_utility' (Job 3) -- structurally never a direct
@@ -699,7 +703,7 @@ local function idOrder(items)
     return order
 end
 
-t.test('DISPLAY ORDER: with every optional feature on, the whole-menu order groups related items into families and fixes Partner Up / Break Partnership -- the one item this pass found genuinely BACKWARDS from every sibling start/stop pair', function()
+t.test('DISPLAY ORDER: with every optional feature on, the whole-menu order groups related items into families and keeps Partner Up / Break Partnership as ONE item', function()
     local f = newRadialFixture({
         features = {
             CommandTablet = true,
@@ -720,7 +724,7 @@ t.test('DISPLAY ORDER: with every optional feature on, the whole-menu order grou
     -- this fixture's all-flags-on features.
     for _, id in ipairs({
         'k9_open_tablet', 'k9_bark', 'k9_leash', 'k9_vehicle', 'k9_utility',
-        'k9_partner_up', 'k9_break_partnership',
+        'k9_partner',
         'k9_track_certified', 'k9_thermal_vision', 'k9_night_vision', 'k9_scent_vision', 'k9_camera_feed', 'k9_vision_cycle',
         'k9_bite_hold', 'k9_takedown', 'k9_drag',
         'k9_fetch', 'k9_kennel',
@@ -728,13 +732,10 @@ t.test('DISPLAY ORDER: with every optional feature on, the whole-menu order grou
         t.isNotNil(order[id], ('%s must be present'):format(id))
     end
 
-    -- THE ACTUAL FIX: Partner Up (an initiation) now precedes Break
-    -- Partnership (its own termination) -- every OTHER start/stop pair in
-    -- this menu already lists start before stop (Attach before Detach,
-    -- Enter before Exit, Bite & Hold before Release, Drag before Release);
-    -- this pair was the one exception, ordered backwards, before this pass.
-    t.isTrue(order.k9_partner_up < order.k9_break_partnership,
-        'Partner Up must precede Break Partnership, matching every other start/stop pair in this menu')
+    -- Partner Up and Break Partnership are ONE item now (the rework pass),
+    -- like Attach/Detach Leash -- there is no pair left to order.
+    t.isNil(order['k9_partner_up'], 'no separate Partner Up item')
+    t.isNil(order.k9_break_partnership, 'no separate Break Partnership item')
 
     -- Command Tablet stays the single most prominent entry.
     t.equals(order.k9_open_tablet, 1, 'Command Tablet -- "the one entry that reaches everything else" -- must stay first')
@@ -742,10 +743,10 @@ t.test('DISPLAY ORDER: with every optional feature on, the whole-menu order grou
     -- The Phase 1 foundational actions (plus their Utility extension point)
     -- are grouped immediately after the Tablet, not scattered by whichever
     -- pass happened to add each one.
-    t.isTrue(order.k9_bark < order.k9_partner_up, 'Bark (a Phase 1 foundational action) must precede the Partnership family')
-    t.isTrue(order.k9_leash < order.k9_partner_up, 'Attach/Detach Leash must precede the Partnership family')
-    t.isTrue(order.k9_vehicle < order.k9_partner_up, 'Enter/Exit Vehicle must precede the Partnership family')
-    t.isTrue(order.k9_utility < order.k9_partner_up, 'the Utility opener must precede the Partnership family')
+    t.isTrue(order.k9_bark < order.k9_partner, 'Bark (a Phase 1 foundational action) must precede the Partnership family')
+    t.isTrue(order.k9_leash < order.k9_partner, 'Attach/Detach Leash must precede the Partnership family')
+    t.isTrue(order.k9_vehicle < order.k9_partner, 'Enter/Exit Vehicle must precede the Partnership family')
+    t.isTrue(order.k9_utility < order.k9_partner, 'the Utility opener must precede the Partnership family')
 
     -- Perception family (search/vision) is grouped together, and precedes
     -- the Combat/Emergency family -- a K9 finds a scene before it acts on
@@ -1002,16 +1003,18 @@ end)
 -- Partner Up), both flat in the k9unit submenu.
 -- ----------------------------------------------------------------------
 
-t.test('HandlerPartnership explicitly false: neither k9_break_partnership nor k9_partner_up appears', function()
+t.test('HandlerPartnership explicitly false: no partnership item appears', function()
     local f = newRadialFixture()
-    t.isNil(f.findInMenu('k9unit', 'k9_break_partnership'))
-    t.isNil(f.findInMenu('k9unit', 'k9_partner_up'))
+    t.isNil(f.findInMenu('k9unit', 'k9_partner'))
 end)
 
-t.test('HandlerPartnership true: both k9_break_partnership and k9_partner_up appear', function()
+t.test('HandlerPartnership true: ONE "Partner Up / Break Partnership" item, not two', function()
     local f = newRadialFixture({ features = { HandlerPartnership = true } })
-    t.isNotNil(f.findInMenu('k9unit', 'k9_break_partnership'))
-    t.isNotNil(f.findInMenu('k9unit', 'k9_partner_up'))
+    local item = f.findInMenu('k9unit', 'k9_partner')
+    t.isNotNil(item)
+    t.equals(item.label, locale('radial.partner_toggle_label'))
+    t.isNil(f.findInMenu('k9unit', 'k9_break_partnership'))
+    t.isNil(f.findInMenu('k9unit', 'k9_partner_up'))
 end)
 
 -- ----------------------------------------------------------------------
@@ -1247,48 +1250,15 @@ end)
 -- with the right arguments once access is granted.
 -- ----------------------------------------------------------------------
 
-t.test('k9_break_partnership: guarded -- absent BreakPartnership does not throw; present BreakPartnership is called, UNGATED (no CanShowK9UI check at all)', function()
-    local fAbsent = newRadialFixture({ features = { HandlerPartnership = true }, omit = { 'BreakPartnership' }, canShowK9UI = false })
-    assertGuardDoesNotThrow(fAbsent.findInMenu('k9unit', 'k9_break_partnership'))
-    t.equals(fAbsent.denyCallCount(), 0, 'Break Partnership is a TERMINATION action and must never be gated on CanShowK9UI at all, per this file\'s own "no unbounded trap" comment')
+t.test('k9_partner: hands straight to TogglePartnership (which decides break vs partner up) -- never gated here, and a missing TogglePartnership does not throw', function()
+    local fAbsent = newRadialFixture({ features = { HandlerPartnership = true }, omit = { 'TogglePartnership' }, canShowK9UI = false })
+    assertGuardDoesNotThrow(fAbsent.findInMenu('k9unit', 'k9_partner'))
 
-    local fPresent = newRadialFixture({ features = { HandlerPartnership = true }, canShowK9UI = false })
-    fPresent.findInMenu('k9unit', 'k9_break_partnership').onSelect()
-    t.equals(#fPresent.calls.BreakPartnership, 1)
-    t.equals(fPresent.canShowK9UICallCount(), 0, 'must never even ask CanShowK9UI -- termination action')
-end)
-
-t.test('k9_partner_up: guarded -- absent RequestPartnerUp does not throw when a candidate is found; present RequestPartnerUp is called with the found candidate serverId, GATED on CanShowK9UI', function()
-    local function withOneCandidateInRange(f)
-        f.setActivePlayers({ 7 })
-        f.setPlayerPed(7, 500)
-        f.setPedCoords(500, vec3(1, 0, 0))
-        f.setPlayerServerId(7, 999)
-    end
-
-    local fAbsent = newRadialFixture({ features = { HandlerPartnership = true }, omit = { 'RequestPartnerUp' } })
-    withOneCandidateInRange(fAbsent)
-    assertGuardDoesNotThrow(fAbsent.findInMenu('k9unit', 'k9_partner_up'))
-
-    local fDenied = newRadialFixture({ features = { HandlerPartnership = true }, canShowK9UI = false })
-    fDenied.findInMenu('k9unit', 'k9_partner_up').onSelect()
-    t.equals(fDenied.denyCallCount(), 1)
-    t.isNil(fDenied.calls.RequestPartnerUp, 'must never even search for a candidate once access is denied')
-
-    local fGranted = newRadialFixture({ features = { HandlerPartnership = true } })
-    withOneCandidateInRange(fGranted)
-    fGranted.findInMenu('k9unit', 'k9_partner_up').onSelect()
-    t.equals(#fGranted.calls.RequestPartnerUp, 1)
-    t.equals(fGranted.calls.RequestPartnerUp[1][1], 999)
-end)
-
-t.test('k9_partner_up: no candidate in range notifies radial.no_partner_candidate and never calls RequestPartnerUp', function()
-    local f = newRadialFixture({ features = { HandlerPartnership = true } })
-    f.setActivePlayers({}) -- nobody nearby
-    f.findInMenu('k9unit', 'k9_partner_up').onSelect()
-    t.isNil(f.calls.RequestPartnerUp)
-    t.equals(#f.notifyCalls, 1)
-    t.equals(f.notifyCalls[1].description, locale('radial.no_partner_candidate'))
+    local f = newRadialFixture({ features = { HandlerPartnership = true }, canShowK9UI = false })
+    f.findInMenu('k9unit', 'k9_partner').onSelect()
+    f.stepThreads()
+    t.equals(#f.calls.TogglePartnership, 1, 'the one shared toggle ran')
+    t.equals(f.denyCallCount(), 0, 'the menu item adds no gate of its own -- breaking must always be reachable')
 end)
 
 -- UPDATED: this test used to pin the exact bug it was meant to prevent.

@@ -399,66 +399,61 @@ function BreakPartnership()
     TriggerServerEvent('qbx_k9unit:server:breakPartnership')
 end
 
--- ======================================================================
--- CHAT COMMAND -- Partner Up / Break Partnership (menu-parity pass: "chat
--- commands, 3rd eye, and radial menus" -- every feature reachable from all
--- three). Before this pass, this mechanic had the "Partner Up" ox_target
--- option AND client/radial.lua's own two flat items
--- ('k9_partner_up'/'k9_break_partnership'), but no chat command at all --
--- and the owner's own direction is that a family like this "should all
--- work together like the scen[t] command does": ONE command, not two.
---
--- SAME CONTEXTUAL-DISPATCH SHAPE AS client/tablet.lua's own
--- FEATURE_TRIGGERS.HandlerPartnership (read that dispatcher, and this
--- file's own header "KNOWN CACHE-STALENESS GAP" / "TERMINATION MUST NEVER
--- BE GATED" sections, before changing this) -- IsPartnered() resolved
--- FIRST, UNGATED: BreakPartnership() above deliberately never gates on
--- CanShowK9UI() (or even pre-checks IsPartnered() itself), per this file's
--- own "no unbounded trap" reasoning. The Partner-Up branch below matches
--- client/tablet.lua's own HandlerPartnership trigger (same
--- 'common.no_k9_role_or_access' reason, same 'radial.no_partner_candidate'
--- notify on no candidate). Reaches the SAME two resource-globals
--- (BreakPartnership()/RequestPartnerUp()) either way -- neither is
--- reimplemented, and RequestPartnerUp() performs its own real gating
--- internally regardless of this pre-check.
---
--- DISCLOSED, SAME AS client/tablet.lua's own dispatcher: a single command
--- cannot offer BOTH "Partner Up" and "Break Partnership" the way
--- client/radial.lua's two always-offered flat items do specifically to
--- dodge IsPartnered()'s own documented cache-staleness gap (this file's
--- header, above) -- a reconnected, genuinely-partnered player who hits that
--- staleness here gets RequestPartnerUp()'s own "already partnered" server
--- rejection instead of a Break option, the same bounded failure mode this
--- file's own ox_target predicate and client/tablet.lua's dispatcher already
--- tolerate for the identical reason.
---
--- FindNearestPartnerCandidate() is client/radial.lua's own resource-global
--- (promoted from `local` for exactly this kind of reuse -- see that
--- function's own "SEAM OPENED" doc comment). Reached behind a
--- `type(...) == 'function'` runtime existence guard, same load-order
--- reasoning as client/movement.lua's identical guard on
--- FindNearestLeashCandidate() -- a runtime existence guard, not a
--- load-order assumption.
--- ======================================================================
-RegisterCommand('k9partner', function()
-    if IsPartnered() then
+--- ONE ACTION FOR PARTNERING (the owner's rework pass): break it if you
+--- are partnered, otherwise partner up with whoever is nearest. Shared by
+--- /k9partner, the radial menu's single "Partner Up / Break Partnership"
+--- item and the tablet's HandlerPartnership button, so all three behave
+--- the same.
+---
+--- ASKS THE SERVER FIRST. The local PartnershipState cache can under-report
+--- after a reconnect (this file's header, "KNOWN CACHE-STALENESS GAP") --
+--- which is why the radial used to show Partner Up AND Break Partnership
+--- side by side, all the time. RefreshPartnershipStateFromServer() answers
+--- from the server's own record, so the toggle can pick the right branch
+--- instead of offering both. If that round trip fails it reads as "not
+--- partnered" and the Partner Up request is refused by the server with
+--- its own "already partnered" message -- bounded, and pressing again
+--- retries.
+---
+--- The break branch is never gated ("gate the start, never the stop"); the
+--- partner-up branch keeps CanShowK9UI(), and RequestPartnerUp() plus the
+--- server re-check everything regardless.
+---
+--- Yields (a server callback). Every caller is already in a context that
+--- may yield: a command handler, a NUI callback, or a thread.
+--- @return boolean acted
+--- @return string? reason -- 'not_available' when nothing was sent
+function TogglePartnership()
+    local partnered = RefreshPartnershipStateFromServer()
+    if partnered then
         BreakPartnership()
-        return
+        return true
     end
 
     if not CanShowK9UI() then
         DenyK9UIAccess('common.no_k9_role_or_access')
-        return
+        return false, 'not_available'
     end
 
-    if type(FindNearestPartnerCandidate) ~= 'function' then return end
+    if type(FindNearestPartnerCandidate) ~= 'function' then return false, 'not_available' end
     local candidateServerId = FindNearestPartnerCandidate()
     if not candidateServerId then
         lib.notify({ title = locale('common.notify_title'), description = locale('radial.no_partner_candidate'), type = 'error' })
-        return
+        return false, 'not_available'
     end
 
     RequestPartnerUp(candidateServerId)
+    return true
+end
+
+-- ======================================================================
+-- CHAT COMMAND -- Partner Up / Break Partnership. ONE command, not two
+-- (the owner: a family like this "should all work together like the
+-- scen[t] command does"). All of the logic is TogglePartnership() above,
+-- shared with the radial item and the tablet button.
+-- ======================================================================
+RegisterCommand('k9partner', function()
+    TogglePartnership()
 end, false)
 
 --- Step 1 of the consent handshake, received on the TARGET's client.

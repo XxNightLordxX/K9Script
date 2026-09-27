@@ -1147,7 +1147,7 @@
         help_task_partner_up_1: "1. Stand close to the other player -- handler or K9, either side can start this.",
         help_task_partner_up_2: "2. Open your interact menu on them and choose \"Partner Up\" -- if you are the K9, your K9 Unit radial menu has the same option.",
         help_task_partner_up_3: "3. The other player gets an accept-or-decline prompt. Once they accept, the My Record tab for both of you shows \"Partnered\" instead of \"No Partner\".",
-        help_task_partner_up_4: "4. To split up later, open your K9 Unit radial menu and choose \"Break Partnership\" -- either side can end it, any time, even if the other player is offline.",
+        help_task_partner_up_4: "4. To split up later, choose \"Partner Up / Break Partnership\" in your K9 Unit radial menu again (or type /k9partner) -- it ends the partnership if you have one. Either side can end it, any time, even if the other player is offline.",
         help_task_vehicle_heading: "Put Your K9 In the Car",
         help_task_vehicle_1: "1. As the K9, walk up to the vehicle your handler is using. Only vehicles set up to carry a K9 will show this option -- ask High Command if you think one is missing it.",
         help_task_vehicle_2: "2. Open your interact menu on the vehicle and choose \"Get in the Back Seat\".",

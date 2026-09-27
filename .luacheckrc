@@ -1445,10 +1445,10 @@ globals = {
     -- server/partnership.lua above) -- RequestPartnerUp/BreakPartnership
     -- mirror client/movement.lua's RequestLeashAttach/DetachLeash pair
     -- exactly (self-initiated trigger + zero-consent termination).
-    -- IsPartnered/GetPartnerServerId are the read-only accessors
-    -- fxmanifest.lua's own comment on that file names as its exposed
-    -- surface for a future client/radial.lua entry, not yet wired up.
-    "RequestPartnerUp", "BreakPartnership", "IsPartnered", "GetPartnerServerId",
+    -- TogglePartnership is the one Partner Up / Break Partnership action
+    -- shared by /k9partner, the radial item and the tablet button.
+    -- IsPartnered/GetPartnerServerId are read-only accessors.
+    "RequestPartnerUp", "BreakPartnership", "TogglePartnership", "IsPartnered", "GetPartnerServerId",
     -- RefreshPartnershipStateFromServer yields on a server callback and
     -- re-syncs the local cache before returning fresh IsPartnered()/
     -- GetPartnerServerId() values. It exists because the local cache can

@@ -1467,172 +1467,20 @@ local function RegisterK9RadialMenu()
         }
     end
 
-    --- Break Partnership -- DEVELOPER_REFERENCE.md §12.0 item 7. Closes a real gap:
-    --- client/partnership.lua exposes BreakPartnership() as a fully
-    --- implemented resource-global specifically FOR a future radial entry (see
-    --- that file's own header, "FILE-TO-FILE CONTRACT" -> BreakPartnership()),
-    --- but nothing in this resource called it -- "Partner Up" has a live
-    --- ox_target entry point, "Break Partnership" had none at all. Two
-    --- consenting players therefore had no way to end a partnership short of
-    --- one of them losing certification or changing department (and even THAT
-    --- teardown path is separately disclosed as not actually wired yet -- see
-    --- client/partnership.lua's header, "SEPARATE, ALSO DISCLOSED FINDING").
-    --- This item is that entry point.
-    ---
-    --- NOT GATED ON CanShowK9UI() -- same "no unbounded trap" requirement as
-    --- Detach Leash / Release Bite & Hold / Release Drag above (DEVELOPER_REFERENCE.md §9 item
-    --- 3b), now applied to a persistent, DB-backed relationship instead of a
-    --- session-scoped one. client/partnership.lua's own BreakPartnership() is
-    --- documented as deliberately ungated for exactly this reason (its header:
-    --- "TERMINATION MUST NEVER BE GATED") -- gating the call HERE with a
-    --- CanShowK9UI() check this file adds on top would silently reintroduce the
-    --- exact trap that function was written to avoid (e.g. a K9 decertified or
-    --- moved off-department while still partnered would hit DenyK9UIAccess()
-    --- and have no way to leave). This onSelect therefore does nothing but the
-    --- type-guarded call below -- no access check, no local state check, before
-    --- or after.
-    ---
-    --- NOT A CONTEXT-SENSITIVE TOGGLE with "Partner Up" (unlike Attach/Detach
-    --- Leash, Bite & Hold, and Drag above), even though client/partnership.lua's
-    --- own header floats exactly that dual-mode shape as a possibility for
-    --- "a future radial entry." Deliberately NOT done here: every one of this
-    --- file's existing toggles keys its branch off a LOCAL client-side state
-    --- query (IsLeashed(), IsBiteHoldEngaged(), IsDragEngaged()) that mirrors
-    --- SERVER-side data the client can never fall meaningfully behind on --
-    --- movement.lua's own header frames leash pairs as ephemeral, session-scoped
-    --- state that cannot survive this client's own reconnect/restart, so a
-    --- locally-nil leash state is always accurate. client/partnership.lua's
-    --- PartnershipState cache has NO such guarantee: partnership.lua's own
-    --- header ("KNOWN CACHE-STALENESS GAP") discloses that IsPartnered() CAN
-    --- under-report for a client that reconnects, or whose OWN resource
-    --- restarts, while genuinely still partnered per the DB -- nothing in
-    --- server/partnership.lua's current contract re-syncs
-    --- 'qbx_k9unit:client:partnershipEstablished' (or anything else) to a
-    --- reconnecting client. If this item toggled visibility/label off
-    --- IsPartnered() the way Leash/Bite & Hold/Drag toggle off their own local
-    --- state, a genuinely-partnered player who just reconnected would read a
-    --- stale `false`, see only "Partner Up" here (never "Break Partnership"),
-    --- and get nothing but the server's `already_partnered` rejection if they
-    --- tried it -- silently reintroducing the exact trap this item exists to
-    --- close, and doing it specifically to the players most likely to hit it
-    --- (anyone who reconnected mid-shift). So instead: a single, ALWAYS-OFFERED,
-    --- flat action -- gated ONLY on Config.Features.HandlerPartnership at
-    --- registration (same as every other item's own feature flag here), never
-    --- on any client-side partnership-state read. This is safe to click even
-    --- for a player who was never partnered at all: BreakPartnership() sends
-    --- unconditionally, and server/partnership.lua's own breakPartnership
-    --- handler is an already-safe no-op for that case (NotifyPlayer: "You are
-    --- not currently partnered with anyone."). Offering this to a never-
-    --- partnered player is a DELIBERATE tradeoff, not an oversight left to be
-    --- "fixed" later -- a future reviewer who hides this behind an
-    --- IsPartnered() check to avoid that redundant click would silently bring
-    --- the reconnect trap back. An exit that is occasionally offered when
-    --- unneeded is strictly better than one that is sometimes invisible to
-    --- exactly the player who needs it.
-    ---
-    --- The live partnership-status callback this section once anticipated
-    --- has since landed -- server/partnership.lua registers
-    --- `lib.callback.register('qbx_k9unit:server:getPartnershipState', ...)`,
-    --- returning current SERVER-truth partnership state, and
-    --- client/partnership.lua's RefreshPartnershipStateFromServer() already
-    --- awaits it (per this resource's own fxmanifest.lua comment on that
-    --- file). This item needed no change when it landed -- "Break
-    --- Partnership" stays unconditionally offered regardless of local
-    --- partnership-state cache accuracy, for the exact reconnect-trap reason
-    --- described above. Noted here so a future reader doesn't go looking for
-    --- a callback that already exists.
+    --- Partner Up / Break Partnership -- ONE item (the owner's rework pass),
+    --- like Attach/Detach Leash. It used to be two items shown side by side
+    --- all the time, because the local partnership cache can be wrong after
+    --- a reconnect; client/partnership.lua's TogglePartnership() now asks
+    --- the server first and then does the right one. Breaking is never
+    --- gated. Run in a thread because the server check yields.
     if Config.Features.HandlerPartnership then
         k9SubmenuItems[#k9SubmenuItems + 1] = {
-            id = 'k9_break_partnership',
-            label = locale('radial.break_partnership_label'),
-            icon = 'handshake-slash',
-            onSelect = function()
-                -- type(...) == 'function' guard per this codebase's established
-                -- soft-dependency convention (e.g. AwardXP/
-                -- GetXPTier) -- effectively always true here in practice, since
-                -- this item is only ever registered under the SAME
-                -- Config.Features.HandlerPartnership flag that gates
-                -- client/partnership.lua's entire file (its own top-of-file
-                -- `if not Config.Features.HandlerPartnership then return end`),
-                -- so by the time a player can click this, that file has already
-                -- run and defined BreakPartnership(). Kept anyway: client/
-                -- partnership.lua's own header explicitly names this exact
-                -- guard as what a future radial caller should use, and it costs
-                -- nothing to honor that against, say, a future load-order change.
-                if type(BreakPartnership) == 'function' then
-                    BreakPartnership()
-                end
-            end,
-        }
-    end
-
-    --- Partner Up -- DEVELOPER_REFERENCE.md §12.0 item 7. The other half of the gap
-    --- Break Partnership above already closes: client/partnership.lua's own
-    --- ox_target "Partner Up" option is a live entry point; this item is what
-    --- makes fxmanifest.lua's comment on client/partnership.lua ("the radial
-    --- entry is now wired") true from this file's side as well.
-    ---
-    --- A SEPARATE FLAT ITEM, NOT A DUAL-MODE TOGGLE WITH Break Partnership --
-    --- same reasoning Break Partnership's own comment block above already
-    --- gives IN FULL for why THIS FILE never keys a Partner-Up/Break-Partnership
-    --- choice off IsPartnered() (see "KNOWN CACHE-STALENESS GAP", above).
-    --- client/partnership.lua's own header does separately float
-    --- RefreshPartnershipStateFromServer() as having been built "for... a
-    --- dual-mode radial item that picks Partner Up vs Break Partnership" --
-    --- deliberately NOT taken up here: Break Partnership's own resolution above
-    --- already settled this file's position on that exact question (kept
-    --- unconditional/flat even after that callback landed, specifically so the
-    --- one control that always works is never hidden behind a state read that
-    --- can be stale for a just-reconnected player), and introducing a SECOND,
-    --- opposite-conclusion pattern for the mirror-image action in the same
-    --- submenu would leave two contradictory answers to the identical design
-    --- question sitting side by side. Two always-offered flat items (this one
-    --- gated on CanShowK9UI() since it's an INITIATION, Break Partnership
-    --- ungated since it's a TERMINATION -- see this file's header's general
-    --- initiation-vs-termination gating split) give the same full coverage
-    --- without that inconsistency: clicking Partner Up while already partnered
-    --- just costs one harmless, already-tolerated round trip
-    --- (RequestPartnerUp()'s own local IsPartnered() pre-check, or failing
-    --- that server/partnership.lua's CheckPartnershipEligibility, rejects it
-    --- with a clear notification either way -- the exact tolerance
-    --- client/partnership.lua's own header already documents for its
-    --- ox_target predicate's identical display-only imprecision).
-    ---
-    --- Candidate selection: FindNearestPartnerCandidate() above, this file's
-    --- header.
-    if Config.Features.HandlerPartnership then
-        k9SubmenuItems[#k9SubmenuItems + 1] = {
-            id = 'k9_partner_up',
-            -- Reuses the already-migrated partnership.* key rather than minting
-            -- a fourth-pass-flagged duplicate — see DEVELOPER_REFERENCE.md's
-            -- "Found, NOT touched" note on this exact label (byte-for-byte
-            -- identical to client/partnership.lua's own ox_target option text).
-            label = locale('partnership.partner_up_target_label'),
+            id = 'k9_partner',
+            label = locale('radial.partner_toggle_label'),
             icon = 'handshake',
             onSelect = function()
-                -- NOT WIDENED TO HasK9Access() -- checked, matches Leash's
-                -- own "considered and rejected" case above verbatim:
-                -- server/partnership.lua's CheckPartnershipEligibility
-                -- requires at least one party to be a real K9 by model OR
-                -- the decoupled K9 role (IsConfiguredK9Model(...) or
-                -- HasK9Role(...)) BEFORE HasK9Access is ever consulted for
-                -- whichever party is cast as the K9 -- a bypass-only holder
-                -- with no model and no role fails that check regardless of
-                -- what this client offers. Left on the broader combinator.
-                if not CanShowK9UI() then
-                    DenyK9UIAccess('common.no_k9_role_or_access')
-                    return
-                end
-
-                local candidateServerId = FindNearestPartnerCandidate()
-                if not candidateServerId then
-                    lib.notify({ title = locale('common.notify_title'), description = locale('radial.no_partner_candidate'), type = 'error' })
-                    return
-                end
-
-                if type(RequestPartnerUp) == 'function' then
-                    RequestPartnerUp(candidateServerId)
-                end
+                if type(TogglePartnership) ~= 'function' then return end
+                CreateThread(function() TogglePartnership() end)
             end,
         }
     end
@@ -2124,7 +1972,7 @@ local function RegisterK9RadialMenu()
     local K9_SUBMENU_DISPLAY_ORDER = {
         'k9_open_tablet',
         'k9_bark', 'k9_leash', 'k9_vehicle', 'k9_utility',
-        'k9_partner_up', 'k9_break_partnership',
+        'k9_partner',
         'k9_track_certified', 'k9_thermal_vision', 'k9_night_vision', 'k9_scent_vision', 'k9_camera_feed', 'k9_vision_cycle',
         'k9_bite_hold', 'k9_takedown', 'k9_drag',
         'k9_fetch', 'k9_kennel',
