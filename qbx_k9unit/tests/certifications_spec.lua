@@ -1674,23 +1674,87 @@ end)
 -- touched.
 -- ======================================================================
 
-t.test('GrantCertification: APPEARANCE FIX -- with Config.K9Appearance.applyPedModelOnCertify on, a successful online grant calls ApplyK9AppearanceOnGrant(targetCitizenid, granterCitizenid)', function()
+-- CERTIFY AS HANDLER OR AS K9 (the owner's rework pass). Certifying used
+-- to ALWAYS turn the person into Config.Peds[1] -- so every new HANDLER
+-- was turned into a dog. Now: no breed = a handler, looks untouched; a
+-- breed = certified as the K9 AND turned into that breed, one step.
+
+t.test('CERTIFY AS HANDLER: a plain certify (walk-up option / chat command, no breed) certifies them and NEVER changes how they look', function()
     local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true } })
     f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
     f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
     f.setPed(10, 1000, vec3(0, 0, 0))
-    f.setPed(20, 2000, vec3(1, 0, 0), K9_HASH_SHEPHERD)
+    f.setPed(20, 2000, vec3(1, 0, 0), NON_K9_HASH)
+
+    local scalarCallCount = 0
+    f.mysql.scalar.await = function()
+        scalarCallCount = scalarCallCount + 1
+        if scalarCallCount == 1 then return nil end
+        return 77
+    end
 
     f.setSource(10)
     f.events['qbx_k9unit:server:certifyHandler'](20)
 
-    t.equals(#f.appearanceApplyCalls, 1, 'a plain /k9certify grant must apply the K9 ped, exactly like a k9.access permission grant already does')
-    t.equals(f.appearanceApplyCalls[1][1], 'TARGET')
-    t.equals(f.appearanceApplyCalls[1][2], 'GRANTER')
-    t.isNil(f.appearanceApplyCalls[1][3], 'this function carries no explicit model choice of its own -- ApplyK9AppearanceOnGrant\'s own Config.Peds[1].model default must apply, same as the k9.access-grant path')
+    t.isTrue(f.env.HasK9Access(20), 'the handler is certified')
+    t.equals(#f.appearanceApplyCalls, 0, 'a handler must not be turned into a dog by being certified')
 end)
 
-t.test('GrantCertification: APPEARANCE FIX -- the role-holder ends up on an ORDINARY HUMAN BODY (no configured K9 model) and the certification/appearance-apply still both succeed -- role and model are genuinely independent', function()
+t.test('CERTIFY AS K9: certifying from the tablet with a breed picked certifies them AND turns them into exactly that breed, in one step', function()
+    local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true }, features = { CommandTablet = true } })
+    f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
+    f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
+    f.setPed(10, 1000, vec3(0, 0, 0))
+    f.setPed(20, 2000, vec3(1, 0, 0), NON_K9_HASH)
+
+    local scalarCallCount = 0
+    f.mysql.scalar.await = function()
+        scalarCallCount = scalarCallCount + 1
+        if scalarCallCount == 1 then return nil end
+        return 77
+    end
+
+    local result = f.callbacks['qbx_k9unit:server:tabletCertify'](10, 'TARGET', 'police', 'a_c_rottweiler')
+
+    t.isTrue(result.ok)
+    t.isTrue(f.env.HasK9Access(20))
+    t.equals(#f.appearanceApplyCalls, 1)
+    t.equals(f.appearanceApplyCalls[1][1], 'TARGET')
+    t.equals(f.appearanceApplyCalls[1][2], 'GRANTER')
+    t.equals(f.appearanceApplyCalls[1][3], 'a_c_rottweiler', 'the breed the certifier picked, not a default')
+end)
+
+t.test('CERTIFY AS K9: a breed that is not in Config.Peds is refused before anything is written -- never quietly certified as a handler instead', function()
+    local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true }, features = { CommandTablet = true } })
+    f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
+    f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
+    f.setPed(10, 1000, vec3(0, 0, 0))
+    f.setPed(20, 2000, vec3(1, 0, 0), NON_K9_HASH)
+    local inserted = false
+    f.mysql.insert.await = function() inserted = true; return 1 end
+
+    for _, bad in ipairs({ 'a_c_pig', '', 42 }) do
+        local result = f.callbacks['qbx_k9unit:server:tabletCertify'](10, 'TARGET', 'police', bad)
+        t.isFalse(result.ok)
+        t.equals(result.error, 'invalid_model', tostring(bad))
+    end
+    t.isFalse(inserted)
+    t.equals(#f.appearanceApplyCalls, 0)
+end)
+
+t.test('CERTIFY AS K9: from the tablet with NO breed (Handler picked) behaves exactly like a handler certify -- looks unchanged', function()
+    local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true }, features = { CommandTablet = true } })
+    f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
+    f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
+    f.setPed(10, 1000, vec3(0, 0, 0))
+    f.setPed(20, 2000, vec3(1, 0, 0), NON_K9_HASH)
+
+    local result = f.callbacks['qbx_k9unit:server:tabletCertify'](10, 'TARGET', 'police', nil)
+    t.isTrue(result.ok)
+    t.equals(#f.appearanceApplyCalls, 0)
+end)
+
+t.test('CERTIFY AS K9: a target on an ORDINARY HUMAN BODY is certified AND the breed is applied -- role and model are genuinely independent', function()
     -- Config.K9Appearance.requireK9ModelForRole is absent (shipped default,
     -- false) -- the target's LIVE ped model is deliberately NOT a
     -- configured K9 model at all, proving the grant (and its automatic
@@ -1716,14 +1780,15 @@ t.test('GrantCertification: APPEARANCE FIX -- the role-holder ends up on an ORDI
     end
 
     f.setSource(10)
-    f.events['qbx_k9unit:server:certifyHandler'](20)
+    t.isTrue(f.env.K9Cert.GrantCertification(10, 20, 'a_c_shepherd'))
 
     t.isTrue(f.env.HasK9Access(20), 'the ROLE must be granted regardless of the target\'s CURRENT model')
-    t.equals(#f.appearanceApplyCalls, 1, 'the automatic appearance-apply side effect must still fire for a human-bodied role-holder -- it is what is SUPPOSED to turn them into the ped, not a check that refuses because they are not one yet')
+    t.equals(#f.appearanceApplyCalls, 1, 'the chosen breed is applied to a human-bodied target -- that is what turns them into the dog, not a check that refuses because they are not one yet')
     t.equals(f.appearanceApplyCalls[1][1], 'TARGET')
+    t.equals(f.appearanceApplyCalls[1][3], 'a_c_shepherd')
 end)
 
-t.test('GrantCertification: APPEARANCE FIX -- with Config.K9Appearance.applyPedModelOnCertify explicitly false, the appearance-apply hook is never called', function()
+t.test('GrantCertification: with Config.K9Appearance.applyPedModelOnCertify explicitly false, the appearance-apply hook is never called -- even with a breed picked', function()
     local f = newFixture({ k9Appearance = { applyPedModelOnCertify = false } })
     f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
     f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
@@ -1738,7 +1803,7 @@ t.test('GrantCertification: APPEARANCE FIX -- with Config.K9Appearance.applyPedM
     end
 
     f.setSource(10)
-    f.events['qbx_k9unit:server:certifyHandler'](20)
+    f.env.K9Cert.GrantCertification(10, 20, 'a_c_shepherd')
 
     t.isTrue(f.env.HasK9Access(20), 'the role itself must still be granted -- only the automatic appearance side effect is opted out')
     t.equals(#f.appearanceApplyCalls, 0)
@@ -1780,22 +1845,36 @@ t.test('GrantCertification: APPEARANCE FIX -- the runtime existence guard genuin
     end
 
     f.setSource(10)
-    local ok = pcall(f.events['qbx_k9unit:server:certifyHandler'], 20)
+    local ok = pcall(f.env.K9Cert.GrantCertification, 10, 20, 'a_c_shepherd')
 
     t.isTrue(ok, 'a missing soft dependency must never throw out of the grant path')
     t.isTrue(f.env.HasK9Access(20), 'the grant itself must still succeed with server/appearance.lua entirely absent')
 end)
 
-t.test('GrantCertificationOffline: APPEARANCE FIX -- with Config.K9Appearance.applyPedModelOnCertify on, a successful offline grant (/k9certify with a citizenid) calls ApplyK9AppearanceOnGrant(citizenid, granterCitizenid) too -- closes the "only one of the two doors" asymmetry', function()
+t.test('CERTIFY AS HANDLER (offline): /k9certify [citizenid] [job] certifies an offline handler and never changes how they look', function()
     local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true } })
     f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
     -- TARGET intentionally never registered -- genuinely offline.
+    local inserted = false
+    f.mysql.insert.await = function() inserted = true; return 1 end
 
     f.commands['k9certify'].fn(10, { 'TARGET', 'police' })
 
-    t.equals(#f.appearanceApplyCalls, 1, 'an offline /k9certify grant must apply the K9 ped exactly like the online path -- ApplyK9AppearanceOnGrant/SendSwapRequest already handle a currently-offline target on their own')
+    t.isTrue(inserted, 'the certification is written')
+    t.equals(#f.appearanceApplyCalls, 0)
+end)
+
+t.test('CERTIFY AS K9 (offline): from the tablet with a breed picked, an offline target is certified and the breed is applied for their next login', function()
+    local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true }, features = { CommandTablet = true } })
+    f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
+
+    local result = f.callbacks['qbx_k9unit:server:tabletCertify'](10, 'TARGET', 'police', 'a_c_rottweiler')
+
+    t.isTrue(result.ok)
+    t.equals(#f.appearanceApplyCalls, 1)
     t.equals(f.appearanceApplyCalls[1][1], 'TARGET')
     t.equals(f.appearanceApplyCalls[1][2], 'GRANTER')
+    t.equals(f.appearanceApplyCalls[1][3], 'a_c_rottweiler')
 end)
 
 -- ----------------------------------------------------------------------

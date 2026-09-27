@@ -201,7 +201,7 @@
       tablet:requestPartnershipsForTarget {targetCitizenId}       -> cb(PartnershipsResult)      [Partnerships tab admin lookup, high command only]
       tablet:forceEndPartnership {targetCitizenId}                -> cb({ok,error?})             [Partnerships tab admin control, high command only -- server/partnership.lua's existing ForceBreakPartnershipForCitizenId]
       tablet:triggerFeature {feature}                             -> cb({ok,error?})            [SECTION 2]
-      tablet:certify {targetCitizenId, departmentKey}             -> cb({ok,error?,message?})   [server/certifications/'s tabletCertify -- online OR offline, see GrantCertificationForTablet's own header]
+      tablet:certify {targetCitizenId, departmentKey, k9Model?}   -> cb({ok,error?,message?})   [server/certifications/'s tabletCertify -- online OR offline, see GrantCertificationForTablet's own header]
       tablet:decertify {targetCitizenId, departmentKey}           -> cb({ok,error?,message?})   [server/certifications/'s tabletDecertify -- online OR offline, see RevokeCertificationForTablet's own header]
       tablet:setCertificationTier {targetCitizenId, departmentKey, tier}     -> cb({ok,error?})  [server/certifications/'s tabletSetCertificationTier -- online OR offline]
       tablet:renewCertification {targetCitizenId, departmentKey}            -> cb({ok,error?})  [tabletRenewCertification -- online OR offline]
@@ -898,7 +898,7 @@ local TABLET_STRING_KEYS = {
     'online_players_empty', 'online_players_opening_label',
     'column_server_id', 'column_job', 'column_k9_access',
     'online_k9_access_yes', 'online_k9_access_no',
-    'certify_label', 'decertify_label', 'confirm_label', 'grant_label',
+    'certify_label', 'certify_as_label', 'certify_as_handler_option', 'certify_as_k9_option_template', 'certify_as_hint', 'decertify_label', 'confirm_label', 'grant_label',
     'revoke_label', 'block_label', 'unblock_label', 'manage_label',
     -- Block Effect column (html/tablet.js's featureBlockEnforcement()) --
     -- THE HONESTY REQUIREMENT: server/tablet.lua's own `blocked`/`state`
@@ -2494,7 +2494,14 @@ RegisterNUICallback('tablet:certify', function(data, cb)
         cb({ ok = false, error = 'invalid_args' })
         return
     end
-    cb(AwaitServerCallback('qbx_k9unit:server:tabletCertify', data.targetCitizenId, data.departmentKey))
+    -- k9Model is optional: absent certifies a handler, a model name
+    -- certifies them as a K9 of that breed. Anything else is refused here
+    -- rather than silently treated as "handler".
+    if data.k9Model ~= nil and (type(data.k9Model) ~= 'string' or data.k9Model == '') then
+        cb({ ok = false, error = 'invalid_args' })
+        return
+    end
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletCertify', data.targetCitizenId, data.departmentKey, data.k9Model))
 end)
 
 RegisterNUICallback('tablet:decertify', function(data, cb)

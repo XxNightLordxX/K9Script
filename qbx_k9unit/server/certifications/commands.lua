@@ -76,8 +76,11 @@ local Specializations = K9Cert.Specializations
 -- translation client/tablet.lua's AwaitServerCallback expects.
 -- ======================================================================
 if Config.Features and Config.Features.CommandTablet == true then
-    lib.callback.register('qbx_k9unit:server:tabletCertify', function(source, targetCitizenid, departmentKey)
-        local ok, outcome = GrantCertificationForTablet(source, targetCitizenid, departmentKey)
+    -- `k9Model`: nil certifies a handler (no change to how they look); a
+    -- Config.Peds model certifies them AS A K9 of that breed, in the same
+    -- step. See core.lua's "CERTIFY AS HANDLER OR AS K9".
+    lib.callback.register('qbx_k9unit:server:tabletCertify', function(source, targetCitizenid, departmentKey, k9Model)
+        local ok, outcome = GrantCertificationForTablet(source, targetCitizenid, departmentKey, k9Model)
         if ok then return { ok = true } end
         return { ok = false, error = outcome }
     end)

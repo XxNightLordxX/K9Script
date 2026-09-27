@@ -1297,6 +1297,21 @@ t.test('tablet:permKeysDelete: a server that never answers is reported as a fail
     t.isNotNil(result.error)
 end)
 
+t.test('tablet:certify: a picked breed (k9Model) is forwarded as the third argument; none means a handler; a malformed one is refused', function()
+    local f = newTabletFixture()
+    f.setServerCallback('qbx_k9unit:server:tabletCertify', { ok = true })
+
+    f.callNui('tablet:certify', { targetCitizenId = 'ABC', departmentKey = 'police', k9Model = 'a_c_husky' })
+    t.equals(f.callbackCallLog[1].args[3], 'a_c_husky')
+
+    f.callNui('tablet:certify', { targetCitizenId = 'ABC', departmentKey = 'police' })
+    t.isNil(f.callbackCallLog[2].args[3], 'no breed = certify a handler')
+
+    t.equals(f.callNui('tablet:certify', { targetCitizenId = 'ABC', departmentKey = 'police', k9Model = '' }).error, 'invalid_args')
+    t.equals(f.callNui('tablet:certify', { targetCitizenId = 'ABC', departmentKey = 'police', k9Model = 7 }).error, 'invalid_args')
+    t.equals(#f.callbackCallLog, 2, 'a malformed breed never reaches the server')
+end)
+
 t.test('tablet:givexp: amount must be a number', function()
     local f = newTabletFixture()
     t.equals(f.callNui('tablet:givexp', { targetCitizenId = 'ABC', amount = '500' }).error, 'invalid_args')

@@ -302,7 +302,7 @@
           }
         Failure: { ok: false, error, message? }
 
-      tablet:certify { targetCitizenId: string, departmentKey: string } -> cb({ ok, error?, message? })
+      tablet:certify { targetCitizenId: string, departmentKey: string, k9Model?: string } -> cb({ ok, error?, message? })
       tablet:decertify { targetCitizenId: string, departmentKey: string } -> cb({ ok, error?, message? })
         Requires effectivePermissions to include 'k9.certify' (which already
         covers high command and legacy-rank certifiers per config.lua's own
@@ -4065,7 +4065,7 @@
         if (helpHighCommandOnly()) {
             wrap.appendChild(buildHelpTaskBlock(S('help_task_hc_assign_k9_heading'), [
                 S('help_task_hc_assign_k9_1'),
-                formatTemplate(S('help_task_hc_assign_k9_2_template'), { assignLabel: S('role_assign_label') }),
+                formatTemplate(S('help_task_hc_assign_k9_2_template'), { assignLabel: S('role_assign_label'), certifyLabel: S('certify_label') }),
                 formatTemplate(S('help_task_hc_assign_k9_3_template'), { revertLabel: S('role_revert_label') }),
             ]));
         }
@@ -4259,12 +4259,55 @@
                     onAction('decertify', entry.departmentKey);
                 }, { disabled: state.pendingAction }));
             } else {
-                row.appendChild(mkButton(S('certify_label'), 'k9tablet-btn', function () {
-                    onAction('certify', entry.departmentKey);
-                }, { disabled: state.pendingAction }));
+                row.appendChild(buildCertifyAsControl(entry, onAction));
             }
         }
         return row;
+    }
+
+    /**
+     * CERTIFY AS HANDLER OR AS K9 -- one choice, one button.
+     *
+     * A certification is held by BOTH halves of a team: the human handler
+     * and the player who plays the dog. Certifying used to always turn the
+     * person into the first configured dog model, so a new handler got
+     * turned into a dog, and a K9 of a particular breed took Certify AND a
+     * separate Assign K9 Role. The picker says which is meant: "Handler"
+     * (the default) leaves how they look alone; a breed certifies them as a
+     * K9 of that breed in the same step. server/certifications/core.lua's
+     * GrantCertification re-validates the model either way.
+     *
+     * No models configured -> no picker, just Certify (a handler).
+     * @param {object} entry
+     * @param {(kind:string, departmentKey:string, extra?:string) => void} onAction
+     */
+    function buildCertifyAsControl(entry, onAction) {
+        var wrap = mk('div', { class: 'k9tablet-certify-as' });
+        var asSelect = null;
+        if (state.peds && state.peds.length > 0) {
+            asSelect = mk('select', { class: 'k9tablet-certify-as-select', attrs: { 'aria-label': S('certify_as_label') } });
+            var handlerOption = mk('option', { text: S('certify_as_handler_option') });
+            handlerOption.setAttribute('value', '');
+            asSelect.appendChild(handlerOption);
+            for (var i = 0; i < state.peds.length; i++) {
+                var ped = state.peds[i];
+                if (!ped || typeof ped.model !== 'string' || ped.model.length === 0) continue;
+                var breed = (typeof ped.label === 'string' && ped.label.length > 0) ? ped.label : ped.model;
+                var option = mk('option', { text: formatTemplate(S('certify_as_k9_option_template'), { breed: breed }) });
+                option.setAttribute('value', ped.model);
+                asSelect.appendChild(option);
+            }
+            asSelect.value = '';
+            wrap.appendChild(asSelect);
+        }
+        wrap.appendChild(mkButton(S('certify_label'), 'k9tablet-btn', function () {
+            var chosen = asSelect ? asSelect.value : '';
+            onAction('certify', entry.departmentKey, chosen ? chosen : undefined);
+        }, { disabled: state.pendingAction }));
+        if (asSelect) {
+            wrap.appendChild(mk('p', { class: 'k9tablet-muted k9tablet-hint', text: S('certify_as_hint') }));
+        }
+        return wrap;
     }
 
     /**
@@ -6087,7 +6130,9 @@
     function handlePersonCertAction(kind, departmentKey, extra) {
         var citizenid = state.person.citizenid;
         if (kind === 'certify') {
-            runMutation('tablet:certify', { targetCitizenId: citizenid, departmentKey: departmentKey }, function () {
+            var certifyPayload = { targetCitizenId: citizenid, departmentKey: departmentKey };
+            if (extra) certifyPayload.k9Model = extra;
+            runMutation('tablet:certify', certifyPayload, function () {
                 refreshPersonAndSelf(citizenid);
             });
         } else if (kind === 'decertify') {

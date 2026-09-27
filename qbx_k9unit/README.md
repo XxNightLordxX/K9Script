@@ -38,8 +38,8 @@ and can be turned off. Full command syntax for all of these is in the
 tablet's own Guide tab, not here.
 
 - **Certification** — the access-control core: a supervisor certifies a
-  department member as a K9 handler, or high command assigns the role
-  directly from the tablet. See "How a K9 gets made" below.
+  department member as a handler, or as the K9 with a breed picked, in
+  one step. See "How a K9 gets made" below.
 - **Leash, vehicle loading, radial menu, basic bark** — the core
   day-to-day handler/K9 interactions.
 - **Tracking** (scent/blood/gunpowder trails), **search zones and
@@ -90,24 +90,26 @@ its code.
 
 ## How a K9 gets made
 
-Two ways, both server-authoritative:
+A certification is held by both halves of a team: the human **handler**
+and the player who **plays the dog**. So certifying asks one question —
+which one?
 
-- **Certify an existing department member.** A qualifying supervisor
-  (or, by default, the officer themselves) grants a certification with
-  `/k9certify` or the "Certify K9 Handler" ox_target option. The target
-  does **not** need to already look like a dog — any member of an
-  eligible department is a valid target.
-- **High command assigns the role directly**, from the K9 Command
-  Tablet, to any citizenid, with a chosen model.
+- **On the tablet**, open the person and press **Certify**. The picker
+  beside it starts on **Handler**: they are certified and nothing about
+  how they look changes. Pick a **breed** instead and they are certified
+  as the K9 *and* turned into that dog, in the same press.
+- **`/k9certify`** and the walk-up **"Certify K9 Handler"** option always
+  certify a handler — they never change anyone's looks.
+- **High command can also assign the K9 role directly** from the tablet
+  (Assign K9 Role), to any citizenid, with a chosen model — also how you
+  change an existing K9's breed.
 
-By default (`Config.K9Appearance.applyPedModelOnCertify = true`), either
-path **actually changes that player's character** into the configured
-K9 ped — their original appearance is recorded first, so losing the
-role (revoke, job change, or a high-command "revert") changes them
-back. If you don't want this resource ever touching a player's
-appearance, set `applyPedModelOnCertify = false`; certification then
-behaves the old way — a pure access-control layer on top of a character
-who already chose to look like a dog on their own.
+Turning someone into a dog records their original appearance first, so
+losing the role (revoke, job change, or a high-command "Revert to
+Human") changes them back. If you don't want this resource ever touching
+a player's appearance, set `Config.K9Appearance.applyPedModelOnCertify =
+false`; certifying is then a pure access-control layer on top of a
+character who already chose to look like a dog on their own.
 
 The "K9 role" itself (what you're allowed to *do*) and "what you look
 like" are independent: `Config.K9Appearance.requireK9ModelForRole`
@@ -361,9 +363,10 @@ Work through all of these first:
   resource for that option to appear. Nothing breaks if you skip this;
   recovery is just slower and "Drink from Bowl" simply never shows up.
 - **Decide `Config.K9Appearance.applyPedModelOnCertify`** (default
-  `true`). On, certifying someone — or high command assigning them the
-  role directly from the tablet — actually changes that player's
-  character to a K9 model, recording what they looked like first so
+  `true`). On, certifying someone as the K9 (a breed picked beside
+  Certify on the tablet) — or high command assigning them the role
+  directly — actually changes that player's character to a K9 model
+  (certifying a handler never does), recording what they looked like first so
   losing the role changes them back. Off, this resource is a pure
   access-control layer over a character who already chose to look like
   a dog; appearance is never touched.
@@ -473,16 +476,17 @@ do not need a second person for this), then run:
 grant, and storage. This is the single most load-bearing step; almost
 everything else is gated behind it.
 
-**3. Open the tablet** with `/k9tablet`. Check the **Home**, **My Record**
-and **Progression** tabs. Progression should show your K9 and Handler rank
-blocks, and My Record your certification from step 2.
+**3. Open the tablet** with `/k9tablet`. The **My Record** tab should show
+your certification from step 2, and your K9 and Handler rank blocks.
 
 *Proves:* the whole NUI layer — the page loads, its callbacks reach the
 server, and the server's answers render.
 
-**4. Become a K9 and try the basics.** With a K9 ped model, press **V**
-(sit) and **C** (bark), then open your ox_lib radial menu and find the "K9
-Unit" submenu.
+**4. Become a K9 and try the basics.** You are already certified from step
+2, so on the tablet open your own record and use Assign K9 Role with a
+breed. Then press
+**G** (sit) and **U** (bark), and open your ox_lib radial menu to find the
+"K9 Unit" submenu.
 
 *Proves:* keybinds, the radial, and client-side actions are wired. If a
 radial entry is missing, its feature is switched off in config — that is

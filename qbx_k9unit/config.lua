@@ -907,9 +907,11 @@ Config.Peds = {
 -- made a K9.
 --
 -- Until now this resource only ever DETECTED whether someone was already
--- playing a K9 model; it never set one. With this on, certifying someone
--- (or granting them k9.access) actually turns their character INTO the
--- ped, and revoking turns them back.
+-- playing a K9 model; it never set one. With this on, making someone a K9
+-- actually turns their character INTO the ped, and revoking turns them
+-- back. "Making someone a K9" is: the tablet's Certify with a breed picked
+-- (instead of "Handler"), or Assign K9 Role, or a k9.access grant.
+-- Certifying a HANDLER never changes how they look.
 --
 -- THIS CHANGES A PLAYER'S CHARACTER, so it is worth understanding before
 -- switching it on:
