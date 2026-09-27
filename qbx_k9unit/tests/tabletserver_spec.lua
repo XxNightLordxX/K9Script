@@ -2697,6 +2697,47 @@ t.test('tabletAssignK9Role: a persisted_offline success is translated with a rea
 end)
 
 -- ============================================================================
+-- DOG-CHARACTER PIN (tabletPinDogCharacter / tabletUnpinDogCharacter) --
+-- the tablet replacement for /k9setdog, /k9removedog and /k9dog.
+-- SetDogCharacter/RemoveDogCharacter check high command themselves; the
+-- callbacks validate arguments and translate 'denied' into not_authorized.
+-- ============================================================================
+
+t.test('tabletPinDogCharacter: forwards caller, target and breed to SetDogCharacter and reports ok', function()
+    local calls = {}
+    local f = newFixture()
+    f.env.SetDogCharacter = function(granterSrc, cid, model) calls[#calls + 1] = { granterSrc, cid, model }; return true, 'applied' end
+    local src = f.registerPlayer(1, 'HC1', { name = 'police', isboss = true, grade = { level = 0 } })
+    local result = cb(f, 'qbx_k9unit:server:tabletPinDogCharacter')(src, 'DOG1', 'a_c_husky')
+    t.isTrue(result.ok)
+    t.equals(#calls, 1)
+    t.equals(calls[1][1], src)
+    t.equals(calls[1][2], 'DOG1')
+    t.equals(calls[1][3], 'a_c_husky')
+end)
+
+t.test('tabletPinDogCharacter: a non-high-command caller is refused as not_authorized; missing arguments are refused before anything runs', function()
+    local called = 0
+    local f = newFixture()
+    f.env.SetDogCharacter = function() called = called + 1; return false, 'denied' end
+    local src = f.registerPlayer(1, 'NOTHC', { name = 'police', grade = { level = 1 } })
+    local result = cb(f, 'qbx_k9unit:server:tabletPinDogCharacter')(src, 'DOG1', 'a_c_husky')
+    t.isFalse(result.ok)
+    t.equals(result.error, 'not_authorized')
+    t.equals(cb(f, 'qbx_k9unit:server:tabletPinDogCharacter')(src, 'DOG1', nil).error, 'invalid_args')
+    t.equals(cb(f, 'qbx_k9unit:server:tabletPinDogCharacter')(src, '', 'a_c_husky').error, 'invalid_args')
+    t.equals(called, 1, 'invalid arguments never reach SetDogCharacter')
+end)
+
+t.test('tabletUnpinDogCharacter: forwards to RemoveDogCharacter and passes its outcome through', function()
+    local f = newFixture()
+    f.env.RemoveDogCharacter = function(_, cid) if cid == 'DOG1' then return true, 'ok' end return false, 'not_a_dog_character' end
+    local src = f.registerPlayer(1, 'HC1', { name = 'police', isboss = true, grade = { level = 0 } })
+    t.isTrue(cb(f, 'qbx_k9unit:server:tabletUnpinDogCharacter')(src, 'DOG1').ok)
+    t.equals(cb(f, 'qbx_k9unit:server:tabletUnpinDogCharacter')(src, 'HUMAN2').error, 'not_a_dog_character')
+end)
+
+-- ============================================================================
 -- tabletRevertK9Ped -- THE NO-UNBOUNDED-TRAP action. Unlike tabletAssignK9Role,
 -- THIS file's own callback checks IsHighCommand itself (ForceRevertK9Appearance
 -- is requested, not yet a self-authorizing function at the time of writing)
