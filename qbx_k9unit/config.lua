@@ -1331,6 +1331,15 @@ Config.CommandTablet = {
     -- rather than silently leaving players with no way in at all.
     openMode = 'both',
 
+    -- ADMIN CHAT COMMANDS. Off: certifying, decertifying, tiers/roles,
+    -- giving XP, permissions, the dog-character pin and the audit are all
+    -- done on the tablet only (/k9certify, /k9decertify, /k9settier,
+    -- /k9specialize, /k9unspecialize, /k9givexp, /k9permission,
+    -- /k9grantpermission, /k9revokepermission, /k9setdog, /k9removedog,
+    -- /k9dog and /k9audit do not exist). Set true only if you want those
+    -- commands back for console or staff use.
+    adminChatCommands = false,
+
     -- The chat command, used by 'command' and 'both'. Also reachable from
     -- the K9 radial menu in every mode -- the radial is a UI affordance, not
     -- a third open mode, and it honours the same authorization either way.

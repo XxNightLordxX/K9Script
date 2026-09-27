@@ -431,7 +431,7 @@ t.test('the certified-department count badge reflects the real numbers, and turn
     t.equals(findAll(oneActive.getRoot(), (n) => n._textContent === 'Certified in 1 of 2 departments' && n.classList && n.classList.contains('k9tablet-feature-state--available')).length, 1, 'at-least-one-active state uses the SAME positive colour class every other screen uses for this meaning');
 });
 
-t.test('the blocked-ability count badge shows the real count and the correct colour, and is entirely ABSENT when nothing is blocked', async () => {
+t.test('no blocked-ability badge: your own screens only show what you can use, so nothing points at hidden abilities', async () => {
     const blocked = await openTablet({
         ok: true,
         viewer: { citizenid: 'C3', name: 'A', isHighCommand: false, effectivePermissions: [], allowSelfGrant: false },
@@ -439,38 +439,13 @@ t.test('the blocked-ability count badge shows the real count and the correct col
         xp: null, tierLabel: null,
         myFeatures: [
             { key: 'X', label: 'X', category: null, actionable: true, state: 'blocked' },
-            { key: 'Y', label: 'Y', category: null, actionable: false, state: 'blocked' },
             { key: 'Z', label: 'Z', category: null, actionable: true, state: 'available' },
         ],
     });
-    t.equals(findByText(blocked.getRoot(), '2 of your abilities are currently blocked').length, 1);
-    t.equals(findAll(blocked.getRoot(), (n) => n._textContent === '2 of your abilities are currently blocked' && n.classList && n.classList.contains('k9tablet-feature-state--blocked')).length, 1);
-
-    const notBlocked = await openTablet({
-        ok: true,
-        viewer: { citizenid: 'C4', name: 'B', isHighCommand: false, effectivePermissions: [], allowSelfGrant: false },
-        certifications: [], xp: null, tierLabel: null,
-        myFeatures: [{ key: 'Z', label: 'Z', category: null, actionable: true, state: 'available' }],
-    });
-    t.equals(findAll(notBlocked.getRoot(), (n) => typeof n._textContent === 'string' && n._textContent.indexOf('currently blocked') !== -1).length, 0, 'no blocked-count badge at all when the count is zero -- never a "0 blocked" badge nobody needs');
+    t.equals(findAll(blocked.getRoot(), (n) => typeof n._textContent === 'string' && n._textContent.indexOf('currently blocked') !== -1).length, 0);
 });
 
-t.test('the abilities list on the landing screen shows EVERY ability with its own state -- not only the ready ones', async () => {
-    // WAS: "the ready to use right now list shows ONLY actionable+available
-    // abilities... and always offers a way to see the full list".
-    //
-    // That list was a filtered preview of the full one, with a link to the
-    // screen carrying the full one. Plan item A merged those screens, so
-    // keeping both would have shown every ready ability twice on a single
-    // screen, and the link would have pointed at the screen the viewer is
-    // already on. The preview is gone; the full list answers the same
-    // question plus "what do I still have to earn", which is the more
-    // useful half for a landing view.
-    //
-    // What must NOT be lost, and is asserted here: a not-yet-usable ability
-    // is still visible AND still says why. Hiding it would answer "why
-    // can't I do this" with silence -- the rule this plan's own
-    // "deliberately left alone" section keeps.
+t.test('the abilities list on the landing screen shows only the abilities you can use right now (owner: show what they are certified in)', async () => {
     const h = await openTablet({
         ok: true,
         viewer: { citizenid: 'C5', name: 'A', isHighCommand: false, effectivePermissions: [], allowSelfGrant: false },
@@ -481,10 +456,10 @@ t.test('the abilities list on the landing screen shows EVERY ability with its ow
             { key: 'Blocked1', label: 'Blocked Ability', category: null, actionable: true, state: 'blocked' },
         ],
     });
-    t.equals(findByText(h.getRoot(), 'Ready Ability').length, 1, 'a ready ability appears exactly once -- never twice, which a preview plus the full list would have caused');
-    t.equals(findByText(h.getRoot(), 'Status Only Ability').length, 1, 'a status-only ability is listed too, with its own state');
-    t.equals(findByText(h.getRoot(), 'Blocked Ability').length, 1, 'and so is a blocked one -- hiding it would answer "why can I not do this" with silence');
-    t.equals(findByText(h.getRoot(), 'View all abilities').length, 0, 'no link to a separate full list: this IS the full list');
+    t.equals(findByText(h.getRoot(), 'Ready Ability').length, 1, 'a ready ability appears exactly once');
+    t.equals(findByText(h.getRoot(), 'Status Only Ability').length, 1, 'a status-only ability you have is listed');
+    t.equals(findByText(h.getRoot(), 'Blocked Ability').length, 0, 'a blocked one is left out');
+    t.equals(findByText(h.getRoot(), 'View all abilities').length, 0, 'no link to a separate full list');
 });
 
 t.test('the landing screen carries the whole record -- certifications, both XP ladders, and abilities -- with no second tab to visit', async () => {

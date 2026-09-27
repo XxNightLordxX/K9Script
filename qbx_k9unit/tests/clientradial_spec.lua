@@ -790,6 +790,25 @@ t.test('ONE MENU PER PLAYER: a bite still being held keeps its button even after
     t.isNotNil(f.findK9Item('k9_bite_hold'), 'the release button is back while the hold runs')
 end)
 
+t.test('SHOW ONLY WHAT YOU CAN USE: a button whose ability high command blocked for you is left out; a dog without K9 access gets no dog moves; a running move keeps its button', function()
+    local blocked = newRadialFixture({ features = { BiteAndHold = true, NonLethalTakedown = true } })
+    blocked.env.IsK9FeatureBlocked = function(name) return name == 'BiteAndHold' end
+    blocked.fireLeashStateChanged()
+    t.isNil(blocked.findK9Item('k9_bite_hold'), 'blocked ability: no button')
+    t.isNotNil(blocked.findK9Item('k9_takedown'), 'other abilities untouched')
+
+    local noAccess = newRadialFixture({ features = { BiteAndHold = true, BasicBarkSounds = true, LeashMechanics = true } })
+    noAccess.env.HasK9AccessCached = function() return false end
+    noAccess.fireLeashStateChanged()
+    t.isNil(noAccess.findK9Item('k9_bite_hold'))
+    t.isNil(noAccess.findK9Item('k9_bark'))
+    t.isNotNil(noAccess.findK9Item('k9_leash'), 'the leash is never hidden this way')
+
+    noAccess.setState('isBiteHoldEngaged', true)
+    noAccess.fireLeashStateChanged()
+    t.isNotNil(noAccess.findK9Item('k9_bite_hold'), 'a hold still running keeps its release button')
+end)
+
 t.test('rebuilding the menu (it re-registers on every state change) never duplicates an item moved into a group or into Utility', function()
     local f = newRadialFixture({ features = { FetchMechanic = true, BiteAndHold = true, NonLethalTakedown = true } })
     f.fireLeashStateChanged()

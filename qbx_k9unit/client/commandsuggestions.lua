@@ -306,43 +306,13 @@ local COMMAND_SUGGESTIONS = {
     { command = 'k9fetch', keySuffix = 'k9fetch' , featureFlag = 'FetchMechanic' },
     -- client/propattachment.lua
     { command = 'k9propattach', keySuffix = 'k9propattach' },
-    -- server/highcommand.lua
-    { command = 'k9givexp', keySuffix = 'k9givexp' },
-    -- server/certifications/ -- docs/history/COMMAND_CONSOLIDATION_SPEC.md §2/§5 item
-    -- 8: k9certifyoffline/k9decertifyoffline/k9settieroffline/
-    -- k9recertifyoffline/k9unspecializeoffline are now HIDDEN ALIASES (still
-    -- real, working RegisterCommand calls -- see that file's own comment),
-    -- folded into their online counterparts below (which now resolve
-    -- online-vs-offline from args[1]'s own shape: numeric -> online,
-    -- non-numeric -> offline). Never chat-suggested under their own names
-    -- anymore. See HIDDEN_ALIAS_COMMANDS in tests/commandsuggestions_spec.lua.
-    { command = 'k9certify', keySuffix = 'k9certify' },
-    { command = 'k9decertify', keySuffix = 'k9decertify' },
-    { command = 'k9settier', keySuffix = 'k9settier' },
-    { command = 'k9specialize', keySuffix = 'k9specialize' },
-    { command = 'k9unspecialize', keySuffix = 'k9unspecialize' },
-    -- server/admin.lua -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #1: k9audit cert/
-    -- k9audit partner/k9audit search/k9audit xp/k9audit dept are now HIDDEN
-    -- ALIASES of 'k9audit' (still real, working RegisterCommand calls in
-    -- server/admin.lua -- see that file's own comment -- just no longer
-    -- chat-suggested). See HIDDEN_ALIAS_COMMANDS in
-    -- tests/commandsuggestions_spec.lua for the drift-guard allowlist that
-    -- makes removing their entries here intentional, not a silent gap.
-    { command = 'k9audit', keySuffix = 'k9audit' },
-    -- server/dogcharacter.lua -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #2:
-    -- k9setdog/k9removedog are now HIDDEN ALIASES of 'k9dog' (still real,
-    -- working RegisterCommand calls in server/dogcharacter.lua -- see that
-    -- file's own comment), never chat-suggested under their own names.
-    { command = 'k9dog', keySuffix = 'k9dog' },
+    -- Admin chat commands (certify, tiers, XP, permissions, dog pin, audit)
+    -- are off by default -- the tablet does all of them -- so none are
+    -- suggested (Config.CommandTablet.adminChatCommands).
     -- server/leaderboard.lua
     { command = 'k9stats', keySuffix = 'k9stats' },
     -- server/bonetool.lua
     { command = 'k9bonetool', keySuffix = 'k9bonetool' },
-    -- server/permissions.lua -- docs/history/COMMAND_CONSOLIDATION_SPEC.md §5 item 7:
-    -- k9grantpermission/k9revokepermission are now HIDDEN ALIASES of
-    -- 'k9permission' (still real, working RegisterCommand calls -- see that
-    -- file's own comment), never chat-suggested under their own names.
-    { command = 'k9permission', keySuffix = 'k9permission' },
 }
 
 --- Registers one `chat:addSuggestion` for a resolved command name, reading

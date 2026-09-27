@@ -1067,6 +1067,8 @@ globals = {
     "IsFetchCarryEngaged", "IsMyFetchBallOut", "FetchContextual", "ReleaseFetchBall", "RequestRecallFetchBall", "RequestThrowFetchBall",
     -- server/warrants.lua -- the sniff's warrant check and the optional wanted gate
     "IsPlayerK9Wanted", "CheckWarrantOnSniff",
+    -- client/main.lua -- the last known K9 access answer, no server call
+    "HasK9AccessCached",
     -- server/cooldowns.lua constructors
     "NewCooldown", "NewNestedCooldown", "NewMutex",
     -- server/notify.lua -- shared ox_lib notify wrapper, replacing 12

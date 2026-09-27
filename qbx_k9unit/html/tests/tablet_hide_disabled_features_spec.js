@@ -128,17 +128,13 @@ t.test('MY RECORD: a feature switched off server-wide is not listed', async () =
     t.equals(findByText(h.getRoot(), 'Off Feature').length, 0, 'the off feature is gone');
 });
 
-t.test('MY RECORD: every other state is still listed -- hiding is scoped to off, not to "anything I cannot use"', async () => {
-    // This is the assertion that keeps the change honest. A handler who
-    // cannot use something still needs to see it and be told why; that is
-    // what tells them what to go and earn. Only a feature that does not
-    // exist on this server is removed.
+t.test('MY RECORD: only what you can use right now is listed -- blocked, not certified and not granted are left out too (owner: show what they are certified in)', async () => {
     const h = harness();
     await openMyRecord(h);
     t.isTrue(findByText(h.getRoot(), 'On Feature').length >= 1, 'available is listed');
-    t.isTrue(findByText(h.getRoot(), 'Blocked Feature').length >= 1, 'blocked is listed -- it says why');
-    t.isTrue(findByText(h.getRoot(), 'Uncertified Feature').length >= 1, 'not-certified is listed -- it says what to earn');
-    t.isTrue(findByText(h.getRoot(), 'Ungranted Feature').length >= 1, 'requires-grant is listed -- it says what to ask for');
+    t.equals(findByText(h.getRoot(), 'Blocked Feature').length, 0, 'blocked is not listed');
+    t.equals(findByText(h.getRoot(), 'Uncertified Feature').length, 0, 'not-certified is not listed');
+    t.equals(findByText(h.getRoot(), 'Ungranted Feature').length, 0, 'requires-grant is not listed');
 });
 
 t.test('MY RECORD: the "Disabled server-wide" badge no longer appears anywhere', async () => {

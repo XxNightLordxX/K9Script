@@ -965,6 +965,7 @@ local TABLET_STRING_KEYS = {
     'console_person_only_notice',
     'role_heading', 'role_assign_label',
     'role_assign_hint', 'role_revert_label', 'role_revert_hint',
+    'role_pin_label', 'role_pin_hint', 'role_pinned_status_template', 'role_unpin_label',
     'role_no_peds_configured',
     -- Rank/department + partnership (person screen, read-only -- owner-
     -- directed "roster panel shows everything about a person" pass). See
@@ -1268,7 +1269,6 @@ local TABLET_STRING_KEYS = {
     'list_join_and',
     'home_no_certification_title', 'home_no_certification_body', 'home_no_certification_next_steps',
 
-    'home_blocked_count_template',
     -- COMMAND REFERENCE (this pass -- "the resource registers 36 commands,
     -- a player has no way to discover them in-game"). See
     -- html/tablet.js's own COMMAND_REFERENCE/buildCommandReferenceScreen()
@@ -1333,7 +1333,6 @@ local TABLET_STRING_KEYS = {
     -- here with k9kennel rather than beside their own old per-command
     -- siblings purely because these four landed as one change; the list
     -- itself is order-insensitive (it is read as a set).
-    'cmdref_k9dog_usage', 'cmdref_k9dog_does', 'cmdref_k9dog_needs',
     'cmdref_k9propattach_usage', 'cmdref_k9propattach_does', 'cmdref_k9propattach_needs',
     'cmdref_k9throwfetchball_usage', 'cmdref_k9throwfetchball_does', 'cmdref_k9throwfetchball_needs',
     'cmdref_k9dropfetchball_usage', 'cmdref_k9dropfetchball_does', 'cmdref_k9dropfetchball_needs',
@@ -1341,19 +1340,12 @@ local TABLET_STRING_KEYS = {
     -- k9fetch -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #3's merged entry point.
     'cmdref_k9fetch_usage', 'cmdref_k9fetch_does', 'cmdref_k9fetch_needs',
     'cmdref_k9stats_usage', 'cmdref_k9stats_does', 'cmdref_k9stats_needs',
-    'cmdref_k9certify_usage', 'cmdref_k9certify_does', 'cmdref_k9certify_needs',
-    'cmdref_k9decertify_usage', 'cmdref_k9decertify_does', 'cmdref_k9decertify_needs',
-    'cmdref_k9settier_usage', 'cmdref_k9settier_does', 'cmdref_k9settier_needs',
-    'cmdref_k9specialize_usage', 'cmdref_k9specialize_does', 'cmdref_k9specialize_needs',
-    'cmdref_k9unspecialize_usage', 'cmdref_k9unspecialize_does', 'cmdref_k9unspecialize_needs',
-    'cmdref_k9givexp_usage', 'cmdref_k9givexp_does', 'cmdref_k9givexp_needs',
     -- Threat, added 2026-08-27 alongside its new command. Alert had a
     -- command AND a keybind while Threat had neither, so the two halves of
     -- one feature were reachable in completely different ways -- Threat is
     -- now a command, and deliberately NOT a keybind, because every letter
     -- this resource ships is already taken and the gap that mattered was
     -- discoverability rather than a missing key.
-    'cmdref_k9audit_usage', 'cmdref_k9audit_does', 'cmdref_k9audit_needs',
     'cmdref_k9track_usage', 'cmdref_k9track_does', 'cmdref_k9track_needs',
     -- ADDED 2026-08-27, for the five commands that close the owner's
     -- "chat commands 3rd eye and radial menus" requirement. Leash,
@@ -1374,9 +1366,6 @@ local TABLET_STRING_KEYS = {
     'cmdref_k9gear_usage', 'cmdref_k9gear_does', 'cmdref_k9gear_needs',
     'cmdref_k9treat_usage', 'cmdref_k9treat_does', 'cmdref_k9treat_needs',
     'cmdref_k9bonetool_usage', 'cmdref_k9bonetool_does', 'cmdref_k9bonetool_needs',
-    'cmdref_k9permission_usage', 'cmdref_k9permission_does', 'cmdref_k9permission_needs',
-    'cmdref_k9grantpermission_usage', 'cmdref_k9grantpermission_does', 'cmdref_k9grantpermission_needs',
-    'cmdref_k9revokepermission_usage', 'cmdref_k9revokepermission_does', 'cmdref_k9revokepermission_needs',
     -- Integration-sweep fix (this pass): seven REAL, working keybind
     -- commands (RegisterCommand + RegisterKeyMapping, confirmed in
     -- client/agility.lua, client/pursuitsprint.lua, client/movement.lua,
@@ -2680,6 +2669,24 @@ RegisterNUICallback('tablet:revertK9Ped', function(data, cb)
         return
     end
     cb(AwaitServerCallback('qbx_k9unit:server:tabletRevertK9Ped', data.targetCitizenId))
+end)
+
+-- Dog-character pin (server/tablet.lua tabletPinDogCharacter / Unpin).
+RegisterNUICallback('tablet:pinDogCharacter', function(data, cb)
+    if type(data) ~= 'table' or type(data.targetCitizenId) ~= 'string' or data.targetCitizenId == ''
+        or type(data.modelName) ~= 'string' or data.modelName == '' then
+        cb({ ok = false, error = 'invalid_args' })
+        return
+    end
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletPinDogCharacter', data.targetCitizenId, data.modelName))
+end)
+
+RegisterNUICallback('tablet:unpinDogCharacter', function(data, cb)
+    if type(data) ~= 'table' or type(data.targetCitizenId) ~= 'string' or data.targetCitizenId == '' then
+        cb({ ok = false, error = 'invalid_args' })
+        return
+    end
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletUnpinDogCharacter', data.targetCitizenId))
 end)
 
 -- ----------------------------------------------------------------------

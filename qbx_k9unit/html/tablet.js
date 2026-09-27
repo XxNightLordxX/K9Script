@@ -2810,15 +2810,6 @@
     }
 
     /** @returns {number} */
-    function homeBlockedFeatureCount() {
-        var features = (state.myRecord && state.myRecord.myFeatures) || [];
-        var count = 0;
-        for (var i = 0; i < features.length; i++) {
-            if (features[i] && features[i].state === 'blocked') count++;
-        }
-        return count;
-    }
-
     /** @returns {string} */
     function homeRoleLabel() {
         if (state.viewer.isHighCommand) return S('home_role_high_command');
@@ -2876,13 +2867,7 @@
             }));
         }
 
-        var blockedCount = homeBlockedFeatureCount();
-        if (blockedCount > 0) {
-            badges.appendChild(mk('span', {
-                class: 'k9tablet-feature-state k9tablet-feature-state--blocked',
-                text: formatTemplate(S('home_blocked_count_template'), { count: blockedCount }),
-            }));
-        }
+        // No "N blocked" badge: your own screens show only what you can use.
 
         card.appendChild(badges);
 
@@ -3490,7 +3475,15 @@
      * @returns {boolean}
      */
     function commandReferenceIsVisible(entry) {
-        return commandReferenceStatus(entry.gate) !== 'global_off';
+        // SHOW ONLY WHAT YOU HAVE (owner: "the things the k9 or the handler
+        // should see on their tablet ... is what they have been certified
+        // in"). A command this viewer cannot use right now -- switched off,
+        // not certified, not granted, blocked, not high command -- is left
+        // out entirely instead of listed with a reason.
+        // 'unknown' (the record has not loaded yet) still shows, reading
+        // "Still loading", so the Guide never goes blank for a moment.
+        var status = commandReferenceStatus(entry.gate);
+        return status === 'available' || status === 'unknown';
     }
 
     /**
@@ -4444,7 +4437,13 @@
 
     function buildMyFeaturesList() {
         var wrap = mk('div', { class: 'k9tablet-feature-list' });
-        var features = withoutGloballyDisabled((state.myRecord && state.myRecord.myFeatures) || []);
+        // Your own list shows only what you can use right now (owner's
+        // choice: show what you are certified in, nothing else). High
+        // command's view of SOMEONE ELSE's abilities stays complete, because
+        // that screen is where they block and unblock them.
+        var features = withoutGloballyDisabled((state.myRecord && state.myRecord.myFeatures) || []).filter(function (f) {
+            return f.state === 'available';
+        });
         if (features.length === 0) {
             wrap.appendChild(mk('p', { class: 'k9tablet-muted', text: S('no_abilities') }));
             return wrap;
@@ -5925,6 +5924,31 @@
             }, { disabled: state.pendingAction }));
             wrap.appendChild(row);
             wrap.appendChild(mk('p', { class: 'k9tablet-muted k9tablet-hint', text: S('role_assign_hint') }));
+
+            // Dog-character pin: keep this character as a dog whatever
+            // happens to their certification (replaces /k9setdog).
+            var summary = state.personSummary || {};
+            if (summary.pinnedDogModel) {
+                var pinnedLabel = summary.pinnedDogModel;
+                for (var p = 0; p < state.peds.length; p++) {
+                    if (state.peds[p] && state.peds[p].model === summary.pinnedDogModel && state.peds[p].label) pinnedLabel = state.peds[p].label;
+                }
+                wrap.appendChild(mk('p', { class: 'k9tablet-role-pinned', text: formatTemplate(S('role_pinned_status_template'), { breed: pinnedLabel }) }));
+                wrap.appendChild(mkButton(S('role_unpin_label'), 'k9tablet-btn', function () {
+                    runMutation('tablet:unpinDogCharacter', { targetCitizenId: citizenid }, function () {
+                        refreshPersonAndSelf(citizenid);
+                    });
+                }, { disabled: state.pendingAction }));
+            } else {
+                wrap.appendChild(mkButton(S('role_pin_label'), 'k9tablet-btn', function () {
+                    var modelName = select.value;
+                    if (!modelName) return;
+                    runMutation('tablet:pinDogCharacter', { targetCitizenId: citizenid, modelName: modelName }, function () {
+                        refreshPersonAndSelf(citizenid);
+                    });
+                }, { disabled: state.pendingAction }));
+                wrap.appendChild(mk('p', { class: 'k9tablet-muted k9tablet-hint', text: S('role_pin_hint') }));
+            }
         }
 
         wrap.appendChild(mkConfirmButton(S('role_revert_label'), 'k9tablet-btn k9tablet-btn--danger', function () {

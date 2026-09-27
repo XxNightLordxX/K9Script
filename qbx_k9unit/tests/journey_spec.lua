@@ -171,10 +171,12 @@ t.test('1. Chief certifies Rex AS A K9 (German Shepherd) from the tablet', funct
     end
 end)
 
-t.test('2. Chief certifies Sam as a HANDLER with /k9certify -- looks unchanged', function()
+t.test('2. Chief certifies Sam as a HANDLER from the tablet -- looks unchanged; /k9certify does not exist', function()
     tick()
     local before = eventsTo('qbx_k9unit:client:applyK9Ped', 3)
-    commands['k9certify'](1, { '3' })
+    check(commands['k9certify'] == nil, 'certifying is tablet-only: no /k9certify')
+    local r2 = cb('qbx_k9unit:server:tabletCertify', 1, 'HANDLER', 'police')
+    check(r2 and r2.ok, 'tablet certify as handler ok: ' .. tostring(r2 and r2.error))
     check(env.HasK9Access(3), 'Sam certified')
     check(eventsTo('qbx_k9unit:client:applyK9Ped', 3) == before, 'Sam was NOT turned into a dog')
 end)

@@ -126,6 +126,7 @@ local function newHarness(highCommandConfig, departments)
     end
 
     local Config = {
+        CommandTablet = { adminChatCommands = true }, -- admin chat commands are off by default; these tests drive them
         Features = { HighCommand = true },
         Departments = departments or {
             police = { label = 'Los Santos Police Department', highCommandGrade = 6 },

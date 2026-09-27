@@ -1574,7 +1574,7 @@ end)
 --     denial-path notify text).
 --   - K9Sit() -- not exercised at all (no ClearPedTasksImmediately/
 --     TaskStartScenarioInPlace stubs are even provided).
---   - RegisterLeashOxTargetOption() / RegisterCertifyOxTargetOptions() /
+--   - RegisterLeashOxTargetOption() /
 --     RegisterDoorInteractionOxTargetOptions() and their canInteract/
 --     onSelect closures -- these `local` functions are only reachable via
 --     the combined onResourceStart handler this spec confirms is

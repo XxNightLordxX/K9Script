@@ -329,6 +329,16 @@ local hasK9AccessCache = { value = false, checkedAt = -HAS_K9_ACCESS_CACHE_TTL_M
 --- client/movement.lua's leash option), so pcall it and fail closed (deny)
 --- on any throw.
 --- @return boolean
+--- The last answer HasK9Access() got from the server, WITHOUT asking again
+--- (never yields). nil until the first real check. The K9 menu uses it to
+--- leave out the dog's moves for a dog without access, while building the
+--- menu -- the click itself still asks HasK9Access() properly.
+--- @return boolean?
+function HasK9AccessCached()
+    if type(hasK9AccessCache.checkedAt) ~= "number" or hasK9AccessCache.checkedAt < 0 then return nil end
+    return hasK9AccessCache.value
+end
+
 function HasK9Access()
     local now = GetGameTimer()
     if (now - hasK9AccessCache.checkedAt) < HAS_K9_ACCESS_CACHE_TTL_MS then

@@ -1965,9 +1965,33 @@ local function RegisterK9RadialMenu()
             k9_drag = function() return type(IsDragEngaged) == 'function' and IsDragEngaged() end,
             k9_track_certified = function() return type(IsTracking) == 'function' and IsTracking() end,
             k9_prop_attachment = function() return type(IsPropAttachmentEngaged) == 'function' and IsPropAttachmentEngaged() end,
+            k9_fetch = function() return type(IsFetchCarryEngaged) == 'function' and IsFetchCarryEngaged() end,
+            k9_kennel = function() return type(IsRestingInKennel) == 'function' and IsRestingInKennel() end,
         }
         local amDog = type(IsOwnModelK9) == 'function' and IsOwnModelK9()
         local hide = amDog and HUMAN_ONLY or DOG_ONLY
+
+        -- SHOW ONLY WHAT YOU CAN USE (owner: "what they have been certified
+        -- in"): a button whose ability high command has blocked for you is
+        -- left out, and a dog without K9 access (not certified) does not
+        -- get the dog's moves. Leash and Partner Up are never hidden this
+        -- way -- partnering is how an uncertified handler gets access.
+        local FEATURE_OF_ITEM = {
+            k9_bark = 'BasicBarkSounds', k9_vehicle = 'VehicleEntryExit', k9_track_certified = 'ScentTracking',
+            k9_scent_vision = 'ScentVision', k9_thermal_vision = 'ThermalVision', k9_night_vision = 'NightVision',
+            k9_bite_hold = 'BiteAndHold', k9_takedown = 'NonLethalTakedown', k9_drag = 'PropDragging',
+            k9_fetch = 'FetchMechanic', k9_prop_attachment = 'PropAttachments', k9_kennel = 'DeployableKennel',
+            k9_open_inventory = 'K9Inventory', k9_treat_nearest = 'K9Medkit',
+        }
+        local dogWithoutAccess = amDog and type(HasK9AccessCached) == 'function' and HasK9AccessCached() == false
+        local baseHide = hide
+        hide = setmetatable({}, { __index = function(_, id)
+            if baseHide[id] then return true end
+            if dogWithoutAccess and DOG_ONLY[id] then return true end
+            local feature = FEATURE_OF_ITEM[id]
+            if feature and type(IsK9FeatureBlocked) == 'function' and IsK9FeatureBlocked(feature) then return true end
+            return nil
+        end })
         local function keep(list)
             local out = {}
             for _, item in ipairs(list) do
@@ -2156,7 +2180,7 @@ end
 -- First call site for RegisterK9RadialMenu() -- this resource's own start,
 -- or ox_lib's, same two-branch `onResourceStart` idiom as
 -- client/movement.lua's RegisterLeashOxTargetOption() /
--- RegisterCertifyOxTargetOptions() / RegisterDoorInteractionOxTargetOptions(),
+-- RegisterDoorInteractionOxTargetOptions(),
 -- client/fetch.lua's RegisterFetchOxTargetOptions(), client/medkit.lua's and
 -- client/wellbeing.lua's own matching dispatchers, and client/search.lua's --
 -- all fixing the identical bug class against ox_target's own file-local

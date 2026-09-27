@@ -469,6 +469,18 @@
       removal from config.lua, not merely left in place unread.
 ]]
 
+-- ADMIN CHAT COMMANDS ARE OFF BY DEFAULT (owner: "k9certify should only
+-- be done through the tablet", and all other admin work with it). They are
+-- only registered when Config.CommandTablet.adminChatCommands is true --
+-- the tablet does every one of these. The handlers below are kept (and
+-- tested) so an owner who wants console access can switch them back on.
+local function RegisterAdminCommand(name, handler, restricted)
+    if type(Config.CommandTablet) == 'table' and Config.CommandTablet.adminChatCommands == true then
+        RegisterCommand(name, handler, restricted)
+    end
+end
+
+
 -- Hard ceiling enforced regardless of what Config.AdminAudit.MaxResults.*
 -- is configured to — same "config is a tunable, not a bypass" posture as
 -- server/search.lua's own Config.SearchZones.alertBroadcastRadius <= 200.0
@@ -1784,7 +1796,7 @@ AddEventHandler('onResourceStart', function(resourceName)
         return shifted
     end
 
-    RegisterCommand('k9audit', function(source, args)
+    RegisterAdminCommand('k9audit', function(source, args)
         local subcommand = args[1]
         local handler = subcommand and AUDIT_SUBCOMMAND_HANDLERS[subcommand]
 

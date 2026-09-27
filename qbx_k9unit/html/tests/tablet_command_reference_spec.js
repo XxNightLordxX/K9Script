@@ -221,10 +221,11 @@ t.test('screen rendering: every catalog entry renders, one status badge each, un
     await openCommandsScreen(h);
 
     t.equals(findByText(h.getRoot(), 'Command Reference').length, 1, 'the screen heading renders');
-    t.isTrue(findByText(h.getRoot(), 'Certification Management').length >= 1, 'a category heading renders');
+    t.isTrue(findByText(h.getRoot(), 'Combat & Restraint').length >= 1, 'a category heading renders');
     t.isTrue(findByText(h.getRoot(), 'Field Gear & Equipment').length >= 1, 'another category heading renders');
     t.equals(statusBadges(h).length, REAL_COMMAND_REFERENCE_COUNT, 'one status badge per real COMMAND_REFERENCE entry (derived from html/tablet.js itself, not a hardcoded count -- see this file\'s own header)');
-    t.isTrue(findByText(h.getRoot(), '/k9audit <cert|partner|search|xp|dept>').length === 1, 'a specific command\'s exact usage string renders verbatim');
+    t.isTrue(findByText(h.getRoot(), '/k9sit').length === 1, 'a specific command\'s exact usage string renders verbatim');
+    t.equals(findByText(h.getRoot(), 'Certification Management').length, 0, 'certifying is on the tablet only -- no certification commands are listed');
 });
 
 t.test('filtering: typing in the search box narrows to matching rows and hides an emptied category heading; a non-matching query shows the empty-state message', async () => {
@@ -289,149 +290,69 @@ t.test('the command filter is labelled as optional, and reports what it is hidin
     t.isTrue(/^Showing 1 of \d+$/.test(count.textContent), 'and states both numbers: ' + count.textContent);
 });
 
-t.test('a HANDLER (certified, no special capability) sees a restricted admin-tier command marked unavailable, distinctly from a plain "not certified" reading', async () => {
+t.test('a HANDLER (certified, no special capability) does not see a high-command-only command at all -- only what they can use is listed', async () => {
     const h = createHarness({
         fetchImpl: routeFetch({
-            'tablet:requestMyRecord': myRecordHandler(HANDLER_VIEWER, [
-                { key: 'DeployableKennel', label: null, category: null, actionable: false, state: 'available' },
-                // AdminAuditCommands ships `true` in config.lua and carries no
-                // block for this viewer -- 'requires_grant_missing' is the
-                // REALISTIC resolved state for a handler with K9 access but no
-                // personal feature.AdminAuditCommands grant (see
-                // Config.FeatureControl.RequireGrant in config.lua and
-                // ResolveFeatureState in server/tablet.lua). Present here
-                // deliberately, not omitted: an omitted entry now resolves to
-                // 'global_off' (see html/tablet.js's own myFeatureState() doc
-                // comment for why an absent key must mean off, not "no
-                // opinion"), which would make this assertion pass for the
-                // wrong reason (a feature the test never intended to claim is
-                // globally disabled) instead of the real one under test here
-                // (insufficient personal authorization).
-                { key: 'AdminAuditCommands', label: null, category: null, actionable: false, state: 'requires_grant_missing' },
-            ]),
+            'tablet:requestMyRecord': myRecordHandler(HANDLER_VIEWER, featuresOn({ DeployableKennel: 'available', BoneSweepDevTool: 'available' })),
         }),
     });
     await openCommandsScreen(h);
-
-    const auditBadge = statusBadgeFor(h, '/k9audit <cert|partner|search|xp|dept>');
-    t.equals(auditBadge._textContent, 'Requires higher authorization', 'a handler with no k9.audit/k9.certify/k9.givexp/high-command sees the admin-tier reason, not a certification-flavored one');
-    t.isTrue(auditBadge.classList.contains('k9tablet-feature-state--requires_grant_missing'), 'reuses the existing amber "needs a grant" CSS bucket -- no new CSS class');
-
-    const kennelBadge = statusBadgeFor(h, '/k9deploykennel');
-    t.equals(kennelBadge._textContent, 'Available', 'a handler-tier command this viewer genuinely qualifies for (an active certification, feature state available) shows Available');
+    t.equals(findByText(h.getRoot(), '/k9bonetool <goto|next|prev|test|stop|known|help> [value]').length, 0, 'the high-command-only dev tool is left out for a handler');
+    t.equals(statusBadgeFor(h, '/k9deploykennel')._textContent, 'Available', 'what they can use is listed and says so');
 });
 
-t.test('an UNCERTIFIED viewer (no k9.access at all) sees a handler-tier command marked "Not certified", while an open-tier command with no personal gate stays Available', async () => {
+t.test('an UNCERTIFIED viewer (no k9.access at all) does not see handler-tier commands; an open command with no personal gate is still listed', async () => {
     const h = createHarness({
         fetchImpl: routeFetch({
             'tablet:requestMyRecord': myRecordHandler(UNCERTIFIED_VIEWER, ALL_FEATURES_ON),
         }),
     });
     await openCommandsScreen(h);
-
-    const kennelBadge = statusBadgeFor(h, '/k9deploykennel');
-    t.equals(kennelBadge._textContent, 'Not certified');
-
-    const dropBadge = statusBadgeFor(h, '/k9dropfetchball');
-    t.equals(dropBadge._textContent, 'Available', 'an open-tier command (no HasK9Access check in its real handler) is available to anyone, including someone with zero certifications');
+    t.equals(findByText(h.getRoot(), '/k9deploykennel').length, 0, 'a certification-gated command is left out');
+    t.equals(statusBadgeFor(h, '/k9dropfetchball')._textContent, 'Available', 'an open-tier command (no HasK9Access check in its real handler) is listed for anyone');
 });
 
-t.test('HIGH COMMAND sees every admin-tier command marked with the (Admin) badge -- shown to high command too, not hidden -- and Available when nothing else blocks it', async () => {
+t.test('HIGH COMMAND sees every admin-tier command, marked with the (Admin) badge and Available when nothing else blocks it', async () => {
     const h = createHarness({
         fetchImpl: routeFetch({
-            // AdminAuditCommands ships `true` in config.lua -- realistically
-            // present here, resolved 'available' via the high-command bypass
-            // (server/tablet.lua's ResolveFeatureState: RequireGrant applies,
-            // this viewer holds no explicit feature.AdminAuditCommands grant,
-            // but isHighCommandBypass wins). An OMITTED entry now resolves to
-            // 'global_off' instead (see html/tablet.js's own myFeatureState()
-            // doc comment), which would make the 'Available' assertion below
-            // fail for the right reason on the wrong fixture -- this suite's
-            // synthetic myFeatures lists must reflect what a real config
-            // actually produces, not merely omit whatever the assertion
-            // doesn't otherwise require.
-            'tablet:requestMyRecord': myRecordHandler(HIGH_COMMAND_VIEWER, featuresOn({ AdminAuditCommands: 'available' })),
+            'tablet:requestMyRecord': myRecordHandler(HIGH_COMMAND_VIEWER, featuresOn({ BoneSweepDevTool: 'available' })),
         }),
     });
     await openCommandsScreen(h);
-
     const adminBadges = findAll(h.getRoot(), (n) => n._textContent === ' (Admin)');
-    // COUNT DERIVED FROM html/tablet.js ITSELF, not restated here (see
-    // ADMIN_TIER_COMMAND_REFERENCE_COUNT's own header comment) -- as of
-    // docs/history/COMMAND_CONSOLIDATION_SPEC.md §5 items 7/8 (permissions 2->1,
-    // certification online/offline pairs 10->5), the five offline
-    // certification aliases and one of the two permission commands no
-    // longer have their own COMMAND_REFERENCE row at all (folded into
-    // their online/merged counterparts, which keep working under their old
-    // names as hidden, undocumented aliases -- see
-    // tests/commandreferenceregistry_spec.lua's own HIDDEN_ALIAS_COMMANDS).
-    // The audit family stays at 6, not 5: the five original
-    // /k9audit<thing> commands PLUS the merged
-    // '/k9audit <cert|partner|search|xp|dept>' that now fronts them both
-    // still have their own real, documented row.
-    t.equals(adminBadges.length, ADMIN_TIER_COMMAND_REFERENCE_COUNT, 'every admin-tier command carries the (Admin) marker, for high command too');
-
-    const auditBadge = statusBadgeFor(h, '/k9audit <cert|partner|search|xp|dept>');
-    t.equals(auditBadge._textContent, 'Available');
-    const certifyBadge = statusBadgeFor(h, '/k9certify <server id>  |  /k9certify <citizenid> <job>');
-    t.equals(certifyBadge._textContent, 'Available');
+    t.equals(adminBadges.length, ADMIN_TIER_COMMAND_REFERENCE_COUNT, 'every admin-tier command carries the (Admin) marker');
+    t.equals(statusBadgeFor(h, '/k9bonetool <goto|next|prev|test|stop|known|help> [value]')._textContent, 'Available');
 });
 
-t.test('a server-wide-disabled feature is HIDDEN outright, even from a high-command viewer who otherwise qualifies by capability', async () => {
-    // BEHAVIOUR CHANGED 2026-09-01 (owner: "if something is turned off in
-    // the config nothing on the tablet shows up"). This used to assert the
-    // row rendered with a 'Disabled server-wide' badge. The underlying
-    // resolution is unchanged and still what matters -- global_off is
-    // checked BEFORE the capability check, so it wins over high command
-    // rather than being skipped for them -- but the row is now removed from
-    // the screen instead of listed as unusable. See
-    // commandReferenceIsVisible() in html/tablet.js.
+t.test('a server-wide-disabled feature is HIDDEN outright, even from a high-command viewer who otherwise qualifies', async () => {
     const h = createHarness({
         fetchImpl: routeFetch({
-            'tablet:requestMyRecord': myRecordHandler(HIGH_COMMAND_VIEWER, featuresOn({ AdminAuditCommands: 'global_off' })),
+            'tablet:requestMyRecord': myRecordHandler(HIGH_COMMAND_VIEWER, featuresOn({ BoneSweepDevTool: 'global_off' })),
         }),
     });
     await openCommandsScreen(h);
-
-    t.equals(
-        findByText(h.getRoot(), '/k9audit <cert|partner|search|xp|dept>').length, 0,
-        'the globally-off command is gone from the reference entirely'
-    );
-    // The control that keeps this honest: a DIFFERENT admin command, whose
-    // own feature is still on, must still be listed. Without this, hiding
-    // the whole screen would pass.
-    t.isTrue(
-        findByText(h.getRoot(), '/k9certify <server id>  |  /k9certify <citizenid> <job>').length > 0,
-        'commands whose features are still on are unaffected'
-    );
+    t.equals(findByText(h.getRoot(), '/k9bonetool <goto|next|prev|test|stop|known|help> [value]').length, 0, 'the globally-off command is gone');
+    t.isTrue(findByText(h.getRoot(), '/k9sit').length > 0, 'commands whose features are still on are unaffected');
 });
 
-t.test('a per-person block overrides an otherwise-qualifying high-command capability', async () => {
+t.test('a per-person block hides a command even for a high-command viewer', async () => {
     const h = createHarness({
         fetchImpl: routeFetch({
-            'tablet:requestMyRecord': myRecordHandler(HIGH_COMMAND_VIEWER, [
-                { key: 'AdminAuditCommands', label: null, category: null, actionable: false, state: 'blocked' },
-            ]),
+            'tablet:requestMyRecord': myRecordHandler(HIGH_COMMAND_VIEWER, featuresOn({ BoneSweepDevTool: 'blocked' })),
         }),
     });
     await openCommandsScreen(h);
-
-    const auditBadge = statusBadgeFor(h, '/k9audit <cert|partner|search|xp|dept>');
-    t.equals(auditBadge._textContent, 'Blocked', 'a personal block wins even for a high-command viewer');
+    t.equals(findByText(h.getRoot(), '/k9bonetool <goto|next|prev|test|stop|known|help> [value]').length, 0, 'a personal block wins, and the command is left out');
 });
 
-t.test('a blocked handler-tier feature shows Blocked for a certified handler who otherwise holds k9.access', async () => {
+t.test('a blocked handler-tier feature is left out for a certified handler who otherwise holds k9.access', async () => {
     const h = createHarness({
         fetchImpl: routeFetch({
-            'tablet:requestMyRecord': myRecordHandler(HANDLER_VIEWER, [
-                { key: 'PropAttachments', label: null, category: null, actionable: false, state: 'blocked' },
-            ]),
+            'tablet:requestMyRecord': myRecordHandler(HANDLER_VIEWER, featuresOn({ PropAttachments: 'blocked' })),
         }),
     });
     await openCommandsScreen(h);
-
-    const badge = statusBadgeFor(h, '/k9propattach');
-    t.equals(badge._textContent, 'Blocked');
+    t.equals(findByText(h.getRoot(), '/k9propattach').length, 0);
 });
 
 t.test('THE ABSENT-KEY BUG (regression): a featureKey entirely MISSING from myFeatures[] -- the real shape of a Config.Features key that was removed or never added, e.g. real production ScentTrailHunt -- must report unavailable, never fall through to Available', async () => {

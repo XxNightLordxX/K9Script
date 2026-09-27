@@ -131,8 +131,6 @@ local HIDDEN_ALIAS_COMMANDS = {
     k9debug = true,
     -- family #1: audit (5 -> 1, 'k9audit') -- server/admin.lua
     -- family #2: dog record (2 -> 1, 'k9dog') -- server/dogcharacter.lua
-    k9setdog = true,
-    k9removedog = true,
     -- family #3: fetch (3 -> 1, 'k9fetch') -- client/fetch.lua
     k9throwfetchball = true,
     k9dropfetchball = true,
@@ -146,8 +144,6 @@ local HIDDEN_ALIAS_COMMANDS = {
     -- "additive still means the player sees one thing" instruction.
     k9deploykennel = true,
     -- family #7: permissions (2 -> 1, 'k9permission') -- server/permissions.lua
-    k9grantpermission = true,
-    k9revokepermission = true,
     -- family #8: online/offline certification pairs (10 -> 5) --
     -- server/certifications/. k9certify/k9decertify/k9settier/
     -- k9unspecialize stays its own canonical name (unchanged); k9recertify
@@ -299,8 +295,8 @@ t.test('LOAD-BEARING DRIFT GUARD: every real RegisterCommand(...) name across se
     -- the two loops above pass vacuously on two empty sets.
     local _, realCount = SortedKeys(real)
     local _, suggestedCount = SortedKeys(suggested)
-    t.isTrue(realCount >= 30, ('sanity: only found %d real RegisterCommand name(s) -- expected at least 30'):format(realCount))
-    t.isTrue(suggestedCount >= 30, ('sanity: only found %d COMMAND_SUGGESTIONS entr(ies) -- expected at least 30'):format(suggestedCount))
+    t.isTrue(realCount >= 20, ('sanity: only found %d real RegisterCommand name(s) -- expected at least 20'):format(realCount))
+    t.isTrue(suggestedCount >= 20, ('sanity: only found %d COMMAND_SUGGESTIONS entr(ies) -- expected at least 20'):format(suggestedCount))
 end)
 
 t.test('HIDDEN_ALIAS_COMMANDS GUARD: every allowlisted name is still a real, live RegisterCommand(...) call somewhere in server/*.lua or client/*.lua', function()
@@ -451,49 +447,19 @@ t.test('onResourceStart(qbx_k9unit): registers a chat:addSuggestion for every CO
     t.equals(sit.description, Sandbox.locale('tablet.cmdref_k9sit_does'), 'k9sit description must match the tablet\'s own Commands tab text verbatim')
     t.equals(#sit.params, 0, 'k9sit takes no arguments -- params must be empty')
 
-    -- Single required param -- docs/history/COMMAND_CONSOLIDATION_SPEC.md §2/§4: /k9certify's
-    -- usage string now shows BOTH shapes ("/k9certify <server id>  |
-    -- /k9certify <citizenid> <job>"), so ParseUsageParams' own disclosed
-    -- "flattens every bracket token across both shapes, in order" behavior
-    -- (this file's own header "PARAMETER HINTS" section) now extracts three
-    -- tokens from the one combined usage string, not one.
-    local certify = f.findSuggestion('k9certify')
-    t.isNotNil(certify, '/k9certify must have a registered suggestion')
-    t.equals(certify.description, Sandbox.locale('tablet.cmdref_k9certify_does'))
-    t.equals(#certify.params, 3)
-    t.equals(certify.params[1].name, 'server id')
-    t.equals(certify.params[1].help, '', 'a required param carries no "Optional." marker')
-    t.equals(certify.params[2].name, 'citizenid')
-    t.equals(certify.params[3].name, 'job')
+    -- Required + optional pair: /k9bonetool <goto|next|...> [value].
+    local bonetool = f.findSuggestion('k9bonetool')
+    t.isNotNil(bonetool, '/k9bonetool must have a registered suggestion')
+    t.equals(#bonetool.params, 2)
+    t.equals(bonetool.params[1].help, '', 'a required param carries no "Optional." marker')
+    t.equals(bonetool.params[2].name, 'value')
+    t.equals(bonetool.params[2].help, 'Optional.', 'an optional param must carry the "Optional." marker')
 
-    -- Required + optional pair -- /k9decertify's own combined usage string
-    -- similarly now flattens to five tokens (online shape's <server id>
-    -- [reason], then the offline shape's <citizenid> <job> [reason]).
-    local decertify = f.findSuggestion('k9decertify')
-    t.isNotNil(decertify, '/k9decertify must have a registered suggestion')
-    t.equals(#decertify.params, 5)
-    t.equals(decertify.params[1].name, 'server id')
-    t.equals(decertify.params[1].help, '')
-    t.equals(decertify.params[2].name, 'reason')
-    t.equals(decertify.params[2].help, 'Optional.', 'an optional param must carry the "Optional." marker')
-    t.equals(decertify.params[3].name, 'citizenid')
-    t.equals(decertify.params[4].name, 'job')
-    t.equals(decertify.params[5].name, 'reason')
-    t.equals(decertify.params[5].help, 'Optional.')
-
-    -- HIDDEN ALIASES never appear in autocomplete, even though each is a
-    -- real, working RegisterCommand call. The certification family's five
-    -- *offline twins used to be checked here too; they were DELETED on
-    -- 2026-09-02, so there is nothing left to assert about them -- the
-    -- HIDDEN_ALIAS_COMMANDS guard in this same file now fails if a name is
-    -- allowlisted without a live registration behind it.
-    t.isNil(f.findSuggestion('k9grantpermission'), 'k9grantpermission is a hidden alias')
-    t.isNil(f.findSuggestion('k9revokepermission'), 'k9revokepermission is a hidden alias')
-
-    -- ...and the new canonical merged permission command IS suggested.
-    local permission = f.findSuggestion('k9permission')
-    t.isNotNil(permission, '/k9permission must have a registered suggestion')
-    t.equals(permission.description, Sandbox.locale('tablet.cmdref_k9permission_does'))
+    -- Admin chat commands are off by default (the tablet does them), so
+    -- none of them is suggested.
+    for _, admin in ipairs({ 'k9certify', 'k9decertify', 'k9settier', 'k9specialize', 'k9givexp', 'k9permission', 'k9grantpermission', 'k9dog', 'k9audit' }) do
+        t.isNil(f.findSuggestion(admin), admin .. ' is admin-only and off by default')
+    end
 
     -- A colon-namespaced keybind-paired command, whose keySuffix is
     -- de-namespaced -- proves the keySuffix indirection actually resolves
@@ -569,7 +535,7 @@ t.test('re-firing onResourceStart is safe -- calls TriggerEvent again for every 
     local f = newFixture()
     f.fireResourceStart('qbx_k9unit')
     local firstCount = #f.suggestionCalls
-    t.isTrue(firstCount > 30, 'sanity: the first pass actually registered a realistic number of suggestions')
+    t.isTrue(firstCount > 20, 'sanity: the first pass actually registered a realistic number of suggestions')
 
     local ok = pcall(f.fireResourceStart, 'qbx_k9unit')
     t.isTrue(ok, 're-firing onResourceStart must not throw')

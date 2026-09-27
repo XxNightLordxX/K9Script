@@ -155,8 +155,14 @@ which one?
   beside it starts on **Handler**: they are certified and nothing about
   how they look changes. Pick a **breed** instead and they are certified
   as the K9 *and* turned into that dog, in the same press.
-- **`/k9certify`** and the walk-up **"Certify K9 Handler"** option always
-  certify a handler — they never change anyone's looks.
+- **Certifying is tablet-only.** There is no `/k9certify` and no walk-up
+  certify option any more; the same goes for every admin job (tiers,
+  giving XP, permissions, the audit). If you want the old admin chat
+  commands back for console use, set
+  `Config.CommandTablet.adminChatCommands = true`.
+- **Keep someone a dog permanently**: on their tablet page, **Keep as a
+  Dog Permanently** pins the selected breed whatever happens to their
+  certification (**Stop Keeping as a Dog** undoes it).
 - **A handler doesn't strictly need a certification.** Any on-duty
   officer from a K9 department who partners up with a certified dog gets
   handler access (leash, ball, treats, partner camera)
@@ -192,7 +198,7 @@ one of them is missing:
 |---|---|---|
 | [`qbx_core`](https://github.com/Qbox-project/qbx_core) | Qbox-project | Player data, jobs, ranks |
 | [`ox_lib`](https://github.com/overextended/ox_lib) | overextended | Notifications, callbacks, the radial menu, translations |
-| [`ox_target`](https://github.com/overextended/ox_target) | overextended | Every walk-up/look-at interaction (leash, certify, search, shop, etc.) |
+| [`ox_target`](https://github.com/overextended/ox_target) | overextended | Every walk-up/look-at interaction (leash, search, kennel, shop, etc.) |
 | [`oxmysql`](https://github.com/overextended/oxmysql) | overextended | Database access |
 | [`ox_inventory`](https://github.com/overextended/ox_inventory) | overextended | Items, stashes, the K9 supply shop, contraband search |
 
@@ -330,14 +336,9 @@ resource, not flipping a switch.
    choose it for a server with real players on it.
 6. Work through "Before real players touch this" below.
 7. Certify your first handler: get an eligible job at a high enough
-   rank (or department boss), then run `/k9certify [your own server id]`.
-
-   **Your "server id" is not your Steam name or your citizen ID.** It is
-   the small number FiveM gives every connected player, and it changes
-   every time you reconnect. To find yours, open the pause menu and look
-   at Online Players — your own id is next to your name. Most servers
-   also answer `/id` in chat. If your id is 3, the command is
-   `/k9certify 3`.
+   rank (or department boss), open the tablet with `/k9tablet`, go to
+   **Command Console**, type your own name in **Find a person**, open
+   yourself and press **Certify**.
 
 `config.lua` is long but ships its own plain-English index at the top
 ("WHAT IS IN THIS FILE") — search it for the setting you want rather
@@ -528,11 +529,8 @@ config. *Does not prove:* any feature works.
 
 **2. Certify yourself.** Get a job and rank that qualify under your
 `Config.Departments` (`Config.AllowSelfCertification` ships `true`, so you
-do not need a second person for this), then run:
-
-```
-/k9certify [your own server id]
-```
+do not need a second person for this), then open the tablet
+(`/k9tablet`) > **Command Console**, find yourself and press **Certify**.
 
 *Proves:* the certification path works end-to-end — permission check,
 grant, and storage. This is the single most load-bearing step; almost
@@ -727,7 +725,7 @@ covers to their own citizenid — the `feature.<Name>`/`block.<Name>`
 grants above, **and now also the four named capabilities**
 (`k9.access`/`k9.certify`/`k9.audit`/`k9.givexp`). Separately,
 `Config.HighCommand.allowSelfGrant` (also default `true`) covers
-granting **XP** to yourself via `/k9givexp`. Both are the owner's own
+granting **XP** to yourself from the tablet. Both are the owner's own
 explicit decision ("high command can grant anything they want to
 themselves") rather than just a deadlock fix, and neither is hidden:
 every self-grant is still fully logged, tagged explicitly as a

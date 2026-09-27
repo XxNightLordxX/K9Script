@@ -378,6 +378,7 @@ local function newFixture(opts)
     end
 
     local Config = {
+        CommandTablet = { adminChatCommands = true }, -- admin chat commands are off by default; these tests drive them
         Peds = opts.peds or {
             { model = 'a_c_shepherd' },
             { model = 'a_c_rottweiler' },

@@ -225,6 +225,10 @@
         role_assign_hint: 'Turns this person into the selected model. Their current appearance is preserved for a later revert.',
         role_revert_label: 'Revert to Human',
         role_revert_hint: 'Forces this person back to human immediately -- works even if they hold no certification, no access, and no grant at all.',
+        role_pin_label: "Keep as a Dog Permanently",
+        role_pin_hint: "Pins this character as the breed selected above, whatever happens to their certification -- they load in as that dog every time until you stop it.",
+        role_pinned_status_template: "Kept as a dog permanently: {breed}.",
+        role_unpin_label: "Stop Keeping as a Dog",
         role_no_peds_configured: 'No ped models are configured on this server.',
 
         // ---- Rank/department (person screen, read-only -- see
@@ -792,7 +796,6 @@
         home_no_certification_title: "You're not certified yet",
         home_no_certification_body: 'Ask a certifier or a High Command officer to certify you in a department. Once certified, your abilities and record will appear here.',
         home_no_certification_next_steps: "Not sure how to get started? The Guide tab walks you through it, and lists everything there is to earn.",
-        home_blocked_count_template: '{count} of your abilities are currently blocked',
 
         // ---- COMMAND REFERENCE (this pass -- "dozens of commands, no way
         // for a player to discover them in-game"). See COMMAND_REFERENCE/
@@ -944,38 +947,14 @@
         cmdref_k9stats_does: 'Shows the server\'s K9 XP leaderboard.',
         cmdref_k9stats_needs: 'An active K9 certification. This feature must be turned on for your server.',
 
-        cmdref_k9certify_usage: '/k9certify <server id>  |  /k9certify <citizenid> <job>',
-        cmdref_k9certify_does: 'Makes a handler\'s certification current for their department -- certifies them if they are new, renews their expiry if they already hold one. Works whether they are online (first form) or offline (second form).',
-        cmdref_k9certify_needs: 'High Command, the certify permission, or your department\'s certifier rank. An ONLINE target must be in a configured department and within certifying distance (unless you are certifying yourself and self-certification is allowed). An OFFLINE target is refused if your server requires an on-model check, since that can only happen while they are online -- use the online form once they log in instead.',
-        cmdref_k9decertify_usage: '/k9decertify <server id> [reason]  |  /k9decertify <citizenid> <job> [reason]',
-        cmdref_k9decertify_does: 'Revokes a player\'s current department certification -- works whether they are online (first form) or offline (second form).',
-        cmdref_k9decertify_needs: 'Same as /k9certify. Proximity is required for an ONLINE target unless you are revoking your own.',
-        cmdref_k9settier_usage: '/k9settier <server id> <tier>  |  /k9settier <citizenid> <job> <tier>',
-        cmdref_k9settier_does: 'Changes an actively-certified handler\'s certification tier -- works whether they are online (first form) or offline (second form).',
-        cmdref_k9settier_needs: 'Same as /k9certify. The target must already hold an active certification.',
-        cmdref_k9specialize_usage: '/k9specialize <server id> <specialization>',
-        cmdref_k9specialize_does: 'Grants an online, actively-certified handler a specialization.',
-        cmdref_k9specialize_needs: 'Same as /k9certify. The target\'s certification tier must be allowed to hold specializations. There is no offline version of this command -- granting a specialization always requires the target to be online.',
-        cmdref_k9unspecialize_usage: '/k9unspecialize <server id> <specialization>  |  /k9unspecialize <citizenid> <job> <specialization>',
-        cmdref_k9unspecialize_does: 'Revokes a handler\'s specialization -- works whether they are online (first form) or offline (second form).',
-        cmdref_k9unspecialize_needs: 'Same as /k9certify.',
         // k9dog -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #2's merged entry point.
         // does/usage from client/commandsuggestions.lua's own
         // PENDING_LOCALE_KEYS; needs is new (this pass) -- gated on
         // IsHighCommand(source) alone, no Config.Features flag exists for
         // this file at all (confirmed by reading server/dogcharacter.lua
         // directly), unlike k9certify's own capability-based gate above.
-        cmdref_k9dog_usage: '/k9dog <target>',
-        cmdref_k9dog_does: 'Shows or changes whether a character is permanently pinned as a K9. One command for both: /k9setdog and /k9removedog still work too.',
-        cmdref_k9dog_needs: 'High Command only.',
 
-        cmdref_k9givexp_usage: '/k9givexp <server id> <amount>',
-        cmdref_k9givexp_does: 'Awards XP directly to an online player.',
-        cmdref_k9givexp_needs: 'High Command or the grant-XP permission. The amount is capped by this server\'s configured maximum per grant, and repeated use is rate-limited.',
 
-        cmdref_k9audit_usage: '/k9audit <cert|partner|search|xp|dept>',
-        cmdref_k9audit_does: 'Shows a K9 audit report. One command for all five: certifications, partnerships, searches, XP and department totals.',
-        cmdref_k9audit_needs: 'High Command, the audit permission, or your department\'s audit rank. The Audit Trail feature must be turned on for your server.',
         cmdref_k9track_usage: '/k9track',
         cmdref_k9track_does: "Starts a track; use it again to stop. Your dog follows whichever trail it is trained to find -- you do not pick the type.",
         cmdref_k9track_needs: 'K9 access. Which trails your dog can follow depends on its specializations.',
@@ -984,15 +963,6 @@
         cmdref_k9bonetool_does: 'Developer tool for sweeping through a test prop\'s skeleton bones, to find the right one for attaching a leash, vest, or prop.',
         cmdref_k9bonetool_needs: 'Your department\'s boss rank or High Command, AND a server operator must have explicitly turned this dev tool on -- it is off by default, and unsafe to leave on in production.',
 
-        cmdref_k9permission_usage: '/k9permission <grant|revoke> <citizenid> <permissionKey>',
-        cmdref_k9permission_does: 'Grants or revokes a named permission key (a capability like certifying others, or a specific feature/block override) directly to/from a citizen. Old names /k9grantpermission and /k9revokepermission still work too.',
-        cmdref_k9permission_needs: 'High Command only. This feature must be turned on for your server. You cannot grant a permission to yourself.',
-        cmdref_k9grantpermission_usage: '/k9grantpermission <citizenid> <permissionKey>',
-        cmdref_k9grantpermission_does: 'Old, still-working name for /k9permission grant.',
-        cmdref_k9grantpermission_needs: 'High Command only. This feature must be turned on for your server. You cannot grant a permission to yourself.',
-        cmdref_k9revokepermission_usage: '/k9revokepermission <citizenid> <permissionKey>',
-        cmdref_k9revokepermission_does: 'Old, still-working name for /k9permission revoke.',
-        cmdref_k9revokepermission_needs: 'High Command only. This feature must be turned on for your server.',
 
         // ---- Integration-sweep fix (this pass): seven REAL, working
         // keybind commands (RegisterCommand + RegisterKeyMapping, both
@@ -1562,11 +1532,6 @@
         { command: 'k9stats', category: 'records', adminOnly: false, usageKey: 'cmdref_k9stats_usage', doesKey: 'cmdref_k9stats_does', needsKey: 'cmdref_k9stats_needs', gate: { kind: 'access', featureKey: 'K9Leaderboard' } },
 
         // ---- Certification Management (admin) ----
-        { command: 'k9certify', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9certify_usage', doesKey: 'cmdref_k9certify_does', needsKey: 'cmdref_k9certify_needs', gate: { kind: 'capability', capability: 'k9.certify' } },
-        { command: 'k9decertify', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9decertify_usage', doesKey: 'cmdref_k9decertify_does', needsKey: 'cmdref_k9decertify_needs', gate: { kind: 'capability', capability: 'k9.certify' } },
-        { command: 'k9settier', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9settier_usage', doesKey: 'cmdref_k9settier_does', needsKey: 'cmdref_k9settier_needs', gate: { kind: 'capability', capability: 'k9.certify' } },
-        { command: 'k9specialize', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9specialize_usage', doesKey: 'cmdref_k9specialize_does', needsKey: 'cmdref_k9specialize_needs', gate: { kind: 'capability', capability: 'k9.certify' } },
-        { command: 'k9unspecialize', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9unspecialize_usage', doesKey: 'cmdref_k9unspecialize_does', needsKey: 'cmdref_k9unspecialize_needs', gate: { kind: 'capability', capability: 'k9.certify' } },
         // k9dog -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #2's merged entry point
         // (server/dogcharacter.lua) -- reported as
         // PENDING_NEW_CANONICAL_COMMANDS while html/tablet.js was a hot
@@ -1584,13 +1549,10 @@
         // auto-inferred -- see that file's own header on why this specific
         // family keeps the destructive-action carve-out); the bare
         // '/k9dog <target>' form is read-only.
-        { command: 'k9dog', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9dog_usage', doesKey: 'cmdref_k9dog_does', needsKey: 'cmdref_k9dog_needs', gate: { kind: 'highCommandOnly' } },
 
         // ---- XP Management (admin) ----
-        { command: 'k9givexp', category: 'xp', adminOnly: true, usageKey: 'cmdref_k9givexp_usage', doesKey: 'cmdref_k9givexp_does', needsKey: 'cmdref_k9givexp_needs', gate: { kind: 'capability', capability: 'k9.givexp' } },
 
         // ---- Audit & Oversight (admin) ----
-        { command: 'k9audit', category: 'audit', adminOnly: true, usageKey: 'cmdref_k9audit_usage', doesKey: 'cmdref_k9audit_does', needsKey: 'cmdref_k9audit_needs', gate: { kind: 'capability', capability: 'k9.audit', featureKey: 'AdminAuditCommands' } },
 
         // ---- Developer Tools (admin) ----
         { command: 'k9bonetool', category: 'devtools', adminOnly: true, usageKey: 'cmdref_k9bonetool_usage', doesKey: 'cmdref_k9bonetool_does', needsKey: 'cmdref_k9bonetool_needs', gate: { kind: 'highCommandOnly', featureKey: 'BoneSweepDevTool' } },
@@ -1601,7 +1563,6 @@
         // already require (IsHighCommand ONLY -- no rank/permission-grant
         // bypass, unlike certification's IsEligibleCertifier), reachable
         // without the tablet too.
-        { command: 'k9permission', category: 'permissions', adminOnly: true, usageKey: 'cmdref_k9permission_usage', doesKey: 'cmdref_k9permission_does', needsKey: 'cmdref_k9permission_needs', gate: { kind: 'highCommandOnly', featureKey: 'PermissionGrants' } },
     ];
     window.K9TabletCatalog = {
         DEFAULT_STRINGS: DEFAULT_STRINGS,

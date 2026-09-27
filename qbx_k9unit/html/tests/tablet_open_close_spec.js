@@ -104,8 +104,8 @@ t.test('a successful tablet:requestMyRecord renders certifications, XP/tier, and
     // viewer's XP twice on one screen.
     t.isTrue(findByText(root, '1250 XP -- Trained K9').length >= 1, 'XP + rank standing rendered');
     t.isTrue(findByText(root, 'Recall your K9').length >= 1, 'available feature label rendered');
-    t.isTrue(findByText(root, 'Bite and Hold').length >= 1, 'grant-required feature label rendered too');
-    t.equals(findByText(root, 'Requires a grant (not granted)').length, 1, 'the ungranted feature shows the correct, distinct status text');
+    t.equals(findByText(root, 'Bite and Hold').length, 0, 'an ability still needing a grant is not listed -- only what you can use is');
+    t.equals(findByText(root, 'Requires a grant (not granted)').length, 0, 'no "not granted" row either');
 
     // Only the AVAILABLE + actionable feature gets a trigger button.
     const useButtons = findByText(root, 'Use');

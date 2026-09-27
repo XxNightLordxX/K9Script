@@ -2436,6 +2436,10 @@ lib.callback.register('qbx_k9unit:server:tabletRequestPersonSummary', function(s
         -- sends 0, and the UI must be able to tell those apart.
         handlerXp = handlerXp,
         handlerTierLabel = handlerTierLabel,
+        -- Dog-character PIN (server/dogcharacter.lua): the breed this
+        -- character is kept as permanently, or nil. Set/cleared from the
+        -- tablet only (the /k9setdog family was removed).
+        pinnedDogModel = type(GetPinnedDogCharacterModel) == 'function' and GetPinnedDogCharacterModel(targetCitizenId) or nil,
         permissions = permissions,
         -- Owner-directed "one screen shows everything about a person" feature
         -- (roster panel: cert+tier, rank, XP+tier, partnership, permissions).
@@ -2586,6 +2590,38 @@ lib.callback.register('qbx_k9unit:server:tabletRevertK9Ped', function(source, ta
 
     local ok, outcome = ForceRevertK9Appearance(source, targetCitizenId)
     if ok then return { ok = true } end
+    return { ok = false, error = outcome }
+end)
+
+-- ======================================================================
+-- DOG-CHARACTER PIN -- tabletPinDogCharacter / tabletUnpinDogCharacter.
+-- "Keep this character as a dog permanently", independent of any
+-- certification (server/dogcharacter.lua's header explains the pin vs
+-- the certification-driven look). These replace /k9setdog, /k9removedog
+-- and /k9dog -- all admin work is on the tablet now (owner's choice).
+-- SetDogCharacter/RemoveDogCharacter re-check high command and rate-limit
+-- themselves; this only validates the arguments and shapes the reply.
+-- ======================================================================
+lib.callback.register('qbx_k9unit:server:tabletPinDogCharacter', function(source, targetCitizenId, modelName)
+    if type(targetCitizenId) ~= 'string' or targetCitizenId == '' or #targetCitizenId > MAX_CITIZENID_LENGTH
+        or type(modelName) ~= 'string' or modelName == '' then
+        return { ok = false, error = 'invalid_args' }
+    end
+    if type(SetDogCharacter) ~= 'function' then return { ok = false, error = 'not_available' } end
+    local ok, outcome = SetDogCharacter(source, targetCitizenId, modelName)
+    if ok then return { ok = true } end
+    if outcome == 'denied' then return { ok = false, error = 'not_authorized', message = locale('highcommand.not_authorized') } end
+    return { ok = false, error = outcome }
+end)
+
+lib.callback.register('qbx_k9unit:server:tabletUnpinDogCharacter', function(source, targetCitizenId)
+    if type(targetCitizenId) ~= 'string' or targetCitizenId == '' or #targetCitizenId > MAX_CITIZENID_LENGTH then
+        return { ok = false, error = 'invalid_args' }
+    end
+    if type(RemoveDogCharacter) ~= 'function' then return { ok = false, error = 'not_available' } end
+    local ok, outcome = RemoveDogCharacter(source, targetCitizenId)
+    if ok then return { ok = true } end
+    if outcome == 'denied' then return { ok = false, error = 'not_authorized', message = locale('highcommand.not_authorized') } end
     return { ok = false, error = outcome }
 end)
 
