@@ -226,7 +226,9 @@ t.test('ADDITIVE, NOT REPLACEMENT: High Command sees every non-admin command PLU
     // flow was retired once the Person screen became the single place all
     // of its steps happen, so the only live sequence left to quote is the
     // tuning one.
-    t.isTrue(findByTextContaining(h.getRoot(), 'Overview → Feature Toggles → Tunables → Certification Tiers → XP Thresholds → Shop Items').length >= 1, 'the tuning flow\'s real step sequence is quoted live');
+    const sectionsLine = findByTextContaining(h.getRoot(), 'Server Settings holds: ')[0];
+    t.isDefined(sectionsLine, 'the Server Settings sections are quoted live');
+    t.isTrue(/Runtime Control/.test(sectionsLine.textContent) && /Catalogs/.test(sectionsLine.textContent) && /Summary/.test(sectionsLine.textContent), 'naming the sections this reader can open');
 });
 
 t.test('a plain handler (not High Command) sees the non-admin commands only -- no admin row, no admin heading, no admin tasks', async () => {

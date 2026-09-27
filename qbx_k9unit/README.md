@@ -637,11 +637,9 @@ nothing about the tablet itself is a security shortcut.
   thresholds, manage supply shop locations, hand-tune an individual
   K9's speed/scent/medkit-cooldown numbers on top of its rank, flip
   most feature switches and tune numbers live, and restyle the tablet
-  itself. A separate "Guided Flows" hub walks high command through the
-  common jobs (onboard a handler, offboard one, handle a problem
-  player, tune the server) as single sequences instead of scattered
-  screens — it fires the exact same underlying actions as the standalone
-  screens, nothing new.
+  itself. Everything about one person is on that person's record; every
+  whole-server setting is under one Server Settings tab, one click per
+  section.
 - **Every handler and K9** gets a read-only view of their own
   certification, XP, and any personal grants by default
   (`Config.FeatureControl.everyoneCanViewOwnRecord`).

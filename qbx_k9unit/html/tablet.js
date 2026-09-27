@@ -964,7 +964,7 @@
     // ------------------------------------------------------------------
     var state = {
         open: false,
-        screen: 'home', // 'home' (the landing view AND the whole of your own record) | 'guide' | 'console' | 'person' | 'theme' | 'catalogs' | 'shop' | 'runtime_control' | 'flow_tuning' | ... -- 'home' is the DEFAULT landing view (see buildHomeScreen()), reset on every open in handleOpen()
+        screen: 'home', // 'home' (the landing view AND the whole of your own record) | 'guide' | 'console' | 'person' | 'theme' | 'catalogs' | 'shop' | 'runtime_control' | 'settings_overview' | ... -- 'home' is the DEFAULT landing view (see buildHomeScreen()), reset on every open in handleOpen()
         strings: {},
         capabilities: {},
         maxXpPerGrant: null,
@@ -1303,21 +1303,7 @@
         auditResult: null, // { rows, label, truncated, requestedLimit, actualLimit } -- the LAST successful response; NOT reset on tab re-entry (same posture as roster/theme -- switching away and back keeps showing the last result), only on mode switch or tablet:open
         auditRequestId: 0, // STALE-RESPONSE GUARD, same request-id shape as shopLocationsRequestId/runtimeFeaturesRequestId above -- a user can switch mode or press Run Query again while an earlier query is still in flight
 
-        // GUIDED FLOW (high command only, screen 'flow_tuning' -- see
-        // state.screen's own comment above). PRESENTATION ONLY: this field
-        // only decides which step the page is on -- every mutation a step
-        // makes still goes through the exact same runMutation()/fetchNui()
-        // call an existing standalone screen already uses, with the SAME
-        // payload, so THE SECURITY RULE at this file's own header is
-        // untouched by it.
-        //
-        // FOUR SIBLING FIELDS USED TO LIVE HERE (a baseline snapshot, a
-        // chosen department, and two "was this step used" markers). They
-        // belonged to the three person-shaped flows retired alongside the
-        // hub; the one flow left has no person, and re-reads what it has
-        // changed straight off the server rather than diffing against a
-        // client-side "before" snapshot.
-        flowStep: 0, // current step index within the tuning flow -- reset to 0 by goToFlowTuningScreen() whenever the flow (re)starts
+        lastSettingsScreen: null, // the Server Settings section last open -- the tab returns to it
 
         pendingAction: false, // true while ANY mutation/trigger fetch is in flight -- disables action buttons to prevent double-submit. Reset on every handleOpen() too (this pass) -- see that function's own comment on this exact field for why a stale true here must never survive a close/reopen
         actionNotice: null, // { kind: 'ok'|'error', text: string } -- transient, cleared on next navigation/reload
@@ -2284,6 +2270,13 @@
         // viewer is guaranteed to see.
         panel.appendChild(buildTabs());
 
+        // Every Server Settings section shows the section picker above its
+        // own screen -- only for a section this viewer may open (the branch
+        // below re-checks the same gate, and falls back to Home otherwise).
+        if (isSettingsScreen(state.screen) && settingsSectionAllowed(state.screen)) {
+            panel.appendChild(buildSettingsSectionNav());
+        }
+
         if (state.screen === 'home') {
             panel.appendChild(buildHomeScreen());
         } else if (state.screen === 'guide') {
@@ -2304,8 +2297,8 @@
             panel.appendChild(buildShopScreen());
         } else if (state.screen === 'runtime_control' && canManageRuntimeControl()) {
             panel.appendChild(buildRuntimeControlScreen());
-        } else if (state.screen === 'flow_tuning' && state.viewer.isHighCommand) {
-            panel.appendChild(buildFlowTuningScreen());
+        } else if (state.screen === 'settings_overview' && settingsSectionAllowed('settings_overview')) {
+            panel.appendChild(buildSettingsOverviewScreen());
         } else if (state.screen === 'audit' && canOpenAuditScreen()) {
             panel.appendChild(buildAuditScreen());
         } else {
@@ -2632,216 +2625,36 @@
         // own doc comment for the four capabilities that DO delegate, and
         // Cert Tiers/Permission Keys/XP Tiers/K9 Profiles below, which do
         // not).
-        if (state.viewer.isHighCommand) {
-            // GUIDED FLOW -- see buildFlowTuningScreen()'s own
-            // header. Placed FIRST in this block, before every individual
-            // admin screen's own tab below, since a guided flow is the
-            // RECOMMENDED path for the four jobs it covers -- every
-            // existing screen/tab in this block remains exactly as
-            // reachable as before; this only adds a second, sequenced way
-            // in. Shown "active" for its hub AND for any of its four
-            // in-progress flow screens, so the tab bar still reflects
-            // where the operator actually is mid-flow.
-            // ONE FLOW LEFT, SO NO HUB. This tab used to open a picker of
-            // four guided flows. Three of them -- Set Up a New Handler,
-            // Offboard, Problem Player -- were retired once the Person
-            // screen became the single place all of their steps happen:
-            // each had become that screen's own sections, in that order,
-            // reached through a second person-search box. Server Tuning is
-            // the one that still sequences work the Person screen does not
-            // hold (runtime features, tunables, cert tiers, XP ranks, shop
-            // items), so it stays -- and with nothing left to choose
-            // between, the tab opens it directly rather than through a hub
-            // screen holding a single card.
-            var flowsTab = mkButton(S('tab_flows'), 'k9tablet-tab' + (state.screen === 'flow_tuning' ? ' k9tablet-tab--active' : ''), function () {
-                goToFlowTuningScreen();
+        // SERVER SETTINGS -- ONE tab (the owner's rework pass: "make the
+        // workflows simpler"). It replaces five: Server Tuning, Tablet
+        // Theme, Catalogs, K9 Supply Shop and Runtime Control -- and Server
+        // Tuning was itself only a second, step-by-step way into three of
+        // the other four. The screens are unchanged; they are now sections
+        // of this one tab, picked from a row at the top of it
+        // (buildSettingsSectionNav()).
+        //
+        // EACH SECTION KEEPS ITS OWN GATE. See SETTINGS_SECTIONS: a delegate
+        // holding only 'k9.runtimecontrol' sees this tab with one section in
+        // it, exactly the one screen they could open before. Merging the
+        // tabs must not merge the authorization, and the server re-checks
+        // every call regardless.
+        if (visibleSettingsSections().length > 0) {
+            var settingsTab = mkButton(S('tab_settings'), 'k9tablet-tab' + (isSettingsScreen(state.screen) ? ' k9tablet-tab--active' : ''), function () {
+                goToServerSettings();
             });
-            appendAdminTab(flowsTab);
+            appendAdminTab(settingsTab);
         }
 
-        // Tablet theming -- NOT high-command-only: server/runtimecontrol.lua's
-        // own CanManageTabletTheme(source) is `IsHighCommand(source) OR
-        // HasPermission(citizenid, 'k9.tablettheme') == true` (verified
-        // directly against source, tests/runtimecontrol_spec.lua:523) -- an
-        // officer holding a delegated 'k9.tablettheme' grant (minted via
-        // the Permission Keys screen, granted like any other custom
-        // permission) can save/reset the theme just as validly as high
-        // command. canManageTabletTheme() mirrors canViewAudit()'s own
-        // isHighCommand-OR-capability idiom -- see that function's doc
-        // comment (this file's PREVIOUS comment here, "matching the SAME
-        // gate the theme editor controls themselves use", stated the real
-        // server-side gate incorrectly as high-command-only; corrected).
-        // GetTheme itself has no gate at all (applied for every viewer
-        // regardless of which tab, or whether any tab, is even showing),
-        // so a viewer who fails this check still sees the current theme
-        // applied; they just never see a way to change it.
-        if (canManageTabletTheme()) {
-            var themeTab = mkButton(S('tab_theme'), 'k9tablet-tab' + (state.screen === 'theme' ? ' k9tablet-tab--active' : ''), function () {
-                state.screen = 'theme';
-                render();
-                loadTheme();
-            });
-            appendAdminTab(themeTab);
-        }
-
+        // K9/HANDLER PERSONNEL ROSTERS (docs/history/ROSTER_SPEC.md, Phase B) --
+        // HIGH COMMAND ONLY, matching qbx_k9unit:server:rosterList's own
+        // re-verified IsHighCommand gate. People, not settings, so it keeps
+        // its own tab. Clicking it keeps whichever bucket the operator last
+        // had open (see buildRosterBucketControls()).
         if (state.viewer.isHighCommand) {
-            // Certification tier editing -- SAME high-command gate (this
-            // is a UX convenience only: CanManageCertTiers is re-verified
-            // server-side on every one of the four callbacks regardless of
-            // whether this tab was ever shown). Fresh entry into this
-            // screen clears any leftover draft/refusal/warning from a
-            // previous visit, exactly like every other tab switch on this
-            // page resets its own screen's transient state.
-            // CATALOGS -- ONE tab, three sections (plan item G). It was
-            // three tabs: Certification Tiers, Permission Keys and XP
-            // Ranks. All three are the same shape -- a list of catalog
-            // entries with add, rename and remove -- all three are High
-            // Command only, and an operator visits one at a time.
-            //
-            // TWO OF THE THREE ALSO ANSWER TO A FEATURE FLAG, and those
-            // checks stay exactly where they were, moved from per-tab to
-            // per-section inside buildCatalogsScreen(): Permission Keys is
-            // the catalog behind Config.Features.PermissionGrants (with
-            // that off, every grant it mints is inert -- HasPermission
-            // refuses on its first line), and XP Ranks edits the two XP
-            // ladders (with BOTH off there is nothing to edit).
-            // Certification Tiers has no flag of its own and is always
-            // present, which is also why the tab itself needs no
-            // surfaceEnabled() check: there is always at least one section
-            // behind it. Merging the tabs must not merge the gates.
-            //
-            // Fresh entry clears all three drafts and loads only the
-            // catalogs this viewer will actually be shown -- same reset
-            // discipline as every other tab on this page, and no fetch
-            // fired for a section that will not render.
-            var catalogsTab = mkButton(S('tab_catalogs'), 'k9tablet-tab' + (state.screen === 'catalogs' ? ' k9tablet-tab--active' : ''), function () {
-                state.screen = 'catalogs';
-                state.certTierDraft = null;
-                state.certTierFieldError = null;
-                state.certTierActionError = null;
-                state.certTierWarning = null;
-                state.permissionKeyDraft = null;
-                state.permissionKeyFieldError = null;
-                state.permissionKeyActionError = null;
-                state.xpTierDraft = null;
-                state.xpTierFieldError = null;
-                state.xpTierActionError = null;
-                state.xpTierWarning = null;
-                render();
-                loadCertTiers();
-                if (surfaceEnabled('permission_keys')) loadPermissionKeys();
-                if (surfaceEnabled('xp_tiers')) loadXpTiers();
-            });
-            appendAdminTab(catalogsTab);
-
-            // K9/HANDLER PERSONNEL ROSTERS (docs/history/ROSTER_SPEC.md, Phase B) --
-            // owner's own words, this file's header. HIGH COMMAND ONLY,
-            // matching qbx_k9unit:server:rosterList's own re-verified
-            // IsHighCommand gate exactly (a UX convenience only -- the
-            // server refuses anyone else with 'not_authorized' regardless
-            // of whether this tab is ever shown). Fresh entry re-fetches on
-            // every click, same "never show a stale copy" discipline as
-            // every other tab in this block.
-            // ONE tab, not two. Both of the tabs that used to sit here
-            // called goToPersonnelRosterScreen() with a different argument,
-            // and that argument is now a control on the screen itself (see
-            // buildRosterBucketControls()). Clicking the tab keeps whichever
-            // bucket the operator last had open rather than forcing them
-            // back to K9 every time.
             var rosterTab = mkButton(S('tab_roster'), 'k9tablet-tab' + (state.screen === 'roster' ? ' k9tablet-tab--active' : ''), function () {
                 goToPersonnelRosterScreen();
             });
             appendAdminTab(rosterTab);
-        }
-
-        // K9 Supply Shop location management -- NOT high-command-only:
-        // server/equipmentshop.lua's own CanManageShopLocations(source) is
-        // `IsHighCommand(source) OR HasPermission(citizenid,
-        // 'k9.equipmentshoplocations') == true` (verified directly against
-        // source, tests/equipmentshop_spec.lua:839). canManageShopLocations()
-        // mirrors canViewAudit()'s own isHighCommand-OR-capability idiom --
-        // see that function's doc comment. (This file's PREVIOUS comment
-        // here called this "SAME high-command gate" -- stated incorrectly;
-        // corrected.) Fresh entry clears any leftover draft/refusal, same
-        // reset discipline as every other tab switch on this page.
-        // K9 SUPPLY SHOP -- ONE tab, two sections (plan item F). It was two
-        // tabs, "Shop Locations" and "Shop Items", for one shop behind one
-        // feature flag: where the ped stands, and what it sells.
-        //
-        // THE TWO CAPABILITIES STAY SEPARATE, which is why the sections are
-        // gated individually inside buildShopScreen() rather than the tab
-        // gating both. server/equipmentshop.lua has two independent,
-        // independently-delegable keys -- CanManageShopLocations
-        // ('k9.equipmentshoplocations') and CanManageShopItems
-        // ('k9.equipmentshopitems') -- and a viewer holding exactly one of
-        // them must see exactly one section. Merging the tabs must not
-        // quietly merge the authorization, so the tab appears for either
-        // key and each section still asks its own question.
-        //
-        // Fresh entry clears both drafts and loads whichever list this
-        // viewer can actually see -- same reset discipline as every other
-        // tab on this page, and no fetch fired for a list its own key would
-        // refuse. loadCertTiers() rides along for the Items section's
-        // "Required Tier" picker, same best-effort posture as
-        // openPerson()'s own call: a caller who cannot list tiers sees the
-        // raw tier key as text rather than a broken control.
-        if (canManageShopLocations() || canManageShopItems()) {
-            var shopTab = mkButton(S('tab_shop'), 'k9tablet-tab' + (state.screen === 'shop' ? ' k9tablet-tab--active' : ''), function () {
-                state.screen = 'shop';
-                state.shopLocationDraft = null;
-                state.shopLocationActionError = null;
-                state.shopItemDraft = null;
-                state.shopItemFieldError = null;
-                state.shopItemActionError = null;
-                render();
-                if (canManageShopLocations()) loadShopLocations();
-                if (canManageShopItems()) {
-                    loadEquipmentShopItems();
-                    loadCertTiers();
-                }
-            });
-            appendAdminTab(shopTab);
-        }
-
-        // Runtime feature control + tuning -- NOT high-command-only:
-        // server/runtimecontrol.lua's own CanManageRuntimeControl(source)
-        // is `IsHighCommand(source) OR HasPermission(citizenid,
-        // 'k9.runtimecontrol') == true` (verified directly against source,
-        // tests/runtimecontrol_spec.lua:523). canManageRuntimeControl()
-        // mirrors canViewAudit()'s own isHighCommand-OR-capability idiom --
-        // see that function's doc comment. (This file's PREVIOUS comment
-        // here called this "SAME high-command gate" -- stated incorrectly;
-        // corrected.) Fresh entry clears any leftover in-progress tunable
-        // edit/refusal, same reset discipline as every other tab switch on
-        // this page.
-        if (canManageRuntimeControl()) {
-            var runtimeControlTab = mkButton(S('tab_runtime_control'), 'k9tablet-tab' + (state.screen === 'runtime_control' ? ' k9tablet-tab--active' : ''), function () {
-                state.screen = 'runtime_control';
-                state.runtimeFeatureActionError = null;
-                state.runtimeLockoutConfirm = null;
-                state.runtimeTunableDraft = null;
-                state.runtimeTunableFieldError = null;
-                render();
-                loadRuntimeFeatures();
-                loadRuntimeTunables();
-            });
-            appendAdminTab(runtimeControlTab);
-        }
-
-        if (state.viewer.isHighCommand) {
-            // XP Rank Editor -- SAME high-command gate as every tab in this
-            // block (a UX convenience only: CanManageXPTiers is re-verified
-            // server-side on every one of the two callbacks this screen
-            // calls regardless of whether this tab was ever shown -- see
-            // server/xptiers.lua's own header "AUTHORIZATION"). Fresh entry
-            // clears any leftover draft/refusal/warning from a previous
-            // visit, same reset discipline as every other tab switch on
-            // this page.
-            // NO "K9 Overrides" TAB (plan item D). Its editor was always
-            // the Person screen's (buildPersonK9ProfileSection), its lookup
-            // box was a duplicate of the Console's, and its one unique part
-            // -- the list of who holds an override -- is now a section on
-            // the Command Console (buildK9ProfilesOverviewSection).
         }
 
         // K9 Audit Trail viewer -- DELIBERATELY its own gate, NOT nested in
@@ -3796,12 +3609,10 @@
     //     tests/commandreferenceregistry_spec.lua's own drift guard
     //     against the real RegisterCommand(...) names protects this
     //     section for free.
-    //   - The Guided Flow step sequence quoted in
-    //     buildHelpTasksSection() (Tune the Server) is rendered by
-    //     calling flowTuningStepLabels() live, never a second,
-    //     hand-copied list of its step names -- see that function's own
-    //     header. There were two of these; the Certify Someone one went
-    //     with the onboarding flow it quoted.
+    //   - The list of Server Settings sections quoted in
+    //     buildHelpTasksSection() is built live from
+    //     visibleSettingsSections(), never a hand-copied list -- and it
+    //     only names the sections the reader can actually open.
     //   - Three quoted button labels ({certifyLabel}/{assignLabel}/
     //     {revertLabel} below) are filled from S('certify_label')/
     //     S('role_assign_label')/S('role_revert_label') at render time --
@@ -3869,7 +3680,10 @@
         // never a described-but-invisible or visible-but-unexplained tab.
         { tabLabelKey: 'tab_guide', descKey: 'help_tab_guide_desc', visible: function () { return true; } },
         { tabLabelKey: 'tab_console', descKey: 'help_tab_console_desc', visible: canOpenPersonRecord },
-        { tabLabelKey: 'tab_flows', descKey: 'help_tab_flows_desc', visible: helpHighCommandOnly },
+        // SERVER SETTINGS -- one tab now, holding the four sections listed
+        // right below it (Theme, Catalogs, Shop, Runtime Control) plus an
+        // Overview. Each section keeps its own entry and its own gate.
+        { tabLabelKey: 'tab_settings', descKey: 'help_tab_settings_desc', visible: function () { return visibleSettingsSections().length > 0; } },
         // Theme/Shop Locations/Shop Items/Runtime Control each moved off a
         // bare state.viewer.isHighCommand check onto their own
         // hasDelegatedCapability()-based gate (sibling gate-bug-fix pass,
@@ -4073,8 +3887,7 @@
             wrap.appendChild(buildHelpTaskBlock(S('help_task_hc_toggle_feature_heading'), [
                 S('help_task_hc_toggle_feature_1'),
                 S('help_task_hc_toggle_feature_2'),
-                S('help_task_hc_toggle_feature_3'),
-                formatTemplate(S('help_task_hc_flow_steps_template'), { steps: flowTuningStepLabels().join(' → ') }),
+                formatTemplate(S('help_task_hc_settings_sections_template'), { sections: visibleSettingsSections().map(function (section) { return S(section.labelKey); }).join(', ') }),
             ]));
         }
 
@@ -10289,109 +10102,99 @@
     }
 
     // ------------------------------------------------------------------
-    // GUIDED FLOWS (this pass) -- high command only. Owner's own words:
-    // "expand the workflow paths for all the features to make them
-    // smoother, easier to understand." THE PROBLEM THIS SECTION SOLVES,
-    // established against the actual code (not assumed) before writing
-    // any of this: certifying/tier-setting/specializing/feature-granting a
-    // new handler, decertifying/clearing access/reverting appearance for
-    // one leaving, reviewing a problem player's record alongside their
-    // audit trail, and tuning five separate config screens all ALREADY
-    // exist as individual, correctly-authorized screens -- nothing here
-    // was actually MISSING. What was missing is SEQUENCE: nothing walks an
-    // operator through the right order for a whole job, nothing tells them
-    // what they still have not done (nine RequireGrant features are inert
-    // without an explicit grant, and the existing Person screen never says
-    // so), and the Audit Trail and Person screens are two disconnected
-    // tabs an operator has to carry a citizenid between by memory.
+    // SERVER SETTINGS -- one tab, one section picker (the owner's rework
+    // pass). Every whole-server setting this tablet can change lives here:
+    // the at-a-glance Overview, features and their numbers (Runtime
+    // Control), the three catalogs, the supply shop and the tablet theme.
     //
-    // THIS IS PRESENTATION ONLY, LAID OVER THE EXISTING SCREENS, NOT A
-    // REPLACEMENT FOR THEM -- every screen this section reuses (buildCert
-    // ificationList/buildCertificationDetail/buildCapabilityList/build
-    // PersonFeaturesSection/buildAuditModeSwitch+buildAuditForm+build
-    // AuditResults/buildRuntimeFeaturesSection/buildRuntimeTunablesSection/
-    // buildCertTiersScreen/buildXpTiersScreen/buildShopItemsSection) is
-    // called HERE, UNMODIFIED, exactly as the standalone Console/Person/
-    // Audit/Theme/Cert Tiers/Runtime Control/XP Tiers/Shop Items tabs
-    // already call it -- every action a flow step takes is the SAME
-    // handlePersonCertAction()/runMutation()/fetchNui() call, with the
-    // SAME payload, hitting the SAME server callback, under the SAME
-    // server-side re-check, as pressing the equivalent button on the
-    // equivalent standalone screen. See THE SECURITY RULE at this file's
-    // own header: nothing below decides anything a modified client
-    // couldn't already do by calling that same NUI callback directly; it
-    // only sequences, gap-checks, and summarizes what the server has
-    // already confirmed.
+    // It replaced five tabs, one of which -- Server Tuning -- was a guided
+    // Back/Next pass over three of the others. The picker makes every
+    // section one click away instead, so the sequenced pass had nothing
+    // left to add; its one unique part, the Overview, is the last section
+    // (Summary).
     //
-    // NEVER OPTIMISTIC: every "what just happened" summary below is
-    // computed by RE-READING state.personSummary/state.personFeatures/
-    // state.auditResult -- the SAME, already-loaded, server-confirmed data
-    // every other screen on this page reads -- never by assuming a click
-    // that returned `ok:true` did what it claimed, and never by tracking a
-    // separate "did this succeed" flag for anything the existing data
-    // already answers. The ONE narrow exception (state.flowOffboardAppear
-    // anceReverted) is set ONLY inside that one action's own success
-    // branch, after the server's own response said `ok:true` -- see that
-    // step's own comment.
+    // Each section is the SAME screen, with the SAME gate, it had as a
+    // tab: `visible` below is exactly the predicate buildTabs() and
+    // buildBackdrop() used for it. No section adds a callback or an
+    // authorization path (THE SECURITY RULE).
     //
-    // EVERY STEP IS SKIPPABLE AND REVERSIBLE (this pass's own explicit
-    // instruction: "a guided flow that traps someone is worse than none").
-    // buildFlowStepNav() below makes every step directly clickable at any
-    // time, in either direction; buildFlowNavRow()'s Next/Skip button is
-    // always present except on the final step, and never blocks on
-    // whether the step's own action was taken. Nothing here uses
-    // window.confirm()/alert() -- see CONFIRM_WINDOW_MS's own comment for
-    // why this page never does.
-    //
-    // MID-FLOW FAILURE IS NEVER SWALLOWED: every mutation call below is
-    // the SAME runMutation()/handlePersonCertAction() helper the
-    // standalone screens use, which already sets state.actionNotice to an
-    // honest error (never a generic "something happened") on any
-    // `ok !== true` response -- buildBackdrop() renders that notice at the
-    // TOP OF THE PANEL for every screen, including every one of these, so
-    // a failure inside a guided flow is exactly as visible as one on any
-    // standalone screen. A flow's own SUMMARY step then separately reports
-    // the REAL end state (certified or not, tier set or not, N of M
-    // features actually granted) rather than a blanket "done" -- so a
-    // partial failure two steps back is caught at the summary even if the
-    // operator missed the notice in the moment.
-    //
-    // UNAUTHORIZED VIEWERS NEVER SEE THIS AT ALL: the hub tab (buildTabs())
-    // AND buildBackdrop()'s own screen dispatch are BOTH independently
-    // gated on state.viewer.isHighCommand, matching every other admin-only
-    // screen on this page -- a non-high-command viewer sees no tab, and
-    // (even if `state.screen` were forced to one of these five values some
-    // other way) falls through to buildHomeScreen() like any other
-    // unauthorized screen request.
-    //
-    // WHAT STAYS A STANDALONE SCREEN, DELIBERATELY: Theme, Permission Keys,
-    // and Shop Locations are not part of any guided flow -- they are
-    // one-shot, whole-server settings with no natural "job" or sequence of
-    // their own (see this pass's own report for the full reasoning), and
-    // remain exactly as reachable as before via their own tabs/Home links.
+    // ORDER IS THE LANDING CHOICE: the tab opens the first section this
+    // viewer may see (or the one they last had open), so the most common
+    // job -- switching a feature or changing its number -- comes first,
+    // and the read-only Summary comes last rather than costing every
+    // visit an extra click.
     // ------------------------------------------------------------------
 
-    /**
-    /** Resets per-run guided-flow state -- called whenever the flow
-     * (re)starts, so no leftover step from a previous run bleeds into a
-     * new one.
-     *
-     * Down to one field. It used to clear a baseline snapshot, a chosen
-     * department and two "did this actually happen" markers, all of which
-     * belonged to the three person-shaped flows retired with the hub. The
-     * one flow left has no person and no before/after summary to compare
-     * against -- it reads `overridden` straight off the server on every
-     * step -- so a step index is the whole of its per-run state. */
-    function resetFlowRunState() {
-        state.flowStep = 0;
+    var SETTINGS_SECTIONS = [
+        { screen: 'runtime_control', labelKey: 'tab_runtime_control', visible: function () { return canManageRuntimeControl(); }, go: function () { goToRuntimeControlScreen(); } },
+        { screen: 'catalogs', labelKey: 'tab_catalogs', visible: function () { return !!(state.viewer && state.viewer.isHighCommand); }, go: function () { goToCatalogsScreen(); } },
+        { screen: 'shop', labelKey: 'tab_shop', visible: function () { return canManageShopLocations() || canManageShopItems(); }, go: function () { goToShopScreen(); } },
+        { screen: 'theme', labelKey: 'tab_theme', visible: function () { return canManageTabletTheme(); }, go: function () { goToThemeScreen(); } },
+        { screen: 'settings_overview', labelKey: 'settings_section_overview', visible: function () { return !!(state.viewer && state.viewer.isHighCommand); }, go: function () { goToSettingsOverview(); } },
+    ];
+
+    /** @returns {Array} the sections this viewer may open, in order. */
+    function visibleSettingsSections() {
+        if (!state.viewer) return [];
+        var out = [];
+        for (var i = 0; i < SETTINGS_SECTIONS.length; i++) {
+            if (SETTINGS_SECTIONS[i].visible()) out.push(SETTINGS_SECTIONS[i]);
+        }
+        return out;
     }
 
+    /** @param {string} screen @returns {boolean} */
+    function isSettingsScreen(screen) {
+        for (var i = 0; i < SETTINGS_SECTIONS.length; i++) {
+            if (SETTINGS_SECTIONS[i].screen === screen) return true;
+        }
+        return false;
+    }
 
+    /** @param {string} screen @returns {boolean} */
+    function settingsSectionAllowed(screen) {
+        if (!state.viewer) return false;
+        for (var i = 0; i < SETTINGS_SECTIONS.length; i++) {
+            if (SETTINGS_SECTIONS[i].screen === screen) return SETTINGS_SECTIONS[i].visible();
+        }
+        return false;
+    }
 
+    /** The tab: back to the section last open, or the first one this
+     * viewer may see. */
+    function goToServerSettings() {
+        var sections = visibleSettingsSections();
+        if (sections.length === 0) return;
+        for (var i = 0; i < sections.length; i++) {
+            if (sections[i].screen === state.lastSettingsScreen) {
+                sections[i].go();
+                return;
+            }
+        }
+        sections[0].go();
+    }
 
-    function goToFlowTuningScreen() {
-        state.screen = 'flow_tuning';
-        resetFlowRunState();
+    /** The row of section buttons at the top of every settings screen --
+     * the same nested-tab look buildAuditModeSwitch() uses. */
+    function buildSettingsSectionNav() {
+        var nav = mk('div', { class: 'k9tablet-tabs k9tablet-settings-sections', attrs: { role: 'group', 'aria-label': S('tab_settings') } });
+        var sections = visibleSettingsSections();
+        for (var i = 0; i < sections.length; i++) {
+            (function (section) {
+                var cls = 'k9tablet-tab' + (section.screen === state.screen ? ' k9tablet-tab--active' : '');
+                nav.appendChild(mkButton(S(section.labelKey), cls, section.go));
+            }(sections[i]));
+        }
+        return nav;
+    }
+
+    // Each go-to below is what that section's tab used to do on click:
+    // switch screen, clear the screen's own leftover drafts/refusals, and
+    // load only what this viewer will be shown.
+
+    function goToSettingsOverview() {
+        state.screen = 'settings_overview';
+        state.lastSettingsScreen = state.screen;
         render();
         loadRuntimeFeatures();
         loadRuntimeTunables();
@@ -10400,68 +10203,73 @@
         loadEquipmentShopItems();
     }
 
-    /**
-     * Row of step buttons -- reuses .k9tablet-tab/.k9tablet-tab--active
-     * VERBATIM, the SAME "nested tab bar" convention buildAuditModeSwitch()
-     * already established on this page (see tablet.css's own comment on
-     * that screen) -- no new colour, no new custom property, for these
-     * buttons. Every step is ALWAYS clickable, in either direction: per
-     * this pass's own "make every step skippable and reversible"
-     * instruction, nothing here is an unsaved draft that jumping away
-     * would lose -- every mutation on this page only ever takes effect
-     * after the server confirms it (see THE SECURITY RULE).
-     * @param {string[]} labels @param {number} current @param {(index:number)=>void} onJump
-     */
-    function buildFlowStepNav(labels, current, onJump) {
-        var nav = mk('div', { class: 'k9tablet-tabs k9tablet-flow-steps' });
-        for (var i = 0; i < labels.length; i++) {
-            (function (index) {
-                var cls = 'k9tablet-tab' + (index === current ? ' k9tablet-tab--active' : '');
-                nav.appendChild(mkButton((index + 1) + '. ' + labels[index], cls, function () { onJump(index); }));
-            }(i));
-        }
-        return nav;
-    }
-
-    /**
-     * Bottom-of-step navigation. `hasAction` only changes the LABEL (Skip
-     * vs. Next) to be honest about whether this particular step offered
-     * something to do -- both buttons do the exact same thing (advance),
-     * because every step in every guided flow here is optional by design.
-     * @param {{onBack?:(()=>void)|null, onNext?:(()=>void)|null, hasAction?:boolean, isLast?:boolean, onFinish?:()=>void}} opts
-     */
-    function buildFlowNavRow(opts) {
-        opts = opts || {};
-        var row = mk('div', { class: 'k9tablet-flow-nav' });
-        if (opts.onBack) {
-            row.appendChild(mkButton(S('flow_back_label'), 'k9tablet-link-btn', opts.onBack));
-        }
-        if (opts.isLast) {
-            if (opts.onFinish) row.appendChild(mkButton(S('flow_finish_label'), 'k9tablet-btn', opts.onFinish));
-        } else if (opts.onNext) {
-            row.appendChild(mkButton(opts.hasAction ? S('flow_skip_label') : S('flow_next_label'), opts.hasAction ? 'k9tablet-link-btn' : 'k9tablet-btn', opts.onNext));
-        }
-        return row;
-    }
-
-
-    var FLOW_TUNING_STEP_KEYS = ['flow_tuning_step_overview', 'flow_tuning_step_features', 'flow_tuning_step_tunables', 'flow_tuning_step_tiers', 'flow_tuning_step_xp', 'flow_tuning_step_shop'];
-
-    function flowTuningStepLabels() {
-        var out = [];
-        for (var i = 0; i < FLOW_TUNING_STEP_KEYS.length; i++) out.push(S(FLOW_TUNING_STEP_KEYS[i]));
-        return out;
-    }
-
-    function goFlowTuningStep(index) {
-        state.flowStep = index;
+    function goToRuntimeControlScreen() {
+        state.screen = 'runtime_control';
+        state.lastSettingsScreen = state.screen;
+        state.runtimeFeatureActionError = null;
+        state.runtimeLockoutConfirm = null;
+        state.runtimeTunableDraft = null;
+        state.runtimeTunableFieldError = null;
         render();
+        loadRuntimeFeatures();
+        loadRuntimeTunables();
+    }
+
+    // CATALOGS -- three sections (Certification Tiers, Permission Keys, XP
+    // Ranks), two of which also answer to a feature flag; those checks stay
+    // per-section inside buildCatalogsScreen(), and only the catalogs this
+    // viewer will be shown are fetched.
+    function goToCatalogsScreen() {
+        state.screen = 'catalogs';
+        state.lastSettingsScreen = state.screen;
+        state.certTierDraft = null;
+        state.certTierFieldError = null;
+        state.certTierActionError = null;
+        state.certTierWarning = null;
+        state.permissionKeyDraft = null;
+        state.permissionKeyFieldError = null;
+        state.permissionKeyActionError = null;
+        state.xpTierDraft = null;
+        state.xpTierFieldError = null;
+        state.xpTierActionError = null;
+        state.xpTierWarning = null;
+        render();
+        loadCertTiers();
+        if (surfaceEnabled('permission_keys')) loadPermissionKeys();
+        if (surfaceEnabled('xp_tiers')) loadXpTiers();
+    }
+
+    // K9 SUPPLY SHOP -- two sections behind two separately-delegable keys
+    // (CanManageShopLocations / CanManageShopItems), each still gated on
+    // its own inside buildShopScreen(). loadCertTiers() rides along for the
+    // Items section's "Required Tier" picker.
+    function goToShopScreen() {
+        state.screen = 'shop';
+        state.lastSettingsScreen = state.screen;
+        state.shopLocationDraft = null;
+        state.shopLocationActionError = null;
+        state.shopItemDraft = null;
+        state.shopItemFieldError = null;
+        state.shopItemActionError = null;
+        render();
+        if (canManageShopLocations()) loadShopLocations();
+        if (canManageShopItems()) {
+            loadEquipmentShopItems();
+            loadCertTiers();
+        }
+    }
+
+    function goToThemeScreen() {
+        state.screen = 'theme';
+        state.lastSettingsScreen = state.screen;
+        render();
+        loadTheme();
     }
 
     /** @param {Array|null} list @param {string} templateKey @returns {HTMLElement} one line reporting `{overridden} of {total}`, or the honest "not loaded yet" line when `list` is still null. */
-    function buildFlowTuningOverriddenLine(list, templateKey) {
+    function buildSettingsOverriddenLine(list, templateKey) {
         if (!Array.isArray(list)) {
-            return mk('p', { class: 'k9tablet-muted', text: S('flow_tuning_overview_not_loaded') });
+            return mk('p', { class: 'k9tablet-muted', text: S('settings_overview_not_loaded') });
         }
         var overridden = 0;
         for (var i = 0; i < list.length; i++) {
@@ -10471,70 +10279,26 @@
     }
 
     /** @param {Array|null} list @param {string} templateKey @returns {HTMLElement} one line reporting `{count}` configured, or the honest "not loaded yet" line when `list` is still null. */
-    function buildFlowTuningCountLine(list, templateKey) {
+    function buildSettingsCountLine(list, templateKey) {
         if (!Array.isArray(list)) {
-            return mk('p', { class: 'k9tablet-muted', text: S('flow_tuning_overview_not_loaded') });
+            return mk('p', { class: 'k9tablet-muted', text: S('settings_overview_not_loaded') });
         }
         return mk('p', { text: formatTemplate(S(templateKey), { count: list.length }) });
     }
 
-    function buildFlowTuningOverview() {
-        var wrap = mk('div', {});
-        wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('flow_tuning_overview_heading') }));
-        wrap.appendChild(mk('p', { class: 'k9tablet-muted', text: S('flow_tuning_overview_intro') }));
-
-        wrap.appendChild(buildFlowTuningOverriddenLine(state.runtimeFeatures, 'flow_tuning_overview_features_template'));
-        wrap.appendChild(buildFlowTuningOverriddenLine(state.runtimeTunables, 'flow_tuning_overview_tunables_template'));
-        wrap.appendChild(buildFlowTuningCountLine(state.certTiers, 'flow_tuning_overview_tiers_template'));
-        wrap.appendChild(buildFlowTuningCountLine(state.xpTiers, 'flow_tuning_overview_xp_template'));
-        wrap.appendChild(buildFlowTuningCountLine(state.shopItems, 'flow_tuning_overview_shop_template'));
-
-        return wrap;
-    }
-
-    function buildFlowTuningScreen() {
+    /** OVERVIEW -- REAL, server-confirmed counts, read from the
+     * `overridden` field every runtime feature/tunable already carries,
+     * never from a client-side change log. */
+    function buildSettingsOverviewScreen() {
         var wrap = mk('div', { class: 'k9tablet-screen' });
-        // NO "back to flows" LINK: this screen IS the tab now, so the link
-        // would have pointed at the hub that used to hold four cards and
-        // no longer exists. The tab bar above is the way out, same as
-        // every other top-level screen.
-        wrap.appendChild(mk('h2', { class: 'k9tablet-section-heading', text: S('flow_tuning_heading') }));
-        wrap.appendChild(buildFlowStepNav(flowTuningStepLabels(), state.flowStep, goFlowTuningStep));
+        wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('settings_overview_heading') }));
+        wrap.appendChild(mk('p', { class: 'k9tablet-muted', text: S('settings_overview_intro') }));
 
-        var body = mk('div', { class: 'k9tablet-flow-step-body' });
-
-        if (state.flowStep === 1) {
-            body.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('runtime_features_heading') }));
-            if (!state.runtimeControlEnabled) body.appendChild(mk('p', { class: 'k9tablet-muted', text: S('runtime_control_disabled_note') }));
-            body.appendChild(buildRuntimeFeaturesSection());
-        } else if (state.flowStep === 2) {
-            body.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('runtime_tunables_heading') }));
-            if (!state.runtimeControlEnabled) body.appendChild(mk('p', { class: 'k9tablet-muted', text: S('runtime_control_disabled_note') }));
-            body.appendChild(buildRuntimeTunablesSection());
-        } else if (state.flowStep === 3) {
-            body.appendChild(buildCertTiersScreen());
-        } else if (state.flowStep === 4) {
-            body.appendChild(buildXpTiersScreen());
-        } else if (state.flowStep === 5) {
-            body.appendChild(buildShopItemsSection());
-        } else {
-            body.appendChild(buildFlowTuningOverview());
-        }
-
-        body.appendChild(buildFlowNavRow({
-            onBack: state.flowStep > 0 ? (function (step) { return function () { goFlowTuningStep(step - 1); }; }(state.flowStep)) : null,
-            onNext: state.flowStep < 5 ? (function (step) { return function () { goFlowTuningStep(step + 1); }; }(state.flowStep)) : null,
-            hasAction: false,
-            isLast: state.flowStep === 5,
-            // Finishing returns to this flow's own Overview (step 0), which
-            // is the honest "here is what you have changed" summary. It
-            // used to return to the flows hub; with the hub gone, leaving
-            // the tab entirely would be a surprising thing for a "Finish"
-            // button to do.
-            onFinish: function () { goFlowTuningStep(0); },
-        }));
-
-        wrap.appendChild(body);
+        wrap.appendChild(buildSettingsOverriddenLine(state.runtimeFeatures, 'settings_overview_features_template'));
+        wrap.appendChild(buildSettingsOverriddenLine(state.runtimeTunables, 'settings_overview_tunables_template'));
+        wrap.appendChild(buildSettingsCountLine(state.certTiers, 'settings_overview_tiers_template'));
+        wrap.appendChild(buildSettingsCountLine(state.xpTiers, 'settings_overview_xp_template'));
+        wrap.appendChild(buildSettingsCountLine(state.shopItems, 'settings_overview_shop_template'));
         return wrap;
     }
 

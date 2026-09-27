@@ -33,7 +33,7 @@
 
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findByText, findAll } = require('./tablet-dom-stub');
+const { findByText, findAll, openSettingsSection } = require('./tablet-dom-stub');
 
 function routeFetch(handlers) {
     return function (url, init) {
@@ -252,9 +252,7 @@ t.test('RUNTIME CONTROL STILL SHOWS OFF FEATURES -- otherwise nothing could ever
     });
     h.postMessage('tablet:open', {});
     await settle();
-    const tab = findByText(h.getRoot(), 'Runtime Control')[0];
-    t.isDefined(tab, 'sanity: the Runtime Control tab is reachable for this viewer');
-    tab.click();
+    openSettingsSection(h.getRoot(), 'Runtime Control');
     await settle(6);
 
     t.isTrue(findByText(h.getRoot(), 'OffFeature').length >= 1, 'the switched-OFF feature is still listed here, and must stay listed');
@@ -344,9 +342,18 @@ function surfacesHarness(surfaces) {
     });
 }
 
+/** Opens the tablet and, when this viewer has one, the Server Settings tab
+ * -- whose section row is where Theme, Runtime Control, Catalogs and the
+ * Shop are offered now. Everything else (Audit Trail, Command Console) is
+ * still on the tab bar, which stays visible on every screen. */
 async function openTabletOnly(h) {
     h.postMessage('tablet:open', {});
     await settle();
+    const settingsTab = findByText(h.getRoot(), 'Server Settings')[0];
+    if (settingsTab) {
+        settingsTab.click();
+        await settle();
+    }
 }
 
 t.test('ADMIN SURFACES: with everything on, a fully-capable viewer sees every admin tab -- the baseline the hiding tests are measured against', async () => {

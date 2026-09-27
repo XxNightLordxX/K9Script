@@ -30,7 +30,7 @@
 
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findByText, findByTag, findAll } = require('./tablet-dom-stub');
+const { findByText, findByTag, findAll, openSettingsSection, findByClass } = require('./tablet-dom-stub');
 
 // Mirrors html/tablet.js's own DEFAULT_STRINGS.action_failed (kept in sync
 // with locales/en.json's tablet.action_failed) -- see
@@ -256,7 +256,7 @@ t.test('branding.theme seeds the FIRST paint before tablet:getTheme resolves, bu
     // own comment) -- so this test instead proves the seed took effect via
     // the theme SCREEN's own draft inputs, reachable without waiting on
     // the pending fetch at all.
-    findByText(h.getRoot(), 'Tablet Theme')[0].click();
+    openSettingsSection(h.getRoot(), 'Tablet Theme');
     await settle();
     const colorInputs = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('type') === 'color');
     t.isTrue(colorInputs.some((i) => i.value === '#C8102E'), 'the branding-seeded primaryColor pre-fills the draft form before any fetch resolved');
@@ -290,9 +290,9 @@ t.test('a non-high-command officer holding a delegated k9.tablettheme grant DOES
         })),
     });
     await openTablet(h);
-    const tab = findByText(h.getRoot(), 'Tablet Theme')[0];
-    t.isTrue(!!tab, 'the tab itself is visible to a delegated non-high-command officer');
-    tab.click();
+    t.equals(findByText(h.getRoot(), 'Server Settings').length, 1, 'the Server Settings tab is visible to a delegated non-high-command officer');
+    openSettingsSection(h.getRoot(), 'Tablet Theme');
+    t.equals(findByClass(h.getRoot(), 'k9tablet-settings-sections')[0].children.length, 1, 'and holds exactly the one section this delegate may change');
     await settle();
     t.isTrue(findByText(h.getRoot(), 'Tablet Appearance').length >= 1, 'the real editing screen renders, not a dead end');
 });
@@ -307,7 +307,7 @@ t.test('high command opens the Theme tab, edits fields, and Save submits the wor
     h.postMessage('tablet:open', { themingEnabled: true });
     await settle();
 
-    findByText(h.getRoot(), 'Tablet Theme')[0].click();
+    openSettingsSection(h.getRoot(), 'Tablet Theme');
     await settle();
     t.isTrue(findByText(h.getRoot(), 'Tablet Appearance').length >= 1);
 
@@ -335,7 +335,7 @@ t.test('a rejected save (reason=invalid_field) highlights the offending field an
     });
     h.postMessage('tablet:open', { themingEnabled: true });
     await settle();
-    findByText(h.getRoot(), 'Tablet Theme')[0].click();
+    openSettingsSection(h.getRoot(), 'Tablet Theme');
     await settle();
 
     findByText(h.getRoot(), 'Save Theme')[0].click();
@@ -350,7 +350,7 @@ t.test('themingEnabled=false shows the disabled note and disables Save/Reset -- 
     const h = createHarness({ fetchImpl: routeFetch(baseHandlers()) });
     h.postMessage('tablet:open', { themingEnabled: false });
     await settle();
-    findByText(h.getRoot(), 'Tablet Theme')[0].click();
+    openSettingsSection(h.getRoot(), 'Tablet Theme');
     await settle();
 
     t.isTrue(findByText(h.getRoot(), 'Tablet theming is disabled server-wide. The current theme still applies; these controls will not save.').length >= 1);
@@ -483,7 +483,7 @@ t.test('DYNAMIC CATALOGUE: tiers rendered come ENTIRELY from tablet:certTiersLis
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'Catalogs')[0].click();
+    openSettingsSection(h.getRoot(), 'Catalogs');
     await settle();
 
     t.isTrue(findByText(h.getRoot(), 'Zzyzx Novel Rank').length >= 1, 'a tier this test invented on the fly renders correctly -- proves no hardcoded tier list');
@@ -504,7 +504,7 @@ t.test('Add New Tier: opens a blank form, and Save submits {key,label,capabiliti
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'Catalogs')[0].click();
+    openSettingsSection(h.getRoot(), 'Catalogs');
     await settle();
 
     findByText(h.getRoot(), 'Add New Tier')[0].click();
@@ -542,7 +542,7 @@ t.test('Edit an existing tier: the key input is DISABLED (no rename concept), la
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'Catalogs')[0].click();
+    openSettingsSection(h.getRoot(), 'Catalogs');
     await settle();
 
     findByText(h.getRoot(), 'Edit')[0].click();
@@ -581,7 +581,7 @@ t.test('Move Up/Down submits the FULL reordered key list (not just the two swapp
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'Catalogs')[0].click();
+    openSettingsSection(h.getRoot(), 'Catalogs');
     await settle();
 
     // Move the SECOND row ("certified", index 1) up, ahead of "trainee".
@@ -616,7 +616,7 @@ t.test('Delete: "certified" is disabled client-side as a UX hint, but a normal t
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'Catalogs')[0].click();
+    openSettingsSection(h.getRoot(), 'Catalogs');
     await settle();
 
     const deleteButtons = findByText(h.getRoot(), 'Delete');
@@ -644,7 +644,7 @@ t.test('Delete refusal "tier_in_use" renders "cannot, and here is why" WITH the 
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'Catalogs')[0].click();
+    openSettingsSection(h.getRoot(), 'Catalogs');
     await settle();
 
     const deleteBtn = findByText(h.getRoot(), 'Delete')[0];
@@ -674,7 +674,7 @@ t.test('Delete refusal "tier_in_use_by_shop_items" renders its own "cannot, and 
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'Catalogs')[0].click();
+    openSettingsSection(h.getRoot(), 'Catalogs');
     await settle();
 
     const deleteBtn = findByText(h.getRoot(), 'Delete')[0];
@@ -714,7 +714,7 @@ t.test('a PARTIAL tier-reorder write names the tiers that did not save, instead 
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'Catalogs')[0].click();
+    openSettingsSection(h.getRoot(), 'Catalogs');
     await settle();
 
     const moveDown = findAll(h.getRoot(), (n) => n.tagName === 'button' && n._textContent === '\u2193');

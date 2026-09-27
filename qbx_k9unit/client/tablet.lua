@@ -1407,35 +1407,20 @@ local TABLET_STRING_KEYS = {
     -- them) -- its own COMMAND_REFERENCE triple.
     'cmdref_k9vision_usage', 'cmdref_k9vision_does', 'cmdref_k9vision_needs',
     'cmdref_default_keybind_configurable_template', 'cmdref_category_vision',
-    -- GUIDED FLOWS (this pass, owner's own words: "expand the workflow
-    -- paths for all the features to make them smoother, easier to
-    -- understand") -- high command only, html/tablet.js's own
-    -- buildFlowsHubScreen()/buildFlowOnboardScreen()/buildFlowOffboardScreen()/
-    -- buildFlowProblemScreen()/buildFlowTuningScreen(). LANDED (verified
-    -- directly against locales/en.json's `tablet` group, same posture as
-    -- every other block above): these keys used to be NOT YET present as
-    -- of the pass that added them, flagged to that file's owner -- they
-    -- have since been added, so BuildTabletStrings() now resolves every
-    -- one of them for real.
-    --
-    -- WAS 88 KEYS, FOR FOUR FLOWS. Three of them -- Set Up a New Handler,
-    -- Offboard, Problem Player -- were retired once the Person screen
-    -- became the single place all of their steps happen, taking their
-    -- step names, intros and summary templates with them, along with the
-    -- hub's own four cards and the shared person-picker strings. What is
-    -- left is the one flow that still sequences work across screens.
-    'tab_flows', 'flow_next_label', 'flow_back_label', 'flow_skip_label',
-    'flow_finish_label', 'flow_tuning_heading', 'flow_tuning_step_overview', 'flow_tuning_step_features',
-    'flow_tuning_step_tunables', 'flow_tuning_step_tiers', 'flow_tuning_step_xp', 'flow_tuning_step_shop',
-    'flow_tuning_overview_heading', 'flow_tuning_overview_intro', 'flow_tuning_overview_features_template', 'flow_tuning_overview_tunables_template',
-    'flow_tuning_overview_tiers_template', 'flow_tuning_overview_xp_template', 'flow_tuning_overview_shop_template', 'flow_tuning_overview_not_loaded',
+    -- SERVER SETTINGS -- html/tablet.js's one admin settings tab
+    -- (buildSettingsSectionNav()/buildSettingsOverviewScreen()). It replaced
+    -- five tabs, including the Server Tuning guided flow whose Back/Next
+    -- labels and step names went with it; the Overview section kept that
+    -- flow's live summary lines.
+    'tab_settings', 'settings_section_overview', 'help_tab_settings_desc', 'help_task_hc_settings_sections_template', 'settings_overview_heading', 'settings_overview_intro', 'settings_overview_features_template', 'settings_overview_tunables_template',
+    'settings_overview_tiers_template', 'settings_overview_xp_template', 'settings_overview_shop_template', 'settings_overview_not_loaded',
     -- MUTATION ERROR TEXT (this pass, state-handling/error-reporting
     -- consistency sweep) -- html/tablet.js's own mutationErrorText(), the
     -- per-`error`-code mapping runMutation() now uses instead of a single
     -- generic 'action_failed' line for every certify/decertify/tier/
     -- renewal/specialization/givexp/permission/feature/role-mutation
     -- refusal. LANDED (verified directly against locales/en.json's
-    -- `tablet` group, same posture as the GUIDED FLOWS block just above):
+    -- `tablet` group, same posture as the SERVER SETTINGS block just above):
     -- these keys used to be NOT YET present as of the pass that added
     -- them, flagged to that file's owner -- they have since been added, so
     -- BuildTabletStrings() now resolves every one of them for real.
@@ -1460,7 +1445,7 @@ local TABLET_STRING_KEYS = {
     'help_start_high_command_intro', 'help_start_high_command_1', 'help_start_high_command_2', 'help_start_high_command_3',
     'help_start_high_command_4', 'help_tabs_heading', 'help_tabs_intro',
     'help_tab_my_record_desc', 'help_tab_console_desc',
-    'help_tab_flows_desc', 'help_tab_theme_desc',
+    'help_tab_theme_desc',
     'help_tab_runtime_control_desc',
     'help_tab_audit_desc',
     'help_tasks_heading', 'help_task_get_certified_heading',
@@ -1476,8 +1461,8 @@ local TABLET_STRING_KEYS = {
     'help_task_stop_being_k9_3', 'help_task_stop_being_k9_4',
     'help_task_scent_vision_heading', 'help_task_scent_vision_1', 'help_task_scent_vision_2', 'help_task_scent_vision_3',
     'help_task_hc_certify_someone_heading', 'help_task_hc_certify_someone_1', 'help_task_hc_certify_someone_2_template',
-    'help_task_hc_flow_steps_template', 'help_task_hc_toggle_feature_heading', 'help_task_hc_toggle_feature_1', 'help_task_hc_toggle_feature_2',
-    'help_task_hc_toggle_feature_3', 'help_task_hc_assign_k9_heading', 'help_task_hc_assign_k9_1', 'help_task_hc_assign_k9_2_template',
+    'help_task_hc_toggle_feature_heading', 'help_task_hc_toggle_feature_1', 'help_task_hc_toggle_feature_2',
+    'help_task_hc_assign_k9_heading', 'help_task_hc_assign_k9_1', 'help_task_hc_assign_k9_2_template',
     'help_task_hc_assign_k9_3_template', 'help_task_hc_check_history_heading', 'help_task_hc_check_history_1', 'help_task_hc_check_history_2',
     'help_task_hc_check_history_3', 'help_trouble_heading', 'help_trouble_intro', 'help_trouble_no_k9_access_title',
     'help_trouble_no_k9_access_body', 'help_trouble_not_certified_title', 'help_trouble_not_certified_body', 'help_trouble_feature_off_title',

@@ -33,7 +33,7 @@
 
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findByText, findAll } = require('./tablet-dom-stub');
+const { findByText, findAll, openSettingsSection, findByClass } = require('./tablet-dom-stub');
 
 function routeFetch(handlers) {
     return function (url, init) {
@@ -96,9 +96,9 @@ t.test('a non-high-command officer holding a delegated k9.equipmentshoplocations
         })),
     });
     await openTablet(h);
-    const tab = findByText(h.getRoot(), 'K9 Supply Shop')[0];
-    t.isTrue(!!tab, 'the tab itself is visible to a delegated non-high-command officer');
-    tab.click();
+    t.equals(findByText(h.getRoot(), 'Server Settings').length, 1, 'the Server Settings tab is visible to a delegated non-high-command officer');
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
+    t.equals(findByClass(h.getRoot(), 'k9tablet-settings-sections')[0].children.length, 1, 'and holds exactly the one section this delegate may change');
     await settle();
     t.isTrue(findByText(h.getRoot(), 'Add Location Here').length >= 1, 'the real screen renders, not a dead end');
 });
@@ -116,7 +116,7 @@ t.test('DYNAMIC LIST: locations rendered come entirely from tablet:equipmentShop
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     t.isTrue(findByText(h.getRoot(), 'Downtown K9 Supply').length >= 1);
@@ -141,7 +141,7 @@ t.test('empty list shows the empty-state note, not a crash', async () => {
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
     t.isTrue(findByText(h.getRoot(), 'No shop locations configured yet.').length >= 1);
 });
@@ -154,7 +154,7 @@ t.test('shopLocationsEnabled=false shows the disabled note (list still fetched/s
     });
     h.postMessage('tablet:open', { shopLocationsEnabled: false });
     await settle();
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
     t.isTrue(findByText(h.getRoot(), 'The K9 Supply Shop is disabled server-wide. Existing locations are shown for reference only.').length >= 1);
 });
@@ -170,7 +170,7 @@ t.test('a load failure shows the error and a Retry button that re-fetches', asyn
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     t.isTrue(findByText(h.getRoot(), 'The K9 Supply Shop is disabled server-wide.').length >= 1);
@@ -193,7 +193,7 @@ t.test('Add Location Here: blank fields send an EMPTY payload -- no x/y/z/headin
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     findByText(h.getRoot(), 'Add Location Here')[0].click();
@@ -220,7 +220,7 @@ t.test('Add Location Here: filled fields are sent TRIMMED, blank ones still omit
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
     findByText(h.getRoot(), 'Add Location Here')[0].click();
     await settle();
@@ -244,7 +244,7 @@ t.test('Add Location Here: a denied add shows a failure notice and keeps the for
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
     findByText(h.getRoot(), 'Add Location Here')[0].click();
     await settle();
@@ -271,7 +271,7 @@ t.test('Edit: pre-fills from the current row, Save sends ALL THREE fields, `fals
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     findByText(h.getRoot(), 'Edit')[0].click();
@@ -303,7 +303,7 @@ t.test('Move Here: sends ONLY {locationKey, useCurrentPosition:true} -- no label
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     const moveBtn = findByText(h.getRoot(), 'Move Here')[0];
@@ -327,7 +327,7 @@ t.test('Move Here refusal renders inline on that row (cannot, and here is why), 
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     const moveBtn = findByText(h.getRoot(), 'Move Here')[0];
@@ -354,7 +354,7 @@ t.test('Remove: only db: rows offer it, requires two clicks (confirm), sends {lo
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     const removeBtn = findByText(h.getRoot(), 'Remove')[0];
@@ -378,7 +378,7 @@ t.test('a Lua-initiated equipmentShopLocationsUpdated push applies live to an al
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
     t.isTrue(findByText(h.getRoot(), 'No shop locations configured yet.').length >= 1);
 
@@ -426,7 +426,7 @@ t.test('a late tablet:equipmentShopGetLocations response for an OLDER request ne
     await openTablet(h);
 
     // First visit -- fires the request that will be held open.
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
     t.isDefined(resolveStale, 'the first request was sent and is being held unresolved');
 
@@ -434,7 +434,7 @@ t.test('a late tablet:equipmentShopGetLocations response for an OLDER request ne
     // resolves immediately (fast), all while the FIRST is still pending.
     findByText(h.getRoot(), 'My Record')[0].click();
     await settle();
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     t.isTrue(findByText(h.getRoot(), 'FRESH SECOND RESULT').length >= 1, 'the second (current) request\'s result is showing');

@@ -56,7 +56,7 @@
 
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findByText, findAll } = require('./tablet-dom-stub');
+const { findByText, findAll, openSettingsSection, findByClass } = require('./tablet-dom-stub');
 
 function routeFetch(handlers) {
     return function (url, init) {
@@ -122,9 +122,9 @@ t.test('a non-high-command officer holding a delegated k9.equipmentshopitems gra
         })),
     });
     await openTablet(h);
-    const tab = findByText(h.getRoot(), 'K9 Supply Shop')[0];
-    t.isTrue(!!tab, 'the tab itself is visible to a delegated non-high-command officer');
-    tab.click();
+    t.equals(findByText(h.getRoot(), 'Server Settings').length, 1, 'the Server Settings tab is visible to a delegated non-high-command officer');
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
+    t.equals(findByClass(h.getRoot(), 'k9tablet-settings-sections')[0].children.length, 1, 'and holds exactly the one section this delegate may change');
     await settle();
     t.isTrue(findByText(h.getRoot(), 'Add New Item').length >= 1, 'the real screen renders, not a dead end');
 });
@@ -147,7 +147,7 @@ t.test('DYNAMIC CATALOGUE: items rendered come ENTIRELY from tablet:equipmentSho
         })),
     });
     await openTablet(h, { specializations: { narcotics: { label: 'Narcotics Detection' } } });
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     t.isTrue(findByText(h.getRoot(), 'Zzyzx Novel Bait').length >= 1, 'a label this test invented on the fly renders correctly -- proves no hardcoded item list');
@@ -165,7 +165,7 @@ t.test('empty catalog shows an empty-state message, never a blank/crashed panel'
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
     t.isTrue(findByText(h.getRoot(), 'No shop items configured yet.').length >= 1);
 });
@@ -177,7 +177,7 @@ t.test('a failed list fetch shows an error + Retry, never a blank panel', async 
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
     t.isTrue(findByText(h.getRoot(), 'You are not authorized to manage the K9 Supply Shop item catalog.').length >= 1);
     t.isTrue(findByText(h.getRoot(), 'Retry').length >= 1);
@@ -196,7 +196,7 @@ t.test('Add New Item: a ZERO price is submitted as the number 0 and accepted -- 
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     findByText(h.getRoot(), 'Add New Item')[0].click();
@@ -231,7 +231,7 @@ t.test('Add New Item: label/currency/required tier/required specialization are a
         })),
     });
     await openTablet(h, { specializations: { explosives: { label: 'Explosives Detection' } } });
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     findByText(h.getRoot(), 'Add New Item')[0].click();
@@ -276,7 +276,7 @@ t.test('Edit an existing item: the key input is DISABLED, and every other field 
         })),
     });
     await openTablet(h, { specializations: { narcotics: { label: 'Narcotics Detection' } } });
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     findByText(h.getRoot(), 'Edit')[0].click();
@@ -319,7 +319,7 @@ t.test('RETIRED REFERENCE: an item\'s requiredTierKey naming a tier absent from 
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     t.isTrue(findByText(h.getRoot(), 'zzz_long_retired_tier').length >= 1, 'the table row shows the raw retired key rather than a blank cell');
@@ -354,7 +354,7 @@ t.test('RETIRED REFERENCE: choosing "None" on a retired required-specialization 
     // state.specializations does NOT contain 'zzz_retired_spec' -- simulating
     // it having been removed from Config.K9Specializations.
     await openTablet(h, { specializations: { narcotics: { label: 'Narcotics Detection' } } });
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
     findByText(h.getRoot(), 'Edit')[0].click();
     await settle();
@@ -398,7 +398,7 @@ for (const [reason, expectedText] of Object.entries(UPSERT_REASON_TEXT)) {
             })),
         });
         await openTablet(h);
-        findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+        openSettingsSection(h.getRoot(), 'K9 Supply Shop');
         await settle();
         findByText(h.getRoot(), 'Add New Item')[0].click();
         await settle();
@@ -426,7 +426,7 @@ t.test('equipmentShopItemsReorder refusal "must_include_every_item"/"invalid_key
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     const moveDownButtons = findAll(h.getRoot(), (n) => n.tagName === 'button' && n._textContent === '↓');
@@ -459,7 +459,7 @@ t.test('Move Up/Down submits the FULL reordered key list (not just the two swapp
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     const moveUpButtons = findAll(h.getRoot(), (n) => n.tagName === 'button' && n._textContent === '↑');
@@ -492,7 +492,7 @@ t.test('Delete requires a two-click confirm, then tombstones the item -- it disa
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     const deleteBtn = findByText(h.getRoot(), 'Delete')[0];
@@ -517,7 +517,7 @@ t.test('Delete refusal ("unknown_item") renders "cannot, and here is why" inline
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     const deleteBtn = findByText(h.getRoot(), 'Delete')[0];
@@ -546,7 +546,7 @@ t.test('a rejected Save leaves the OLD catalog values showing behind the still-o
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     findByText(h.getRoot(), 'Edit')[0].click();
@@ -580,7 +580,7 @@ t.test('ESCAPING: a hostile item label reaches the table row and the edit-draft 
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     function everyElementInnerHTMLWriteCount() {
@@ -617,7 +617,7 @@ t.test('a PARTIAL reorder write names the items that did not save, instead of a 
         })),
     });
     await openTablet(h);
-    findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+    openSettingsSection(h.getRoot(), 'K9 Supply Shop');
     await settle();
 
     const moveDownButtons = findAll(h.getRoot(), (n) => n.tagName === 'button' && n._textContent === '↓');

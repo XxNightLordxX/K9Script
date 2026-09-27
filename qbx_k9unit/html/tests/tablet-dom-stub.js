@@ -283,4 +283,34 @@ function findByText(node, text) {
     return findAll(node, function (n) { return n._textContent === text; });
 }
 
-module.exports = { Element, FakeDocument, buildTabletDocument, findAll, findByTag, findByClass, findByText };
+/** A Server Settings section button (the row at the top of every settings
+ * screen), or undefined when that row is not on screen. */
+function findSettingsSectionButton(node, label) {
+    var navs = findByClass(node, 'k9tablet-settings-sections');
+    for (var i = 0; i < navs.length; i++) {
+        var hit = findByText(navs[i], label)[0];
+        if (hit) return hit;
+    }
+    return undefined;
+}
+
+/** Opens a Server Settings section the way a person would: the Server
+ * Settings tab (unless its section row is already showing), then the
+ * section -- skipping the second click when the tab already landed on it,
+ * so a section's loaders fire once, as they did when it was its own tab.
+ * Throws with a clear message when either is missing, instead of a bare
+ * "cannot read property click of undefined". */
+function openSettingsSection(node, label) {
+    var btn = findSettingsSectionButton(node, label);
+    if (!btn) {
+        var tab = findByText(node, 'Server Settings')[0];
+        if (!tab) throw new Error('openSettingsSection: no Server Settings tab for this viewer');
+        tab.click();
+        btn = findSettingsSectionButton(node, label);
+        if (!btn) throw new Error('openSettingsSection: no "' + label + '" section for this viewer');
+        if (btn.classList && btn.classList.contains('k9tablet-tab--active')) return;
+    }
+    btn.click();
+}
+
+module.exports = { Element, FakeDocument, buildTabletDocument, findAll, findByTag, findByClass, findByText, findSettingsSectionButton, openSettingsSection };

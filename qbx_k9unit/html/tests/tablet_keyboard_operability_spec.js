@@ -46,7 +46,7 @@
 
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findByText, findAll, findByTag } = require('./tablet-dom-stub');
+const { findByText, findAll, findByTag, openSettingsSection } = require('./tablet-dom-stub');
 
 function routeFetch(handlers) {
     return function (url, init) {
@@ -351,7 +351,7 @@ t.test('Enter in a draft form field fires the form\'s own Save, when Save is the
     });
     h.postMessage('tablet:open', {});
     await settle();
-    findFirstButtonByText(h.getRoot(), 'Catalogs').click();
+    openSettingsSection(h.getRoot(), 'Catalogs');
     await settle();
     findFirstButtonByText(h.getRoot(), 'Add New Tier').click();
     await settle();

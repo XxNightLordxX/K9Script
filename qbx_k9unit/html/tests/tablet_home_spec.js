@@ -44,7 +44,7 @@
 
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findByText, findAll } = require('./tablet-dom-stub');
+const { findByText, findAll, openSettingsSection, findByClass } = require('./tablet-dom-stub');
 
 function routeFetch(handlers) {
     return function (url, init) {
@@ -152,14 +152,19 @@ t.test('HIGH COMMAND: Home shows role badge "High Command" and the High Command 
     // F), and 'K9 Overrides' is no longer a tab at all (plan item D).
     // 'Catalogs' is ONE tab covering certification tiers, permission keys and
     // XP ranks (plan item G).
-    for (const label of ['Tablet Theme', 'Catalogs', 'K9 Supply Shop', 'Runtime Control', 'Audit Trail']) {
+    // SERVER SETTINGS (the rework pass): Theme, Catalogs, the Shop and
+    // Runtime Control are sections of ONE tab now, not four tabs -- and the
+    // Server Tuning flow that duplicated three of them is gone.
+    for (const label of ['Server Settings', 'Personnel Roster', 'Audit Trail']) {
         t.equals(findByText(h.getRoot(), label).length, 1, `"${label}" tab appears exactly once -- no competing Home shortcut`);
     }
+    for (const label of ['Tablet Theme', 'Catalogs', 'K9 Supply Shop', 'Runtime Control', 'Server Tuning']) {
+        t.equals(findByText(h.getRoot(), label).length, 0, `"${label}" is a Server Settings section now, not a tab of its own`);
+    }
 
-    // The signpost's own plain-language pointer at the grouped tab row --
-    // proves the section explains where to go instead of re-listing every
-    // destination itself.
-    t.isTrue(findByText(h.getRoot(), "You'll find all of these in the tabs at the top of the screen -- they're grouped together there, set apart from your own tabs, so they're easy to spot.").length >= 1);
+    // The signpost's own plain-language pointer -- proves the section
+    // explains where to go instead of re-listing every destination itself.
+    t.isTrue(findByText(h.getRoot(), 'The whole-server settings are under the Server Settings tab at the top of the screen, one click per section. The personnel roster and the audit trail have their own tabs beside it.').length >= 1);
 
     // The admin tab cluster is a real, labelled group in the DOM (not just
     // a visual illusion) -- a screen reader announces it as one.
@@ -176,7 +181,7 @@ t.test('HIGH COMMAND: the real Certification Tiers tab (now grouped into the Hig
         'tablet:getTheme': () => ({ ok: true, theme: { primaryColor: '#2563eb', accentColor: '#f59e0b', backgroundColor: '#111827', textColor: '#f9fafb', density: 'comfortable', headerTitle: 'K9 Command Tablet' } }),
     });
 
-    findByText(h.getRoot(), 'Tablet Theme')[0].click();
+    openSettingsSection(h.getRoot(), 'Tablet Theme');
     await settle();
 
     t.isTrue(findByText(h.getRoot(), 'Tablet Appearance').length >= 1, 'the grouped tab opened the real Tablet Theme screen');
@@ -197,7 +202,7 @@ t.test('DELEGATED NON-HIGH-COMMAND (holds only k9.runtimecontrol): High Command 
     t.equals(findByText(h.getRoot(), 'Certified Handler').length, 1, 'not high command, so the ordinary role badge shows');
     t.equals(findByText(h.getRoot(), 'High Command').length, 0);
     t.equals(findByText(h.getRoot(), 'High Command Tools').length, 1, 'signpost still built for a delegated non-high-command viewer too');
-    t.equals(findByText(h.getRoot(), 'Runtime Control').length, 1, 'the ONE capability this viewer actually holds still has its own tab');
+    t.equals(findByText(h.getRoot(), 'Server Settings').length, 1, 'the ONE capability this viewer actually holds is reachable, under Server Settings');
 
     // Every high-command-only tab (no delegation exists for any of these)
     // and every OTHER delegable one this viewer does NOT hold stays
@@ -207,9 +212,10 @@ t.test('DELEGATED NON-HIGH-COMMAND (holds only k9.runtimecontrol): High Command 
         t.equals(findByText(h.getRoot(), label).length, 0, `"${label}" tab must NOT appear for this viewer`);
     }
 
-    findByText(h.getRoot(), 'Runtime Control')[0].click();
+    openSettingsSection(h.getRoot(), 'Runtime Control');
     await settle();
-    t.isTrue(findByText(h.getRoot(), 'Runtime Feature Control').length >= 1, 'the tab opens the real screen, not a dead end');
+    t.isTrue(findByText(h.getRoot(), 'Runtime Feature Control').length >= 1, 'the section opens the real screen, not a dead end');
+    t.equals(findByClass(h.getRoot(), 'k9tablet-settings-sections')[0].children.length, 1, 'Server Settings holds only the one section this viewer may change');
 });
 
 // ============================================================================
@@ -234,8 +240,8 @@ t.test('WORKFLOW AUDIT #3: a delegate holding ONLY k9.runtimecontrol sees a sign
     t.equals(findByText(h.getRoot(), 'High Command Tools').length, 1, 'the heading is unchanged for every viewer who sees this section at all');
     t.equals(findByText(h.getRoot(), "You've been granted access to: which features are turned on.").length, 1, 'the body names ONLY the one capability this viewer actually holds');
     t.equals(findByText(h.getRoot(), 'Settings that affect the whole server: how the tablet looks, certification ranks, permission keys, the supply shop, which features are turned on, XP ranks, and the audit trail.').length, 0, 'the full high-command-only promise text is absent for this delegate');
-    t.equals(findByText(h.getRoot(), "You'll find all of these in the tabs at the top of the screen -- they're grouped together there, set apart from your own tabs, so they're easy to spot.").length, 0, 'the high-command-only tabs pointer sentence is absent too');
-    t.equals(findByText(h.getRoot(), "You'll find these in the tabs at the top of the screen -- grouped together there, set apart from your own tabs, so they're easy to spot.").length, 1, 'a delegate-specific tabs pointer is shown instead');
+    t.equals(findByText(h.getRoot(), 'The whole-server settings are under the Server Settings tab at the top of the screen, one click per section. The personnel roster and the audit trail have their own tabs beside it.').length, 0, 'the high-command-only pointer sentence is absent too');
+    t.equals(findByText(h.getRoot(), "You'll find these under the Server Settings tab at the top of the screen.").length, 1, 'a delegate-specific pointer is shown instead');
 });
 
 t.test('WORKFLOW AUDIT #3: a delegate holding TWO of the four capabilities gets both named in the signpost body, joined in plain English', async () => {

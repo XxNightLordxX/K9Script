@@ -1503,43 +1503,30 @@ body {
 }
 
 /*
-    GUIDED FLOWS (this pass) -- html/tablet.js's own buildFlowStepNav()/
-    buildFlowNavRow()/buildFlowPersonContext()/buildFlowPersonPicker()/
-    buildFlowsHubScreen(). SAME "reuse, don't reinvent" posture as Runtime
-    Control/Audit Trail above: the hub screen's four cards are literally
-    .k9tablet-home-actions/.k9tablet-home-action-card (buildHomeActionCard(),
-    unchanged), the step nav is .k9tablet-tab/.k9tablet-tab--active
-    (unchanged), and every button is a plain .k9tablet-btn/.k9tablet-link-btn.
-    These few rules are LAYOUT ONLY -- no new colour, no new custom
-    property -- just spacing for the wrapper elements those reused pieces
-    sit inside.
+    SERVER SETTINGS section picker -- html/tablet.js's own
+    buildSettingsSectionNav(). The buttons are plain .k9tablet-tab /
+    .k9tablet-tab--active (the same nested-tab look as the Audit Trail's
+    mode switch); this only spaces the row from the screen below it.
 */
-.k9tablet-flow-steps {
+.k9tablet-settings-sections {
     margin-bottom: 12px;
 }
 
-.k9tablet-flow-nav {
-    display: flex;
-    gap: 8px;
-    margin-top: 16px;
-}
-
-.k9tablet-flow-person-context {
+/*
+    CERTIFY AS HANDLER OR AS K9 -- html/tablet.js's own
+    buildCertifyAsControl(): the picker and the Certify button on one line,
+    the hint under them. Layout only.
+*/
+.k9tablet-certify-as {
     display: flex;
     align-items: center;
-    gap: 6px;
     flex-wrap: wrap;
-    margin-bottom: 12px;
-}
-
-.k9tablet-flow-picker {
-    display: flex;
-    flex-direction: column;
     gap: 8px;
 }
 
-.k9tablet-flow-step-body {
-    margin-top: 8px;
+.k9tablet-certify-as .k9tablet-hint {
+    flex-basis: 100%;
+    margin: 0;
 }
 
 /*
