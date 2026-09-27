@@ -256,6 +256,15 @@ jobs:
                                   "INFORMATION_SCHEMA", "PERFORMANCE_SCHEMA", "MYSQL", "SYS",
                               ):
                                   continue
+                              # Tables owned by ANOTHER resource that this
+                              # one reads (never writes), each named with
+                              # its owner. sql/install.sql must never create
+                              # these -- the other resource does.
+                              #   mdt_warrants -- sc-dispatch's MDT warrants,
+                              #   read by server/suspects.lua so a K9 can act
+                              #   on anyone with an approved arrest warrant.
+                              if table in ("mdt_warrants",):
+                                  continue
                               if table not in declared:
                                   findings.append((str(fpath), srcline, table, unescaped.strip()))
 

@@ -19,8 +19,11 @@
 local t = dofile('testkit.lua')
 local Sandbox = dofile('fixtures/sandbox.lua')
 
+local f_queries
 local function fixture(opts)
     opts = opts or {}
+    f_queries = {}
+    local queries = f_queries
     local now = 1000
     local players = {}
     local function addPlayer(src, cid, job, onduty, metadata)
@@ -36,7 +39,8 @@ local function fixture(opts)
     local handlers, netEvents, commands, notifies, timeouts, states = {}, {}, {}, {}, {}, {}
     local Config = {
         Departments = { police = { certifierGrade = 4 } },
-        Combat = { RequireWantedStatus = true, SuspectMarkMinutes = 10, WantedStatusCheckOverride = opts.override },
+        Combat = { RequireWantedStatus = true, SuspectMarkMinutes = 10, WantedStatusCheckOverride = opts.override,
+            WantedFromDispatch = opts.dispatchCfg or { resource = 'sc-dispatch', warrantTypes = { 'arrest', 'bench' } } },
     }
     local env = Sandbox.newEnv({
         Config = Config,
@@ -48,6 +52,13 @@ local function fixture(opts)
         AddEventHandler = function(name, fn) handlers[name] = handlers[name] or {}; table.insert(handlers[name], fn) end,
         NotifyPlayer = function(target, text, kind) notifies[#notifies + 1] = { target = target, text = text, kind = kind } end,
         HasK9Role = function(src) return src == 2 end,
+        -- sc-dispatch's MDT, for the sniff's warrant check.
+        GetResourceState = function(name) return (opts.running or { ['sc-dispatch'] = true })[name] and 'started' or 'missing' end,
+        MySQL = { query = { await = function(sql, params)
+            f_queries[#f_queries + 1] = { sql = sql, params = params }
+            if opts.mysql then return opts.mysql(sql, params) end
+            return {}
+        end } },
         GetActivePartnerCitizenId = function(cid)
             if cid == 'OFFICER' then return 'DOG', false end
             if cid == 'DOG' then return 'OFFICER', true end
@@ -66,7 +77,7 @@ local function fixture(opts)
     Sandbox.loadInto('../server/cooldowns.lua', env)
     Sandbox.loadInto('../server/suspects.lua', env)
 
-    local f = { env = env, players = players, notifies = notifies, states = states, Config = Config, handlers = handlers, netEvents = netEvents, commands = commands }
+    local f = { queries = queries, env = env, players = players, notifies = notifies, states = states, Config = Config, handlers = handlers, netEvents = netEvents, commands = commands }
     function f.advance(ms)
         now = now + ms
         for i = #timeouts, 1, -1 do
@@ -214,6 +225,11 @@ t.test('with RequireWantedStatus off, anyone is fair game and marking says it is
     t.isTrue(f.env.IsPlayerK9Wanted(3))
     f.command(1, '3')
     t.equals(f.lastTo(1), Sandbox.locale('suspects.not_needed'))
+    local sent = {}
+    f.env.TriggerClientEvent = function(name) sent[#sent + 1] = name end
+    f.command(1)
+    t.equals(f.lastTo(1), Sandbox.locale('suspects.not_needed'), 'a bare /k9suspect says so too, instead of silently doing nothing')
+    t.equals(#sent, 0)
 end)
 
 local function withClientEvents(f)
@@ -286,6 +302,69 @@ t.test('ONE-TAP ASK: at most one prompt per K9 every 15 seconds, and never for a
     g.env.GetActivePartnerCitizenId = function() return nil end
     t.isFalse(g.env.AskHandlerToMarkSuspect(2, 3))
     t.equals(#sentG, 0)
+end)
+
+-- ----------------------------------------------------------------------
+-- THE SNIFF CHECKS FOR WARRANTS (sc-dispatch's mdt_warrants)
+-- ----------------------------------------------------------------------
+local function warrantsFor(byCid, opts)
+    opts = opts or {}
+    return function(sql, params)
+        if opts.noApprovalColumn and sql:find('approval_status', 1, true) then error('Unknown column approval_status') end
+        if opts.broken then error('connection lost') end
+        return byCid[params[1]] or {}
+    end
+end
+
+t.test('SNIFF: a person with an approved ARREST warrant is marked as a suspect on the spot; the K9 and its partner are told', function()
+    local f = fixture({ mysql = warrantsFor({ SUSPECT = { { type = 'Arrest Warrant' } } }) })
+    t.equals(f.env.CheckWarrantOnSniff(2, 3), 'Arrest Warrant')
+    t.isTrue(f.env.IsPlayerK9Wanted(3))
+    t.equals(f.lastTo(2), Sandbox.locale('suspects.warrant_found', 3, 'Arrest Warrant'))
+    t.equals(f.lastTo(1), Sandbox.locale('suspects.warrant_found_partner', 3, 'Arrest Warrant'))
+    t.contains(f.queries[1].sql, "COALESCE(approval_status, 'approved') = 'approved'", 'only approved warrants, like sc-dispatch itself')
+    t.contains(f.queries[1].sql, 'active = 1')
+    t.equals(f.queries[1].params[1], 'SUSPECT', 'looked up by the sniffed person\'s citizenid')
+end)
+
+t.test('SNIFF: a bench warrant counts; a search warrant (for a place, not a person) does not; no warrant means nothing happens', function()
+    local f = fixture({ mysql = warrantsFor({ SUSPECT = { { type = 'Bench Warrant' } }, CIVILIAN = { { type = 'Search Warrant' } } }) })
+    t.equals(f.env.CheckWarrantOnSniff(2, 3), 'Bench Warrant')
+    t.isNil(f.env.CheckWarrantOnSniff(2, 5))
+    t.isFalse(f.env.IsPlayerK9Wanted(5))
+    t.isNil(f.env.CheckWarrantOnSniff(2, 4))
+end)
+
+t.test('SNIFF: an old sc-dispatch row that just says "Arrest" reads as "Arrest Warrant"', function()
+    local f = fixture({ mysql = warrantsFor({ SUSPECT = { { type = 'Arrest' } } }) })
+    t.equals(f.env.CheckWarrantOnSniff(2, 3), 'Arrest Warrant')
+end)
+
+t.test('SNIFF: a database from before sc-dispatch added approval_status still works (falls back to active warrants)', function()
+    local f = fixture({ mysql = warrantsFor({ SUSPECT = { { type = 'Arrest Warrant' } } }, { noApprovalColumn = true }) })
+    t.equals(f.env.CheckWarrantOnSniff(2, 3), 'Arrest Warrant')
+    t.equals(#f.queries, 2)
+end)
+
+t.test('SNIFF: a database that cannot be read never marks anyone', function()
+    local f = fixture({ mysql = warrantsFor({}, { broken = true }) })
+    t.isNil(f.env.CheckWarrantOnSniff(2, 3))
+    t.isFalse(f.env.IsPlayerK9Wanted(3))
+end)
+
+t.test('SNIFF: nothing is read when sc-dispatch is not running, or when the owner turned it off', function()
+    local f = fixture({ running = {}, mysql = warrantsFor({ SUSPECT = { { type = 'Arrest Warrant' } } }) })
+    t.isNil(f.env.CheckWarrantOnSniff(2, 3))
+    t.equals(#f.queries, 0)
+
+    local g = fixture({ dispatchCfg = { resource = nil }, mysql = warrantsFor({ SUSPECT = { { type = 'Arrest Warrant' } } }) })
+    t.isNil(g.env.CheckWarrantOnSniff(2, 3))
+    t.equals(#g.queries, 0)
+end)
+
+t.test('SNIFF: no background polling -- loading the file reads nothing until someone is sniffed', function()
+    local f = fixture({ mysql = warrantsFor({}) })
+    t.equals(#f.queries, 0)
 end)
 
 os.exit(t.summary())

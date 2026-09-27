@@ -1157,7 +1157,7 @@
         help_task_vehicle_3: "3. To let your K9 back out, open the interact menu on the vehicle again and choose \"Get Out of the Vehicle\".",
         help_task_search_heading: "Search a Suspect or Vehicle",
         help_task_search_1: "1. As the K9, walk up to a person or a vehicle.",
-        help_task_search_2: "2. Open your interact menu and choose \"Search Person for Contraband\" or \"Search Vehicle for Contraband\". Your K9 plays a sniffing animation while the server checks the result.",
+        help_task_search_2: "2. Open your interact menu and choose \"Sniff Person (Contraband & Warrants)\" or \"Search Vehicle for Contraband\". Your K9 plays a sniffing animation while the server checks the result. Sniffing a person also checks the MDT: anyone with an active arrest or bench warrant is marked as a suspect on the spot, so you can go after them.",
         help_task_search_3: "3. This only works while you are playing as the K9 -- a handler cannot search on the K9's behalf.",
         help_task_treat_heading: "Treat an Injured K9",
         help_task_treat_1: "1. This is not limited to handlers -- anyone whose job is set up for it (usually EMS) can do this, as long as they are carrying a K9 medkit item.",

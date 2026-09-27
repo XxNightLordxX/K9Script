@@ -2934,9 +2934,27 @@ Config.Combat = {
     --   * Your dispatch or MDT script runs, on the server:
     --       TriggerEvent('qbx_k9unit:setK9Suspect', playerId, true, minutes)
     --     (false instead of true clears it). Only server scripts can do this.
+    --   * The K9 sniffs them and they have an approved arrest or bench
+    --     warrant in sc-dispatch's MDT (WantedFromDispatch below).
     --   * The override function below says yes.
     -- A mark lasts this many minutes, and ends early if either player leaves.
     SuspectMarkMinutes = 10,
+
+    -- THE SNIFF CHECKS FOR WARRANTS. When a K9 sniffs a person (third eye >
+    -- Search Person) and the resource named here is running, the sniff also
+    -- looks them up in its MDT. An ACTIVE, APPROVED warrant marks them as a
+    -- suspect on the spot, and the K9 and its partner are told. Built for
+    -- sc-dispatch (it reads sc-dispatch's own mdt_warrants table, and like
+    -- sc-dispatch only approved warrants count -- pending and denied never).
+    --   warrantTypes: a warrant counts when its type contains one of these
+    --     words (not case-sensitive). "Arrest Warrant" and "Bench Warrant"
+    --     count; a "Search Warrant" is for a place, not a person, so it
+    --     does not.
+    -- Set resource = nil to turn this off.
+    WantedFromDispatch = {
+        resource = 'sc-dispatch',
+        warrantTypes = { 'arrest', 'bench' },
+    },
 
     -- function(playerId: number) -> boolean, OPTIONAL, nil by default.
     -- Expected to be the NORMAL path for a real server, not the exceptional

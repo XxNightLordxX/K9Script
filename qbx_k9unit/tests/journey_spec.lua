@@ -67,6 +67,8 @@ addPlayer(1, 'CHIEF', 'Chief', 'police', 4, true)
 addPlayer(2, 'DOG', 'Rex', 'police', 1, false)
 addPlayer(3, 'HANDLER', 'Sam', 'police', 1, false)
 addPlayer(4, 'SUSPECT', 'Joe', 'unemployed', 0, false)
+addPlayer(5, 'WANTED', 'Vic', 'unemployed', 0, false)
+players[5].coords = { x = 2.5, y = -0.5, z = 0 }
 players[4].coords = { x = 2.5, y = 0.5, z = 0 }
 local function byPed(ped) for _, p in pairs(players) do if p.ped == ped then return p end end end
 local function byCid(cid) for _, p in pairs(players) do if p.PlayerData.citizenid == cid then return p end end end
@@ -126,7 +128,10 @@ env = setmetatable({
         callback = { register = function(n, fn) callbacks[n] = fn end, await = function() return nil end },
         locale = function() end,
     }, { __index = function(_, k) return magic('lib.' .. k) end }),
-    exports = setmetatable({ qbx_core = qbx }, { __index = function(_, k) return magic('exports.' .. k) end, __call = function() end }),
+    exports = setmetatable({ qbx_core = qbx,
+        -- A stand-in ox_inventory: every export exists and every pocket is empty,
+        -- so a sniff runs to the end (clean) the way it does in game.
+        ox_inventory = setmetatable({}, { __index = function() return function() return {} end end }) }, { __index = function(_, k) return magic('exports.' .. k) end, __call = function() end }),
     MySQL = setmetatable({}, { __index = function(_, k) return magic('MySQL.' .. k) end }),
     PerformHttpRequest = function() end,
     source = 0,
@@ -210,6 +215,24 @@ t.test('4c. Rex searches the suspect', function()
     local r = cb('qbx_k9unit:server:searchTarget', 2, 'person', players[4].ped)
     check(r ~= nil, 'search answered')
     check(r and r.reason ~= 'not_authorized' and r.reason ~= 'invalid_target', 'search allowed: ' .. tostring(r and (r.reason or r.ok)))
+end)
+
+t.test('4c2. Rex sniffs Vic, who has an approved arrest warrant in sc-dispatch -- the sniff marks him and Rex and Sam are told', function()
+    tick(20000)
+    local realMySQL = env.MySQL
+    env.MySQL = setmetatable({ query = { await = function(sql, params)
+        if sql:find('mdt_warrants', 1, true) then
+            return params[1] == 'WANTED' and { { type = 'Arrest Warrant' } } or {}
+        end
+        return realMySQL.query.await(sql, params)
+    end } }, { __index = realMySQL })
+    local r = cb('qbx_k9unit:server:searchTarget', 2, 'person', players[5].ped)
+    env.MySQL = realMySQL
+    check(r and r.ok, 'the sniff finished: ' .. tostring(r and (r.reason or r.ok)))
+    check(lastNotify(2) == env.locale('suspects.warrant_found', 5, 'Arrest Warrant'), 'Rex hears about the warrant, got ' .. tostring(lastNotify(2)))
+    check(lastNotify(3) == env.locale('suspects.warrant_found_partner', 5, 'Arrest Warrant'), 'Sam hears too, got ' .. tostring(lastNotify(3)))
+    check(env.IsPlayerK9Wanted(5), 'Vic is now a suspect')
+    check(not env.IsPlayerK9Wanted(4), 'Joe, with no warrant, is not')
 end)
 
 t.test('4d. Rex tries to bite a player who is NOT wanted -- refused, and told exactly why', function()

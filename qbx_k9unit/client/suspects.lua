@@ -11,6 +11,7 @@ local function CombatNeedsSuspects()
     local features = Config.Features or {}
     if not (Config.Combat and Config.Combat.RequireWantedStatus) then return false end
     return features.BiteAndHold == true or features.NonLethalTakedown == true or features.PropDragging == true
+        or features.PursuitSprint == true
 end
 
 if not CombatNeedsSuspects() then return end

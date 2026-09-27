@@ -94,11 +94,13 @@ Paste this to your players.
 
 **Playing the dog**
 1. Press **Z**, pick **K9 Unit**. Every move you have is in there.
-2. Go after a suspect with Bite (**B**), Takedown (**[**) or Drag (**Y**).
+2. Sniff people with the third eye (**Left Alt** > **Sniff Person**). If
+   they have a warrant in the MDT, they're marked as a suspect right away.
+3. Go after a suspect with Bite (**B**), Takedown (**[**) or Drag (**Y**).
    If they are not marked yet, your handler is asked to mark them. Try
    again once they have.
-3. Sniff things out with scent vision (**.**). Hop in and out of the
-   patrol car with **Vehicle** in the same menu.
+4. Follow scents with scent vision (**.**). Hop in and out of the
+   patrol car with **Vehicle** in the K9 menu.
 
 **Playing the handler**
 1. Stand next to your dog, press **Z**, pick **K9 Unit** > **Partner &
@@ -760,6 +762,13 @@ A K9 can only bite, take down or drag a **player** who is a suspect
 (`Config.Combat.RequireWantedStatus`, on by default). A player becomes
 a suspect when:
 
+- **The K9 sniffs them and they have a warrant.** Third eye (Left Alt)
+  on a person > **Sniff Person (Contraband & Warrants)**. Besides
+  contraband, the sniff looks the person up in sc-dispatch's MDT: an
+  active, approved **arrest** or **bench** warrant marks them as a suspect
+  on the spot, and the dog and its partner are told. Search warrants and
+  warrants still waiting for a judge don't count. Change or turn this off
+  with `Config.Combat.WantedFromDispatch` in `config.lua`.
 - **The handler taps "Mark them".** When a K9 goes after someone who
   is not marked, its handler gets a pop-up: *"Your K9 is trying to go
   after player 4. Mark them now?"*. One tap and the K9 can go.

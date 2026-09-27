@@ -6,7 +6,7 @@
     With Config.Combat.RequireWantedStatus on (the default) a K9 can only act
     on a player who is flagged wanted. A stock Qbox server has nothing that
     sets that flag, so out of the box no player could ever be bitten. This
-    file gives the flag three sources, any one of which is enough:
+    file gives the flag four sources, any one of which is enough:
 
       1. An officer marks the player. Any on-duty member of a department in
          Config.Departments (who is not playing a K9 -- the dog never picks
@@ -18,10 +18,14 @@
          TriggerEvent('qbx_k9unit:setK9Suspect', playerId, true, minutes).
          A plain server event: AddEventHandler, never RegisterNetEvent, so no
          game client can trigger it.
-      3. Config.Combat.WantedStatusCheckOverride returns true, or -- when no
+      3. The K9 sniffs them (third eye > Search Person) and they have an
+         approved arrest or bench warrant in sc-dispatch's MDT
+         (Config.Combat.WantedFromDispatch): the sniff marks them, exactly
+         like an officer's mark. See CheckWarrantOnSniff below.
+      4. Config.Combat.WantedStatusCheckOverride returns true, or -- when no
          override is set -- the player's metadata.wanted / metadata.iswanted.
          An override that errors fails closed for this source only; a mark
-         from 1 or 2 still counts, because it is this server's own record.
+         or warrant from 1-3 still counts, because it is this server's own record.
 
     IsPlayerK9Wanted is the ONE implementation; server/combat.lua and
     server/pursuitsprint.lua both call it (they used to carry two copies).
@@ -219,6 +223,94 @@ RegisterNetEvent('qbx_k9unit:server:answerSuspectAsk', function(targetSrc, yes)
     print(('[qbx_k9unit] K9 suspect mark set on %s by %s (asked by K9 %s)'):format(ask.target, handlerSrc, ask.k9))
 end)
 
+-- ======================================================================
+-- THE SNIFF CHECKS FOR WARRANTS (Config.Combat.WantedFromDispatch).
+-- When a K9 sniffs a person (third eye > Search Person), server/search.lua
+-- calls CheckWarrantOnSniff after the contraband check. If sc-dispatch's MDT
+-- holds an active, APPROVED warrant for that person whose type makes a
+-- person wanted (arrest, bench -- not a search warrant), they are marked as
+-- a suspect on the spot and the K9 and its partner are told. No background
+-- polling: the database is only read when someone is actually sniffed.
+--
+-- sc-dispatch exposes no export or event for warrants, so this reads its
+-- own mdt_warrants table, the same way sc-dispatch's plate reader reads its
+-- BOLOs. "Approved" matches sc-dispatch's own GetCitizenWarrants; COALESCE
+-- covers databases from before it added approval_status, and a database
+-- without that column at all falls back to active = 1. Any read failure
+-- means "no warrant found" -- it never marks anyone.
+-- ======================================================================
+local function DispatchCfg()
+    local cfg = Config.Combat and Config.Combat.WantedFromDispatch
+    if type(cfg) ~= 'table' or type(cfg.resource) ~= 'string' or cfg.resource == '' then return nil end
+    return cfg
+end
+
+--- Does this warrant type make a PERSON wanted (arrest/bench, not search)?
+local function IsPersonWarrantType(warrantType, cfg)
+    local words = type(cfg.warrantTypes) == 'table' and cfg.warrantTypes or { 'arrest', 'bench' }
+    local text = string.lower(tostring(warrantType or 'arrest'))
+    for _, word in ipairs(words) do
+        if type(word) == 'string' and word ~= '' and text:find(string.lower(word), 1, true) then return true end
+    end
+    return false
+end
+
+--- @return table[]? rows -- nil when the MDT could not be read
+local function ReadWarrantRows(citizenid)
+    local ok, rows = pcall(function()
+        return MySQL.query.await("SELECT type FROM mdt_warrants WHERE citizenid = ? AND active = 1 AND COALESCE(approval_status, 'approved') = 'approved'", { citizenid })
+    end)
+    if ok and type(rows) == 'table' then return rows end
+    ok, rows = pcall(function()
+        return MySQL.query.await('SELECT type FROM mdt_warrants WHERE citizenid = ? AND active = 1', { citizenid })
+    end)
+    if ok and type(rows) == 'table' then return rows end
+    print(('[qbx_k9unit] Could not read warrants from the MDT (mdt_warrants): %s'):format(tostring(rows)))
+    return nil
+end
+
+--- The other half of `src`'s partnership, when they are online (either side).
+local function PartnerSrcOf(src)
+    if type(GetActivePartnerCitizenId) ~= 'function' then return nil end
+    local player = exports.qbx_core:GetPlayer(src)
+    local cid = player and player.PlayerData and player.PlayerData.citizenid
+    if not cid then return nil end
+    local partnerCid = GetActivePartnerCitizenId(cid)
+    if not partnerCid then return nil end
+    local partner = exports.qbx_core:GetPlayerByCitizenId(partnerCid)
+    return partner and partner.PlayerData and partner.PlayerData.source or nil
+end
+
+--- Called by server/search.lua when `sniffSrc` has just sniffed the player
+--- `targetSrc`. Yields (one MySQL read) -- only call it after the search has
+--- committed everything it needs to.
+--- @return string? warrantType -- the warrant found, or nil
+function CheckWarrantOnSniff(sniffSrc, targetSrc)
+    local cfg = DispatchCfg()
+    if not cfg or GetResourceState(cfg.resource) ~= 'started' or type(MySQL) ~= 'table' then return nil end
+    local target = exports.qbx_core:GetPlayer(targetSrc)
+    local cid = target and target.PlayerData and target.PlayerData.citizenid
+    if type(cid) ~= 'string' or cid == '' then return nil end
+
+    local rows = ReadWarrantRows(cid)
+    if not rows then return nil end
+    local found
+    for _, row in ipairs(rows) do
+        if IsPersonWarrantType(row.type, cfg) then found = tostring(row.type or 'Arrest'); break end
+    end
+    if found and not found:lower():find('warrant', 1, true) then
+        found = found .. ' Warrant' -- older sc-dispatch rows say just "Arrest"
+    end
+    if not found then return nil end
+
+    SetMark(targetSrc, true, nil, sniffSrc)
+    NotifyPlayer(sniffSrc, locale('suspects.warrant_found', targetSrc, found), 'success')
+    local partnerSrc = PartnerSrcOf(sniffSrc)
+    if partnerSrc then NotifyPlayer(partnerSrc, locale('suspects.warrant_found_partner', targetSrc, found), 'inform') end
+    print(('[qbx_k9unit] Warrant found by sniff: %s (%s) marked as a suspect, sniffed by %s'):format(targetSrc, found, sniffSrc))
+    return found
+end
+
 RegisterNetEvent('qbx_k9unit:server:toggleSuspectMark', function(targetSrc)
     ToggleK9SuspectMark(source, targetSrc)
 end)
@@ -227,6 +319,10 @@ RegisterCommand('k9suspect', function(source, args)
     if source <= 0 then return end
     local targetSrc = tonumber(args and args[1])
     if not targetSrc then
+        if not (Config.Combat and Config.Combat.RequireWantedStatus) then
+            NotifyPlayer(source, locale('suspects.not_needed'), 'inform')
+            return
+        end
         -- No ID typed: mark whoever is standing nearest (the client picks,
         -- skipping dogs; the server re-checks everything as usual).
         TriggerClientEvent('qbx_k9unit:client:markNearestSuspect', source)

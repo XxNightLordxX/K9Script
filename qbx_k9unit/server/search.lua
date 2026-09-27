@@ -1924,6 +1924,18 @@ local function HandleSearchTarget(source, targetType, targetNetId, requestedAt)
     -- allowed to appear (security review §6). Applies identically when
     -- Config.Features.ContrabandAlerts == false (§11.5: that flag gates
     -- the broadcast above, not the requester's own result here).
+    -- THE SNIFF CHECKS FOR WARRANTS (server/suspects.lua): a person with an
+    -- approved arrest/bench warrant in the dispatch MDT is marked as a
+    -- suspect right here. Placed last, after everything above has
+    -- committed, because it reads the database; pcall so a problem there
+    -- can never turn a finished search into a failed one.
+    if targetType == 'person' and targetServerId and type(CheckWarrantOnSniff) == 'function' then
+        local warrantOk, warrantErr = pcall(CheckWarrantOnSniff, source, targetServerId)
+        if not warrantOk then
+            print(('[qbx_k9unit] search: warrant check errored for target %s: %s'):format(tostring(targetServerId), tostring(warrantErr)))
+        end
+    end
+
     return {
         ok = true,
         contrabandFound = contrabandFound,

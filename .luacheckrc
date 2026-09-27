@@ -1067,7 +1067,7 @@ globals = {
     "IsFetchCarryEngaged", "IsMyFetchBallOut", "FetchContextual", "ReleaseFetchBall", "RequestRecallFetchBall", "RequestThrowFetchBall",
     -- server/suspects.lua -- officer suspect marks and the one wanted-status check
     "IsPlayerK9Wanted", "IsK9SuspectMarked", "ToggleK9SuspectMark", "AskHandlerToMarkSuspect",
-    "MarkNearestSuspect", "CanMarkSuspectsHere",
+    "MarkNearestSuspect", "CanMarkSuspectsHere", "CheckWarrantOnSniff",
     -- server/cooldowns.lua constructors
     "NewCooldown", "NewNestedCooldown", "NewMutex",
     -- server/notify.lua -- shared ox_lib notify wrapper, replacing 12
