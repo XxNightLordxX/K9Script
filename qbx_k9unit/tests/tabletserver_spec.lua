@@ -2987,4 +2987,308 @@ t.test('ROUND TRIP: a BLOCK made through the REAL tabletGrantPermission (block.<
     t.equals(row.state, 'blocked', 'block must win over an active grant, matching the documented precedence order')
 end)
 
+-- ============================================================================
+-- THE PARTNERS TAB -- tabletRequestMyPartnerships (CALLBACK 7),
+-- tabletRequestPartnershipsForTarget (CALLBACK 8), tabletForceEndPartnership
+-- (CALLBACK 9). Real K9Store in memory mode for 7/8, so the history rows are
+-- the store's own, not a hand-built stub. 9 stubs its one delegate,
+-- ForceBreakPartnershipForCitizenId, so a test can see exactly what the
+-- handler asked it to do (the delegate itself is covered in
+-- tests/partnership_spec.lua).
+-- ============================================================================
+
+local function partnersConfig(featureOn)
+    return {
+        Features = { CommandTablet = true, HandlerPartnership = featureOn ~= false },
+        Departments = {}, Permissions = {},
+        FeatureControl = { everyoneCanViewOwnRecord = true },
+        CommandTablet = {},
+        Database = { enabled = false },
+    }
+end
+
+--- @param f table
+--- @param k9Cid string
+--- @param handlerCid string
+--- @param endedBy string? -- nil leaves the partnership active
+local function seedPartnership(f, k9Cid, handlerCid, endedBy)
+    local id = f.env.K9Store.Partner_Insert(k9Cid, handlerCid, handlerCid)
+    if endedBy then f.env.K9Store.Partner_EndById(id, endedBy) end
+    return id
+end
+
+t.test('Partners tab: all three partnership callbacks are registered when the tablet is on', function()
+    local f = newFixture({ config = partnersConfig() })
+    t.isNotNil(f.callbacks['qbx_k9unit:server:tabletRequestMyPartnerships'])
+    t.isNotNil(f.callbacks['qbx_k9unit:server:tabletRequestPartnershipsForTarget'])
+    t.isNotNil(f.callbacks['qbx_k9unit:server:tabletForceEndPartnership'])
+end)
+
+-- ---- CALLBACK 7: my own history ----
+
+t.test('tabletRequestMyPartnerships: returns the caller\'s whole history across BOTH roles, newest first, with partner names and who ended each one', function()
+    local f = newFixture({ config = partnersConfig() })
+    local src = f.registerPlayer(1, 'ME', { name = 'police', grade = { level = 1 } }, { firstname = 'Sam', lastname = 'Handler' })
+    f.registerPlayer(2, 'DOG-A', { name = 'police', grade = { level = 1 } }, { firstname = 'Rex', lastname = 'Dog' })
+    f.registerOfflinePlayer('DOG-B', { firstname = 'Max', lastname = 'Dog' })
+    f.registerOfflinePlayer('OFFICER-X', { firstname = 'Old', lastname = 'Partner' })
+
+    -- 1st: I was the handler, I ended it myself.
+    seedPartnership(f, 'DOG-B', 'ME', 'ME')
+    -- 2nd: I was the K9 (role is per partnership), ended automatically.
+    seedPartnership(f, 'ME', 'OFFICER-X', 'system:certification_revoked')
+    -- 3rd: still active, I am the handler.
+    seedPartnership(f, 'DOG-A', 'ME', nil)
+
+    local result = cb(f, 'qbx_k9unit:server:tabletRequestMyPartnerships')(src)
+    t.isTrue(result.ok)
+    t.isTrue(result.featureEnabled)
+    t.isFalse(result.truncated)
+    t.equals(#result.partnerships, 3)
+
+    local newest, middle, oldest = result.partnerships[1], result.partnerships[2], result.partnerships[3]
+    t.equals(newest.partnerCitizenid, 'DOG-A')
+    t.equals(newest.partnerName, 'Rex Dog')
+    t.equals(newest.role, 'handler')
+    t.isTrue(newest.active)
+    t.isNil(newest.endedByName)
+    t.isNil(newest.endedBySystemReason)
+
+    t.equals(middle.partnerCitizenid, 'OFFICER-X')
+    t.equals(middle.partnerName, 'Old Partner', 'an OFFLINE past partner still resolves to a name')
+    t.equals(middle.role, 'k9')
+    t.isFalse(middle.active)
+    t.equals(middle.endedBySystemReason, 'certification_revoked')
+    t.isNil(middle.endedByName, 'a system teardown never shows a person as the one who ended it')
+
+    t.equals(oldest.partnerCitizenid, 'DOG-B')
+    t.equals(oldest.role, 'handler')
+    t.equals(oldest.endedByName, 'Sam Handler')
+    t.isNil(oldest.endedBySystemReason)
+end)
+
+t.test('tabletRequestMyPartnerships: SECURITY -- never includes a partnership the caller was not part of', function()
+    local f = newFixture({ config = partnersConfig() })
+    local src = f.registerPlayer(1, 'ME', { name = 'police', grade = { level = 1 } })
+    seedPartnership(f, 'OTHER-DOG', 'OTHER-HANDLER', nil)
+    seedPartnership(f, 'OTHER-DOG-2', 'OTHER-HANDLER-2', 'OTHER-HANDLER-2')
+
+    local result = cb(f, 'qbx_k9unit:server:tabletRequestMyPartnerships')(src)
+    t.isTrue(result.ok)
+    t.equals(#result.partnerships, 0)
+end)
+
+t.test('tabletRequestMyPartnerships: feature off -- ok, but flagged off and empty, even when history exists', function()
+    local f = newFixture({ config = partnersConfig(false) })
+    local src = f.registerPlayer(1, 'ME', { name = 'police', grade = { level = 1 } })
+    seedPartnership(f, 'DOG', 'ME', nil)
+
+    local result = cb(f, 'qbx_k9unit:server:tabletRequestMyPartnerships')(src)
+    t.isTrue(result.ok)
+    t.isFalse(result.featureEnabled)
+    t.equals(#result.partnerships, 0)
+end)
+
+t.test('tabletRequestMyPartnerships: an unresolvable caller is refused; everyoneCanViewOwnRecord=false refuses a non-high-command caller but not high command', function()
+    local f = newFixture({ config = partnersConfig() })
+    t.equals(cb(f, 'qbx_k9unit:server:tabletRequestMyPartnerships')(999).error, 'not_authorized')
+
+    local cfg = partnersConfig()
+    cfg.FeatureControl.everyoneCanViewOwnRecord = false
+    local g = newFixture({ config = cfg, isHighCommand = function(s) return s == 2 end })
+    g.registerPlayer(1, 'OFFICER', { name = 'police', grade = { level = 1 } })
+    g.registerPlayer(2, 'CHIEF', { name = 'police', grade = { level = 6 } })
+    t.equals(cb(g, 'qbx_k9unit:server:tabletRequestMyPartnerships')(1).error, 'not_authorized')
+    t.isTrue(cb(g, 'qbx_k9unit:server:tabletRequestMyPartnerships')(2).ok, 'high command always sees their own record')
+end)
+
+t.test('tabletRequestMyPartnerships: rate limited per caller, and allowed again once the window passes', function()
+    local f = newFixture({ config = partnersConfig() })
+    local src = f.registerPlayer(1, 'ME', { name = 'police', grade = { level = 1 } })
+    local fn = cb(f, 'qbx_k9unit:server:tabletRequestMyPartnerships')
+    t.isTrue(fn(src).ok)
+    t.equals(fn(src).error, 'rate_limited')
+    f.fakeNow.value = f.fakeNow.value + 1000
+    t.isTrue(fn(src).ok)
+end)
+
+-- ---- CALLBACK 8: high command looks up anyone ----
+
+t.test('tabletRequestPartnershipsForTarget: refused for a non-high-command caller, and the target\'s history is never built', function()
+    local f = newFixture({ config = partnersConfig() })
+    f.registerPlayer(1, 'OFFICER', { name = 'police', grade = { level = 1 } })
+    seedPartnership(f, 'DOG', 'TARGET', nil)
+
+    local result = cb(f, 'qbx_k9unit:server:tabletRequestPartnershipsForTarget')(1, 'TARGET')
+    t.isFalse(result.ok)
+    t.equals(result.error, 'not_authorized')
+    t.isNil(result.partnerships)
+end)
+
+t.test('tabletRequestPartnershipsForTarget: high command gets the TARGET\'s history (not their own), with the target\'s name', function()
+    local f = newFixture({ config = partnersConfig(), isHighCommand = function() return true end })
+    f.registerPlayer(1, 'CHIEF', { name = 'police', grade = { level = 6 } })
+    f.registerOfflinePlayer('TARGET', { firstname = 'Tara', lastname = 'Get' })
+    seedPartnership(f, 'DOG', 'TARGET', nil)
+    seedPartnership(f, 'CHIEFS-DOG', 'CHIEF', nil) -- the caller's own must not leak in
+
+    local result = cb(f, 'qbx_k9unit:server:tabletRequestPartnershipsForTarget')(1, 'TARGET')
+    t.isTrue(result.ok)
+    t.equals(result.target.citizenid, 'TARGET')
+    t.equals(result.target.name, 'Tara Get')
+    t.equals(#result.partnerships, 1)
+    t.equals(result.partnerships[1].partnerCitizenid, 'DOG')
+    t.equals(result.partnerships[1].role, 'handler')
+end)
+
+t.test('tabletRequestPartnershipsForTarget: bad target ids are rejected before anything else', function()
+    local f = newFixture({ config = partnersConfig(), isHighCommand = function() return true end })
+    f.registerPlayer(1, 'CHIEF', { name = 'police', grade = { level = 6 } })
+    local fn = cb(f, 'qbx_k9unit:server:tabletRequestPartnershipsForTarget')
+    t.equals(fn(1, nil).error, 'invalid_args')
+    t.equals(fn(1, '').error, 'invalid_args')
+    t.equals(fn(1, 12345).error, 'invalid_args')
+    t.equals(fn(1, string.rep('X', 51)).error, 'invalid_args')
+end)
+
+t.test('tabletRequestPartnershipsForTarget: feature off -- ok and flagged off, target still named', function()
+    local f = newFixture({ config = partnersConfig(false), isHighCommand = function() return true end })
+    f.registerPlayer(1, 'CHIEF', { name = 'police', grade = { level = 6 } })
+    local result = cb(f, 'qbx_k9unit:server:tabletRequestPartnershipsForTarget')(1, 'TARGET')
+    t.isTrue(result.ok)
+    t.isFalse(result.featureEnabled)
+    t.equals(result.target.citizenid, 'TARGET')
+    t.equals(#result.partnerships, 0)
+end)
+
+-- ---- CALLBACK 9: high command force-ends a partnership ----
+
+--- @return table fixture, table calls -- every ForceBreakPartnershipForCitizenId call, as { citizenid, reason, actor }
+local function forceEndFixture(opts)
+    opts = opts or {}
+    local f = newFixture({ config = partnersConfig(), isHighCommand = opts.isHighCommand or function() return true end })
+    local calls = {}
+    f.env.ForceBreakPartnershipForCitizenId = function(cid, reason, actor)
+        calls[#calls + 1] = { cid, reason, actor }
+        if opts.result ~= nil then return opts.result end
+        return true
+    end
+    return f, calls
+end
+
+t.test('tabletForceEndPartnership: a non-high-command caller is refused and nothing is torn down', function()
+    local f, calls = forceEndFixture({ isHighCommand = function() return false end })
+    f.registerPlayer(1, 'OFFICER', { name = 'police', grade = { level = 1 } })
+    local result = cb(f, 'qbx_k9unit:server:tabletForceEndPartnership')(1, 'TARGET')
+    t.isFalse(result.ok)
+    t.equals(result.error, 'not_authorized')
+    t.equals(#calls, 0)
+end)
+
+t.test('tabletForceEndPartnership: bad target ids are rejected and nothing is torn down', function()
+    local f, calls = forceEndFixture()
+    f.registerPlayer(1, 'CHIEF', { name = 'police', grade = { level = 6 } })
+    local fn = cb(f, 'qbx_k9unit:server:tabletForceEndPartnership')
+    t.equals(fn(1, nil).error, 'invalid_args')
+    t.equals(fn(1, '').error, 'invalid_args')
+    t.equals(fn(1, {}).error, 'invalid_args')
+    t.equals(fn(1, string.rep('X', 51)).error, 'invalid_args')
+    t.equals(#calls, 0)
+end)
+
+t.test('tabletForceEndPartnership: records WHICH officer ended it -- the caller\'s own citizenid, resolved server-side -- never "system"', function()
+    local f, calls = forceEndFixture()
+    f.registerPlayer(1, 'CHIEF-CID', { name = 'police', grade = { level = 6 } })
+    local result = cb(f, 'qbx_k9unit:server:tabletForceEndPartnership')(1, 'TARGET')
+    t.isTrue(result.ok)
+    t.equals(#calls, 1)
+    t.equals(calls[1][1], 'TARGET')
+    t.equals(calls[1][2], 'admin_forced_from_tablet', 'the reason tag both players are told about is unchanged')
+    t.equals(calls[1][3], 'CHIEF-CID', 'the officer must be named in the partnership history')
+end)
+
+t.test('tabletForceEndPartnership: a high-command caller the server cannot identify is refused -- an action on two other players must be attributable', function()
+    local f, calls = forceEndFixture()
+    -- source 7 passes IsHighCommand (the stub says yes to everyone) but has no player record.
+    local result = cb(f, 'qbx_k9unit:server:tabletForceEndPartnership')(7, 'TARGET')
+    t.isFalse(result.ok)
+    t.equals(result.error, 'not_authorized')
+    t.equals(#calls, 0)
+end)
+
+t.test('tabletForceEndPartnership: rate limited per officer -- a second press inside 1.5s is refused, and allowed again after', function()
+    local f, calls = forceEndFixture()
+    f.registerPlayer(1, 'CHIEF', { name = 'police', grade = { level = 6 } })
+    f.registerPlayer(2, 'DEPUTY-CHIEF', { name = 'police', grade = { level = 6 } })
+    local fn = cb(f, 'qbx_k9unit:server:tabletForceEndPartnership')
+
+    t.isTrue(fn(1, 'TARGET-1').ok)
+    local second = fn(1, 'TARGET-2')
+    t.isFalse(second.ok)
+    t.equals(second.error, 'rate_limited')
+    t.equals(#calls, 1, 'the refused press tore nothing down')
+
+    t.isTrue(fn(2, 'TARGET-2').ok, 'the cooldown is per officer -- a different officer is not blocked')
+
+    f.fakeNow.value = f.fakeNow.value + 1500
+    t.isTrue(fn(1, 'TARGET-3').ok, 'the same officer can act again once the window has passed')
+    t.equals(#calls, 3)
+end)
+
+t.test('tabletForceEndPartnership: a refused (non-high-command) press does not start the cooldown for that source', function()
+    local allow = false
+    local f, calls = forceEndFixture({ isHighCommand = function() return allow end })
+    f.registerPlayer(1, 'OFFICER', { name = 'police', grade = { level = 1 } })
+    local fn = cb(f, 'qbx_k9unit:server:tabletForceEndPartnership')
+    t.equals(fn(1, 'TARGET').error, 'not_authorized')
+    allow = true -- promoted between presses, same instant
+    t.isTrue(fn(1, 'TARGET').ok)
+    t.equals(#calls, 1)
+end)
+
+t.test('tabletForceEndPartnership: target has no active partnership -> not_partnered', function()
+    local f = forceEndFixture({ result = false })
+    f.registerPlayer(1, 'CHIEF', { name = 'police', grade = { level = 6 } })
+    local result = cb(f, 'qbx_k9unit:server:tabletForceEndPartnership')(1, 'NOBODY')
+    t.isFalse(result.ok)
+    t.equals(result.error, 'not_partnered')
+end)
+
+t.test('tabletForceEndPartnership: partnership system not loaded -> not_available, not a crash', function()
+    local f = newFixture({ config = partnersConfig(), isHighCommand = function() return true end })
+    f.registerPlayer(1, 'CHIEF', { name = 'police', grade = { level = 6 } })
+    f.env.ForceBreakPartnershipForCitizenId = nil
+    local result = cb(f, 'qbx_k9unit:server:tabletForceEndPartnership')(1, 'TARGET')
+    t.isFalse(result.ok)
+    t.equals(result.error, 'not_available')
+end)
+
+t.test('Partners tab END TO END: a force-end by high command shows up in BOTH players\' history as ended by that officer, by name', function()
+    local f = newFixture({ config = partnersConfig(), isHighCommand = function(s) return s == 1 end })
+    f.registerPlayer(1, 'CHIEF', { name = 'police', grade = { level = 6 } }, { firstname = 'Chief', lastname = 'Allday' })
+    local handlerSrc = f.registerPlayer(2, 'HANDLER', { name = 'police', grade = { level = 1 } })
+    local k9Src = f.registerPlayer(3, 'DOG', { name = 'police', grade = { level = 1 } })
+    local id = seedPartnership(f, 'DOG', 'HANDLER', nil)
+
+    -- The real primitive's job, done against the real store: end the
+    -- active row with whatever ended_by the handler passed.
+    f.env.ForceBreakPartnershipForCitizenId = function(cid, _reason, actor)
+        local row = f.env.K9Store.Partner_GetActiveRowByParty(cid)
+        if not row then return false end
+        return f.env.K9Store.Partner_EndById(row.id, actor) == 1
+    end
+
+    t.isTrue(cb(f, 'qbx_k9unit:server:tabletForceEndPartnership')(1, 'HANDLER').ok)
+
+    for _, src in ipairs({ handlerSrc, k9Src }) do
+        local mine = cb(f, 'qbx_k9unit:server:tabletRequestMyPartnerships')(src)
+        t.isTrue(mine.ok)
+        t.equals(#mine.partnerships, 1)
+        t.equals(mine.partnerships[1].id, id)
+        t.isFalse(mine.partnerships[1].active)
+        t.equals(mine.partnerships[1].endedByName, 'Chief Allday', 'the history names the officer who ended it')
+        t.isNil(mine.partnerships[1].endedBySystemReason)
+    end
+end)
+
 os.exit(t.summary())

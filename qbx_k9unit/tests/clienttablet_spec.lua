@@ -1180,6 +1180,123 @@ t.test('tablet:certify: requires both targetCitizenId and departmentKey, forward
     t.equals(f.callbackCallLog[1].args[2], 'police')
 end)
 
+-- ----------------------------------------------------------------------
+-- Certification depth bridges -- tier, renewal, specialization grant/
+-- revoke. Each forwards to its server/certifications/commands.lua callback
+-- in that callback's exact argument order, and refuses a malformed payload
+-- before any round trip.
+-- ----------------------------------------------------------------------
+
+local CERT_DEPTH_BRIDGES = {
+    { nui = 'tablet:setCertificationTier', server = 'qbx_k9unit:server:tabletSetCertificationTier',
+      payload = { targetCitizenId = 'ABC', departmentKey = 'police', tier = 'senior' }, order = { 'targetCitizenId', 'departmentKey', 'tier' } },
+    { nui = 'tablet:renewCertification', server = 'qbx_k9unit:server:tabletRenewCertification',
+      payload = { targetCitizenId = 'ABC', departmentKey = 'police' }, order = { 'targetCitizenId', 'departmentKey' } },
+    { nui = 'tablet:grantSpecialization', server = 'qbx_k9unit:server:tabletGrantSpecialization',
+      payload = { targetCitizenId = 'ABC', departmentKey = 'police', specialization = 'narcotics' }, order = { 'targetCitizenId', 'departmentKey', 'specialization' } },
+    { nui = 'tablet:revokeSpecialization', server = 'qbx_k9unit:server:tabletRevokeSpecialization',
+      payload = { targetCitizenId = 'ABC', departmentKey = 'police', specialization = 'narcotics' }, order = { 'targetCitizenId', 'departmentKey', 'specialization' } },
+}
+
+for _, bridge in ipairs(CERT_DEPTH_BRIDGES) do
+    t.test(bridge.nui .. ': forwards every field to the server callback in its exact argument order', function()
+        local f = newTabletFixture()
+        f.setServerCallback(bridge.server, { ok = true })
+        local result = f.callNui(bridge.nui, bridge.payload)
+        t.isTrue(result.ok)
+        t.equals(#f.callbackCallLog, 1)
+        t.equals(f.callbackCallLog[1].name, bridge.server)
+        for i, field in ipairs(bridge.order) do
+            t.equals(f.callbackCallLog[1].args[i], bridge.payload[field], 'argument ' .. i .. ' must be ' .. field)
+        end
+    end)
+
+    t.test(bridge.nui .. ': a missing or empty field is refused before any server round trip', function()
+        local f = newTabletFixture()
+        t.equals(f.callNui(bridge.nui, nil).error, 'invalid_args')
+        for _, field in ipairs(bridge.order) do
+            for _, bad in ipairs({ false, '', 12 }) do
+                local payload = {}
+                for k, v in pairs(bridge.payload) do payload[k] = v end
+                if bad == false then payload[field] = nil else payload[field] = bad end
+                t.equals(f.callNui(bridge.nui, payload).error, 'invalid_args', field .. '=' .. tostring(bad))
+            end
+        end
+        t.equals(#f.callbackCallLog, 0)
+    end)
+
+    t.test(bridge.nui .. ': a server refusal is passed through untouched, so the tablet can say why', function()
+        local f = newTabletFixture()
+        f.setServerCallback(bridge.server, { ok = false, error = 'requires_active_cert', message = 'They need an active certification first.' })
+        local result = f.callNui(bridge.nui, bridge.payload)
+        t.isFalse(result.ok)
+        t.equals(result.error, 'requires_active_cert')
+        t.equals(result.message, 'They need an active certification first.')
+    end)
+end
+
+-- ----------------------------------------------------------------------
+-- Permission-key catalog bridges -- server/permissionkeycatalog.lua's
+-- permKeysUpsert/permKeysDelete, which answer with `reason`; the bridge
+-- translates that to the `error` field html/tablet.js reads.
+-- ----------------------------------------------------------------------
+
+t.test('tablet:permKeysUpsert: missing/empty key is refused before any round trip', function()
+    local f = newTabletFixture()
+    t.equals(f.callNui('tablet:permKeysUpsert', nil).error, 'invalid_args')
+    t.equals(f.callNui('tablet:permKeysUpsert', {}).error, 'invalid_args')
+    t.equals(f.callNui('tablet:permKeysUpsert', { key = '' }).error, 'invalid_args')
+    t.equals(f.callNui('tablet:permKeysUpsert', { key = 5 }).error, 'invalid_args')
+    t.equals(#f.callbackCallLog, 0)
+end)
+
+t.test('tablet:permKeysUpsert: forwards the whole payload, and a field REFUSAL comes back as error + field', function()
+    local f = newTabletFixture()
+    f.setServerCallback('qbx_k9unit:server:permKeysUpsert', { ok = false, reason = 'invalid_label', field = 'label' })
+    local payload = { key = 'k9.narcotics', label = '', description = 'Narcotics search' }
+    local result = f.callNui('tablet:permKeysUpsert', payload)
+    t.isFalse(result.ok)
+    t.equals(result.error, 'invalid_label')
+    t.equals(result.field, 'label')
+    t.isNil(result.reason, 'the raw server `reason` is translated away, not left for the page to guess at')
+    t.equals(f.callbackCallLog[1].name, 'qbx_k9unit:server:permKeysUpsert')
+    t.equals(f.callbackCallLog[1].args[1].key, 'k9.narcotics')
+    t.equals(f.callbackCallLog[1].args[1].description, 'Narcotics search')
+end)
+
+t.test('tablet:permKeysUpsert: success forwards the refreshed catalog', function()
+    local f = newTabletFixture()
+    f.setServerCallback('qbx_k9unit:server:permKeysUpsert', { ok = true, keys = { { key = 'k9.narcotics', label = 'Narcotics' } } })
+    local result = f.callNui('tablet:permKeysUpsert', { key = 'k9.narcotics', label = 'Narcotics' })
+    t.isTrue(result.ok)
+    t.equals(result.keys[1].key, 'k9.narcotics')
+end)
+
+t.test('tablet:permKeysDelete: missing/empty key is refused before any round trip', function()
+    local f = newTabletFixture()
+    t.equals(f.callNui('tablet:permKeysDelete', nil).error, 'invalid_args')
+    t.equals(f.callNui('tablet:permKeysDelete', {}).error, 'invalid_args')
+    t.equals(f.callNui('tablet:permKeysDelete', { key = '' }).error, 'invalid_args')
+    t.equals(#f.callbackCallLog, 0)
+end)
+
+t.test('tablet:permKeysDelete: forwards the bare key, and "reserved_namespace" comes back as a readable error code', function()
+    local f = newTabletFixture()
+    f.setServerCallback('qbx_k9unit:server:permKeysDelete', { ok = false, reason = 'reserved_namespace' })
+    local result = f.callNui('tablet:permKeysDelete', { key = 'feature.BiteAndHold' })
+    t.isFalse(result.ok)
+    t.equals(result.error, 'reserved_namespace')
+    t.equals(f.callbackCallLog[1].args[1], 'feature.BiteAndHold')
+end)
+
+t.test('tablet:permKeysDelete: a server that never answers is reported as a failure, never a silent success', function()
+    local f = newTabletFixture()
+    -- no setServerCallback: the fixture's lib.callback.await throws
+    local result = f.callNui('tablet:permKeysDelete', { key = 'k9.narcotics' })
+    t.isFalse(result.ok)
+    t.isNotNil(result.error)
+end)
+
 t.test('tablet:givexp: amount must be a number', function()
     local f = newTabletFixture()
     t.equals(f.callNui('tablet:givexp', { targetCitizenId = 'ABC', amount = '500' }).error, 'invalid_args')

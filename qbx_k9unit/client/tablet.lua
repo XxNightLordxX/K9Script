@@ -1438,10 +1438,10 @@ local TABLET_STRING_KEYS = {
     -- renewal/specialization/givexp/permission/feature/role-mutation
     -- refusal. LANDED (verified directly against locales/en.json's
     -- `tablet` group, same posture as the GUIDED FLOWS block just above):
-    -- these 35 keys used to be NOT YET present as of the pass that added
+    -- these keys used to be NOT YET present as of the pass that added
     -- them, flagged to that file's owner -- they have since been added, so
     -- BuildTabletStrings() now resolves every one of them for real.
-    'action_submitted', 'mutation_error_invalid_target', 'mutation_error_invalid_department', 'mutation_error_department_mismatch',
+    'mutation_error_invalid_target', 'mutation_error_invalid_department', 'mutation_error_department_mismatch',
     'mutation_error_not_eligible', 'mutation_error_denied', 'mutation_error_rate_limited', 'mutation_error_busy',
     'mutation_error_self_certification_disabled', 'mutation_error_self_grant_blocked', 'mutation_error_target_must_be_online', 'mutation_error_target_not_in_department',
     'mutation_error_target_too_far', 'mutation_error_target_not_k9_model', 'mutation_error_model_check_requires_online', 'mutation_error_target_online_use_online_action',

@@ -11682,20 +11682,9 @@
      * ok/fail) so callers can refresh whatever data the mutation might have
      * changed -- this page NEVER optimistically mutates its own local copy
      * of server state; every action re-pulls the authoritative version.
-     * HISTORICAL NOTE (docs/history/COMMAND_CONSOLIDATION_SPEC.md §6 bugfix, this pass):
-     * a successful `result.submitted === true` used to render a distinct
-     * "submitted, refreshing to confirm" notice for tablet:decertify's own
-     * former fire-and-forget command bridge (`ok:true` there meant only
-     * "the command was handed off," never "the decertify actually
-     * happened"). tablet:decertify now calls a real server callback
-     * (RevokeCertificationForTablet, symmetric with tablet:certify) that
-     * returns a genuine `{ ok, error? }` outcome like every other mutation
-     * here, so nothing sets `result.submitted` anymore -- the branch below
-     * is kept, inert, rather than deleted, in case a FUTURE mutation ever
-     * needs the identical honest-fire-and-forget framing again; it is not
-     * dead in the "unreachable but still wired up" sense this project
-     * warns about elsewhere, since reaching it requires a caller to
-     * deliberately opt back into setting `submitted` on its own result.
+     * Every mutation, tablet:decertify included, answers from a real server
+     * callback with a genuine `{ ok, error? }` outcome, so `ok: true` always
+     * means the change actually happened.
      * @param {string} nuiName
      * @param {object} payload
      * @param {() => void} onSettled
@@ -11710,7 +11699,7 @@
             state.pendingAction = false;
             if (result && result.ok === true) {
                 var successText = (typeof result.message === 'string' && result.message.length > 0) ? result.message
-                    : (result.submitted === true ? S('action_submitted') : S('action_succeeded'));
+                    : S('action_succeeded');
                 state.actionNotice = { kind: 'ok', text: successText };
             } else {
                 state.actionNotice = { kind: 'error', text: mutationErrorText(result) };

@@ -306,7 +306,6 @@
     "flow_tuning_overview_xp_template": "{count} XP rank(s) configured.",
     "flow_tuning_overview_shop_template": "{count} shop item(s) configured.",
     "flow_tuning_overview_not_loaded": "Not loaded yet -- open this step to load it.",
-    "action_submitted": "Submitted. Refreshing to confirm...",
     "mutation_error_invalid_target": "That target could not be resolved. Refresh this screen and try again.",
     "mutation_error_invalid_department": "That department is not configured on this server.",
     "mutation_error_department_mismatch": "This person's live job no longer matches this department. Refresh their record and try again.",

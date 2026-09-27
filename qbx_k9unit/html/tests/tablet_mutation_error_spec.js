@@ -25,11 +25,9 @@
          state.myRecord, so Home/My Record never keep showing a stale copy
          of the SAME underlying data until the viewer happens to click one
          of those two tabs directly.
-      4. tablet:decertify's fire-and-forget command bridge (client/
-         tablet.lua's own SubmitAllowlistedCommand) reports `submitted`,
-         not a confirmed success -- this page must show an honestly weaker
-         notice for that one case, never claim the same guarantee an
-         actually-confirmed mutation (e.g. tablet:certify) gets.
+      4. tablet:decertify answers from a real server callback, like
+         tablet:certify, so its success notice is the same confirmed
+         "Done." -- there is no weaker "submitted" state left to show.
 */
 'use strict';
 
@@ -336,11 +334,11 @@ t.test('giving XP to YOURSELF (allowSelfGrant on) also re-fetches tablet:request
 });
 
 // ======================================================================
-// HONEST SUCCESS: tablet:decertify's fire-and-forget bridge reports
-// `submitted`, not a confirmed success, and this page must say so.
+// CONFIRMED SUCCESS: tablet:decertify is a real server callback, so a
+// success is shown exactly like every other confirmed mutation.
 // ======================================================================
 
-t.test('tablet:decertify success carrying submitted:true renders "Submitted..." text, distinct from an ordinary confirmed mutation\'s "Done."', async () => {
+t.test('tablet:decertify success renders the same confirmed "Done." notice as tablet:certify', async () => {
     const h = createHarness({
         fetchImpl: routeFetch(baseHandlers({
             'tablet:requestPersonSummary': () => ({
@@ -348,7 +346,7 @@ t.test('tablet:decertify success carrying submitted:true renders "Submitted..." 
                 certifications: [{ departmentKey: 'police', departmentLabel: 'Police', active: true, grantedBy: null }],
                 xp: 0, tierLabel: null, permissions: [],
             }),
-            'tablet:decertify': () => ({ ok: true, submitted: true }),
+            'tablet:decertify': () => ({ ok: true }),
         })),
     });
     await openPersonScreen(h);
@@ -366,11 +364,11 @@ t.test('tablet:decertify success carrying submitted:true renders "Submitted..." 
     decertifyBtn.click(); // confirm
     await new Promise((r) => setTimeout(r, 30));
 
-    t.isTrue(findByText(h.getRoot(), 'Submitted. Refreshing to confirm...').length >= 1, 'the fire-and-forget bridge\'s own honest notice is shown');
-    t.equals(findByText(h.getRoot(), 'Done.').length, 0, 'never claims the stronger, confirmed-success notice for a merely-submitted command');
+    t.isTrue(h.fetchCalls.some((c) => c.url.endsWith('tablet:decertify') && c.body.targetCitizenId === 'TARGET1'), 'the decertify callback was really fired for this person');
+    t.isTrue(findByText(h.getRoot(), 'Done.').length >= 1, 'a confirmed decertify says Done., like any confirmed mutation');
 });
 
-t.test('an ordinary CONFIRMED mutation (tablet:certify, no `submitted` flag) still shows the normal "Done." success notice', async () => {
+t.test('tablet:certify success shows the normal "Done." success notice', async () => {
     const h = createHarness({
         fetchImpl: routeFetch(baseHandlers({
             'tablet:certify': () => ({ ok: true }),
@@ -382,7 +380,6 @@ t.test('an ordinary CONFIRMED mutation (tablet:certify, no `submitted` flag) sti
     await new Promise((r) => setTimeout(r, 30));
 
     t.isTrue(findByText(h.getRoot(), 'Done.').length >= 1);
-    t.equals(findByText(h.getRoot(), 'Submitted. Refreshing to confirm...').length, 0);
 });
 
 t.run();

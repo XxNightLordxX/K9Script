@@ -1059,7 +1059,6 @@
         // say what to do next wherever there is a next step (never just
         // restating the code) -- never anything the ACTING viewer could not
         // already see about their own attempt.
-        action_submitted: 'Submitted. Refreshing to confirm...',
         mutation_error_invalid_target: 'That target could not be resolved. Refresh this screen and try again.',
         mutation_error_invalid_department: 'That department is not configured on this server.',
         mutation_error_department_mismatch: 'This person\'s live job no longer matches this department. Refresh their record and try again.',
