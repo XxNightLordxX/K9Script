@@ -606,6 +606,7 @@ RegisterNetEvent('qbx_k9unit:server:requestPursuitSprint', function(targetNetId)
 
     if not IsPursuitTargetWantedEligible(targetSrc) then
         NotifyPlayer(src, PursuitSprintRejectMessage('not_wanted'), 'error')
+        if type(AskHandlerToMarkSuspect) == 'function' then pcall(AskHandlerToMarkSuspect, src, targetSrc) end
         return
     end
 

@@ -1866,6 +1866,9 @@ local function ValidateCombatRequest(src, targetNetId, featureEnabled, rangeMete
     local isPlayerTarget = targetSrc ~= nil
 
     if isPlayerTarget and not IsPlayerWantedEligible(targetSrc) then
+        -- Not a suspect yet: offer the K9's handler a one-tap "Mark them?"
+        -- (server/suspects.lua). The refusal stands either way.
+        if type(AskHandlerToMarkSuspect) == 'function' then pcall(AskHandlerToMarkSuspect, src, targetSrc) end
         return false, nil, nil, nil, nil, 'not_eligible_target'
     end
 

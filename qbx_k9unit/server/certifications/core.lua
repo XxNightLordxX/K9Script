@@ -1108,6 +1108,19 @@ function HasK9Access(source)
         return true
     end
 
+    -- A HANDLER PARTNERED WITH A K9 has handler access for as long as the
+    -- partnership lasts. Partnering already needs a certified dog to accept
+    -- this officer and the officer to be in a K9 department (checked just
+    -- above too), so certifying the handler separately was a second step
+    -- that only got in the way: an uncertified partner could leash the dog
+    -- but not throw its ball, treat it or watch its camera. Only the human
+    -- side qualifies (isK9 == false) -- a dog still needs its own
+    -- certification, and dog-only moves still check the dog's model.
+    if type(GetActivePartnerCitizenId) == 'function' then
+        local partnerCid, isK9 = GetActivePartnerCitizenId(Player.PlayerData.citizenid)
+        if partnerCid and isK9 == false then return true end
+    end
+
     -- Opt-in bypass, defaults to nil/disabled per shipped config — do not
     -- change the default.
     --

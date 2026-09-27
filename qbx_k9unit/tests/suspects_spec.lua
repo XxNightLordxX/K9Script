@@ -129,10 +129,18 @@ t.test('an off-duty officer, or someone outside the K9 departments, cannot mark'
     t.equals(f.lastTo(5), Sandbox.locale('suspects.not_allowed'))
 end)
 
-t.test('a missing or offline ID, or your own, is refused plainly', function()
+t.test('/k9suspect with no ID asks the officer\'s own game to mark whoever is nearest', function()
     local f = fixture()
+    local sent = {}
+    f.env.TriggerClientEvent = function(name, target) sent[#sent + 1] = { name = name, target = target } end
     f.command(1)
-    t.equals(f.lastTo(1), Sandbox.locale('suspects.usage'))
+    t.equals(#sent, 1)
+    t.equals(sent[1].name, 'qbx_k9unit:client:markNearestSuspect')
+    t.equals(sent[1].target, 1)
+end)
+
+t.test('an offline ID, or your own, is refused plainly', function()
+    local f = fixture()
     f.command(1, '99')
     t.equals(f.lastTo(1), Sandbox.locale('suspects.no_player'))
     f.command(1, '1')
@@ -206,6 +214,78 @@ t.test('with RequireWantedStatus off, anyone is fair game and marking says it is
     t.isTrue(f.env.IsPlayerK9Wanted(3))
     f.command(1, '3')
     t.equals(f.lastTo(1), Sandbox.locale('suspects.not_needed'))
+end)
+
+local function withClientEvents(f)
+    local sent = {}
+    f.env.TriggerClientEvent = function(name, target, ...) sent[#sent + 1] = { name = name, target = target, args = { ... } } end
+    return sent
+end
+
+t.test('ONE-TAP ASK: the K9 goes for someone unmarked -- its handler gets a "Mark them?" prompt and the K9 is told', function()
+    local f = fixture()
+    local sent = withClientEvents(f)
+    t.isTrue(f.env.AskHandlerToMarkSuspect(2, 3))
+    t.equals(sent[1].name, 'qbx_k9unit:client:suspectMarkAsked')
+    t.equals(sent[1].target, 1, 'the prompt goes to the dog\'s partner')
+    t.equals(sent[1].args[1], 3)
+    t.equals(f.lastTo(2), Sandbox.locale('suspects.asked_handler', 3))
+end)
+
+t.test('ONE-TAP ASK: the handler taps "Mark them" -- the suspect is marked and both are told', function()
+    local f = fixture()
+    withClientEvents(f)
+    f.env.AskHandlerToMarkSuspect(2, 3)
+    f.env.source = 1
+    f.netEvents['qbx_k9unit:server:answerSuspectAsk'](3, true)
+    t.isTrue(f.env.IsPlayerK9Wanted(3))
+    t.equals(f.lastTo(1), Sandbox.locale('suspects.marked', 3, 10))
+    t.equals(f.lastTo(2), Sandbox.locale('suspects.partner_marked', 3))
+end)
+
+t.test('ONE-TAP ASK: "Not now" leaves them unmarked and the K9 hears it', function()
+    local f = fixture()
+    withClientEvents(f)
+    f.env.AskHandlerToMarkSuspect(2, 3)
+    f.env.source = 1
+    f.netEvents['qbx_k9unit:server:answerSuspectAsk'](3, false)
+    t.isFalse(f.env.IsPlayerK9Wanted(3))
+    t.equals(f.lastTo(2), Sandbox.locale('suspects.handler_declined', 3))
+end)
+
+t.test('ONE-TAP ASK: an answer nobody asked for, for a different player, or after 30 seconds does nothing', function()
+    local f = fixture()
+    withClientEvents(f)
+    f.env.source = 1
+    f.netEvents['qbx_k9unit:server:answerSuspectAsk'](3, true)
+    t.isFalse(f.env.IsPlayerK9Wanted(3), 'no ask was pending')
+
+    f.env.AskHandlerToMarkSuspect(2, 3)
+    f.netEvents['qbx_k9unit:server:answerSuspectAsk'](5, true)
+    t.isFalse(f.env.IsPlayerK9Wanted(5), 'the answer must match the player asked about')
+
+    f.advance(16000)
+    f.env.AskHandlerToMarkSuspect(2, 3)
+    f.advance(31000)
+    f.netEvents['qbx_k9unit:server:answerSuspectAsk'](3, true)
+    t.isFalse(f.env.IsPlayerK9Wanted(3), 'a stale prompt no longer marks anyone')
+end)
+
+t.test('ONE-TAP ASK: at most one prompt per K9 every 15 seconds, and never for a K9 with no handler', function()
+    local f = fixture()
+    local sent = withClientEvents(f)
+    f.env.AskHandlerToMarkSuspect(2, 3)
+    f.env.AskHandlerToMarkSuspect(2, 3)
+    t.equals(#sent, 1)
+    f.advance(15001)
+    f.env.AskHandlerToMarkSuspect(2, 3)
+    t.equals(#sent, 2)
+
+    local g = fixture()
+    local sentG = withClientEvents(g)
+    g.env.GetActivePartnerCitizenId = function() return nil end
+    t.isFalse(g.env.AskHandlerToMarkSuspect(2, 3))
+    t.equals(#sentG, 0)
 end)
 
 os.exit(t.summary())

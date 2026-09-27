@@ -834,6 +834,30 @@ t.test('HasK9Access: a certified handler in the exact cached job passes', functi
     t.isTrue(f.env.HasK9Access(1))
 end)
 
+t.test('HasK9Access: an UNCERTIFIED handler partnered with a K9 has handler access while the partnership lasts -- the dog side never gets it this way', function()
+    local f = newFixture()
+    f.registerPlayer(4, 'HANDLER4', { name = 'police', grade = { level = 1 } })
+    f.registerPlayer(5, 'DOG5', { name = 'police', grade = { level = 1 } })
+    local partners = {}
+    f.env.GetActivePartnerCitizenId = function(cid) local p = partners[cid]; if p then return p[1], p[2] end end
+    t.isFalse(f.env.HasK9Access(4), 'not partnered yet')
+
+    partners.HANDLER4 = { 'DOG5', false }
+    partners.DOG5 = { 'HANDLER4', true }
+    t.isTrue(f.env.HasK9Access(4), 'partnered handler')
+    t.isFalse(f.env.HasK9Access(5), 'an uncertified dog is not let in by the partnership')
+
+    partners.HANDLER4, partners.DOG5 = nil, nil
+    t.isFalse(f.env.HasK9Access(4), 'gone again once the partnership ends')
+end)
+
+t.test('HasK9Access: a partnered handler who leaves the K9 department loses access -- the department check still comes first', function()
+    local f = newFixture()
+    f.registerPlayer(6, 'HANDLER6', { name = 'mechanic', grade = { level = 1 } })
+    f.env.GetActivePartnerCitizenId = function(cid) if cid == 'HANDLER6' then return 'DOGX', false end end
+    t.isFalse(f.env.HasK9Access(6))
+end)
+
 t.test('HasK9Access: a player with no cert at all (never refreshed) fails -- pure cache miss', function()
     local f = newFixture()
     f.registerPlayer(2, 'CIT2', { name = 'police', grade = { level = 1 } })

@@ -208,6 +208,38 @@
 ]]
 
 
+--- Nearest other player within `range`, PREFERRING the other kind: a
+--- human handler gets the nearest dog, the dog gets the nearest human. So
+--- "stand next to your dog and press Leash / Partner Up" works even with a
+--- bystander standing closer. Falls back to the nearest player of either
+--- kind (the server then explains why that pairing is not possible).
+--- @param range number
+--- @return number? candidateServerId
+local function FindNearestPairCandidate(range)
+    local myCoords = GetEntityCoords(PlayerPedId())
+    local iAmDog = type(IsOwnModelK9) == 'function' and IsOwnModelK9() or false
+    local bestOther, bestOtherDist, bestAny, bestAnyDist
+
+    for _, playerId in ipairs(GetActivePlayers()) do
+        if playerId ~= PlayerId() then
+            local targetPed = GetPlayerPed(playerId)
+            if targetPed ~= 0 and DoesEntityExist(targetPed) then
+                local dist = #(myCoords - GetEntityCoords(targetPed))
+                if dist <= range then
+                    if not bestAnyDist or dist < bestAnyDist then bestAny, bestAnyDist = playerId, dist end
+                    local isDog = type(IsEntityModelK9) == 'function' and IsEntityModelK9(targetPed) or false
+                    if isDog ~= iAmDog and (not bestOtherDist or dist < bestOtherDist) then
+                        bestOther, bestOtherDist = playerId, dist
+                    end
+                end
+            end
+        end
+    end
+
+    local pick = bestOther or bestAny
+    return pick and GetPlayerServerId(pick) or nil
+end
+
 -- OPEN STRUCTURAL QUESTION resolution: option (b) was chosen — the "K9
 -- Unit" submenu and its sub-items are registered ONCE, unconditionally
 -- (subject to each item's own Config.Features flag at registration time,
@@ -234,8 +266,9 @@
 --- a derived factor — see config.lua's comment on that field and
 --- server/main.lua's header for the initiate-range check this mirrors),
 --- for the Attach/Detach Leash radial item's self-initiated entry point.
---- Model plausibility isn't filtered here — the server independently
---- re-validates via CheckLeashEligibility (server/main.lua) regardless.
+--- Prefers the other kind (FindNearestPairCandidate above: your dog if
+--- you are the handler); the server re-validates via CheckLeashEligibility
+--- (server/main.lua) regardless.
 --- @return number? candidateServerId
 --- SEAM OPENED 2026-08-25: was `local`. client/tablet.lua calls this so the
 --- tablet's own action routes through the SAME candidate-resolution logic the
@@ -245,38 +278,18 @@
 --- type(fn) == 'function' since client/radial.lua returns early when its own
 --- feature flag is off, in which case this is never defined.
 function FindNearestLeashCandidate()
-    local myPed = PlayerPedId()
-    local myCoords = GetEntityCoords(myPed)
-    local nearestPlayer, nearestDist
-
-    for _, playerId in ipairs(GetActivePlayers()) do
-        if playerId ~= PlayerId() then
-            local targetPed = GetPlayerPed(playerId)
-            if targetPed ~= 0 and DoesEntityExist(targetPed) then
-                local dist = #(myCoords - GetEntityCoords(targetPed))
-                if dist <= Config.LeashMaxDistance and (not nearestDist or dist < nearestDist) then
-                    nearestPlayer, nearestDist = playerId, dist
-                end
-            end
-        end
-    end
-
-    if not nearestPlayer then return nil end
-    return GetPlayerServerId(nearestPlayer)
+    return FindNearestPairCandidate(Config.LeashMaxDistance)
 end
-
 --- Same shape as FindNearestLeashCandidate() above, for the Partner Up
 --- radial item's self-initiated entry point: nearest OTHER player within
 --- Config.Partnership.ProximityMeters — that field is the REAL server-side
 --- range client/partnership.lua's CheckPartnershipEligibility checks a
 --- request against (both at request time and again at accept time), reused
 --- directly here as the search radius for the identical reason
---- FindNearestLeashCandidate() reuses Config.LeashMaxDistance. No client-side
---- model plausibility filter (unlike client/partnership.lua's own ox_target
---- "Partner Up" predicate, which additionally requires at least one side to
---- plausibly be a K9) — this is a display-adjacent candidate pick, not a
---- security boundary, and CheckPartnershipEligibility re-derives the real
---- model server-side regardless.
+--- FindNearestLeashCandidate() reuses Config.LeashMaxDistance. Prefers the
+--- other kind the same way -- a display-adjacent candidate pick, not a
+--- security boundary; CheckPartnershipEligibility re-derives the real model
+--- server-side regardless.
 --- @return number? candidateServerId
 --- SEAM OPENED 2026-08-25: was `local`. client/tablet.lua calls this so the
 --- tablet's own action routes through the SAME candidate-resolution logic the
@@ -286,26 +299,8 @@ end
 --- type(fn) == 'function' since client/radial.lua returns early when its own
 --- feature flag is off, in which case this is never defined.
 function FindNearestPartnerCandidate()
-    local myPed = PlayerPedId()
-    local myCoords = GetEntityCoords(myPed)
-    local nearestPlayer, nearestDist
-
-    for _, playerId in ipairs(GetActivePlayers()) do
-        if playerId ~= PlayerId() then
-            local targetPed = GetPlayerPed(playerId)
-            if targetPed ~= 0 and DoesEntityExist(targetPed) then
-                local dist = #(myCoords - GetEntityCoords(targetPed))
-                if dist <= Config.Partnership.ProximityMeters and (not nearestDist or dist < nearestDist) then
-                    nearestPlayer, nearestDist = playerId, dist
-                end
-            end
-        end
-    end
-
-    if not nearestPlayer then return nil end
-    return GetPlayerServerId(nearestPlayer)
+    return FindNearestPairCandidate(Config.Partnership.ProximityMeters)
 end
-
 --- Idempotent (re-)registration of every "K9 Unit" radial menu and
 --- submenu this resource owns.
 ---
@@ -592,6 +587,10 @@ local function ShouldShowK9RadialIcon()
 
     return type(HasK9Access) == 'function' and HasK9Access()
 end
+
+--- Which menu was built last (dog or human) -- the refresh loop at the
+--- bottom of this file rebuilds as soon as your character changes.
+local lastBuiltRoleIsDog = nil
 
 local function RegisterK9RadialMenu()
     -- Contents of the "K9 Unit" SUBMENU (registered via lib.registerRadial
@@ -892,7 +891,12 @@ local function RegisterK9RadialMenu()
                 -- then genuinely refuse ('no_k9_party') -- exactly the "offer
                 -- something that will just be refused" outcome this pass was
                 -- told to avoid. Left on the broader combinator on purpose.
-                if not CanShowK9UI() then
+                -- Only the dog needs K9 access to ask; a human handler asks
+                -- the server directly, which checks everything (the same
+                -- rule RequestLeashAttach() itself follows). This used to be
+                -- a plain CanShowK9UI() check, which refused every human
+                -- handler -- the person who actually holds the leash.
+                if IsOwnModelK9() and not CanShowK9UI() then
                     DenyK9UIAccess('common.no_k9_role_or_access')
                     return
                 end
@@ -1840,6 +1844,18 @@ local function RegisterK9RadialMenu()
 
 
 
+    -- Mark / Clear Suspect -- the handler's side of combat: marks the person
+    -- standing nearest (never a dog) so the K9 can act on them. Only added
+    -- when players need a mark at all; client/suspects.lua owns the logic.
+    if type(MarkNearestSuspect) == 'function' then
+        k9SubmenuItems[#k9SubmenuItems + 1] = {
+            id = 'k9_mark_suspect',
+            label = locale('suspects.radial_label'),
+            icon = 'user-tag',
+            onSelect = function() MarkNearestSuspect() end,
+        }
+    end
+
     -- ======================================================================
     -- DISPLAY ORDER PASS (whole-menu ease-of-use audit, this pass). Every
     -- item above is appended to k9SubmenuItems in ACCRETION order -- wherever
@@ -1913,7 +1929,7 @@ local function RegisterK9RadialMenu()
     local K9_SUBMENU_DISPLAY_ORDER = {
         'k9_open_tablet',
         'k9_bark', 'k9_leash', 'k9_vehicle', 'k9_partner',
-        'k9_bite_hold', 'k9_takedown', 'k9_drag',
+        'k9_bite_hold', 'k9_takedown', 'k9_drag', 'k9_mark_suspect',
         'k9_track_certified', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle', 'k9_camera_feed',
         'k9_utility',
         'k9_fetch', 'k9_kennel',
@@ -1945,7 +1961,7 @@ local function RegisterK9RadialMenu()
     -- on the THIRD page -- three presses deep in the middle of a pursuit.
     --
     -- Now the K9 menu holds at most six entries: Tablet, Bark, and four
-    -- groups -- With Handler (leash, vehicle, partner), Combat, Senses, and
+    -- groups -- Partner & Leash (leash, vehicle, partner), Combat, Senses, and
     -- Utility (which also takes Fetch and Kennel). Every action is at most
     -- two presses away, and no page ever needs "More...".
     --
@@ -1955,6 +1971,54 @@ local function RegisterK9RadialMenu()
     -- all -- that item stays in the top menu, so nobody opens a sub-menu to
     -- find a single button.
     -- ======================================================================
+    -- ======================================================================
+    -- ONE MENU PER PLAYER (owner: "act like you are a player... super
+    -- simple"). A human handler used to open the K9 menu and find it full
+    -- of dog-only moves -- Sit, Bark, Bite, Scent Vision -- that could only
+    -- ever refuse. Now the menu is built for who you are playing right now:
+    --   the dog sees its own moves; a human sees the handler's.
+    -- Shared buttons (tablet, leash, vehicle, partner, fetch, kennel) stay
+    -- in both. Nothing is removed from the game: every keybind and command
+    -- still works, and the menu is rebuilt the moment your character
+    -- changes (see the refresh loop at the bottom of this file).
+    -- "Gate the start, never the stop": a dog-only move that is still
+    -- running (a bite or drag held while the character changes) keeps its
+    -- button so it can always be let go.
+    -- ======================================================================
+    do
+        local DOG_ONLY = {
+            k9_sit = true, k9_bark = true, k9_track_certified = true, k9_vehicle = true,
+            k9_scent_vision = true, k9_thermal_vision = true, k9_night_vision = true, k9_vision_cycle = true,
+            k9_bite_hold = true, k9_takedown = true, k9_drag = true,
+            k9_prop_attachment = true, k9_open_inventory = true,
+        }
+        local HUMAN_ONLY = { k9_treat_nearest = true, k9_mark_suspect = true }
+        local STILL_RUNNING = {
+            k9_bite_hold = function() return type(IsBiteHoldEngaged) == 'function' and IsBiteHoldEngaged() end,
+            k9_vehicle = function() return type(IsInK9Vehicle) == 'function' and IsInK9Vehicle() end,
+            k9_drag = function() return type(IsDragEngaged) == 'function' and IsDragEngaged() end,
+            k9_track_certified = function() return type(IsTracking) == 'function' and IsTracking() end,
+            k9_prop_attachment = function() return type(IsPropAttachmentEngaged) == 'function' and IsPropAttachmentEngaged() end,
+        }
+        local amDog = type(IsOwnModelK9) == 'function' and IsOwnModelK9()
+        local hide = amDog and HUMAN_ONLY or DOG_ONLY
+        if not amDog and type(CanMarkSuspectsHere) == 'function' and not CanMarkSuspectsHere() then
+            hide = setmetatable({ k9_mark_suspect = true }, { __index = DOG_ONLY })
+        end
+        local function keep(list)
+            local out = {}
+            for _, item in ipairs(list) do
+                local running = STILL_RUNNING[item.id]
+                if not hide[item.id] or (running and running()) then out[#out + 1] = item end
+            end
+            return out
+        end
+        k9SubmenuItems = keep(k9SubmenuItems)
+        k9UtilitySubmenuItems = keep(k9UtilitySubmenuItems)
+        lib.registerRadial({ id = 'k9unit_utility', items = k9UtilitySubmenuItems })
+        lastBuiltRoleIsDog = amDog
+    end
+
     local K9_SUBMENU_GROUPS = {
         { menuId = 'k9unit_handler', openerId = 'k9_group_handler', label = locale('radial.group_handler_label'), icon = 'people-arrows', members = { 'k9_leash', 'k9_vehicle', 'k9_partner' } },
         { menuId = 'k9unit_combat', openerId = 'k9_group_combat', label = locale('radial.group_combat_label'), icon = 'hand-fist', members = { 'k9_bite_hold', 'k9_takedown', 'k9_drag' } },
@@ -1999,6 +2063,13 @@ local function RegisterK9RadialMenu()
             -- Re-registered with the moved items; lib.registerRadial replaces
             -- a menu by id.
             lib.registerRadial({ id = 'k9unit_utility', items = k9UtilitySubmenuItems })
+        end
+        -- A Utility sub-menu left with nothing in it for this player
+        -- loses its button instead of opening onto an empty wheel.
+        if #k9UtilitySubmenuItems == 0 then
+            for i = #top, 1, -1 do
+                if top[i].id == 'k9_utility' then table.remove(top, i) end
+            end
         end
         k9SubmenuItems = top
     end
@@ -2208,6 +2279,20 @@ if Config.Features.RadialMenu then
         while true do
             Wait(K9_RADIAL_ICON_REFRESH_INTERVAL_MS)
             RegisterK9RadialMenu()
+        end
+    end)
+
+    -- ONE MENU PER PLAYER: rebuild as soon as you switch between dog and
+    -- human (a chief assigning or reverting the K9 look), instead of
+    -- showing the old character's buttons for up to 15 seconds.
+    local ROLE_CHECK_INTERVAL_MS = 1000
+    CreateThread(function()
+        while true do
+            Wait(ROLE_CHECK_INTERVAL_MS)
+            local amDog = type(IsOwnModelK9) == 'function' and IsOwnModelK9() or false
+            if lastBuiltRoleIsDog ~= nil and amDog ~= lastBuiltRoleIsDog then
+                RegisterK9RadialMenu()
+            end
         end
     end)
 end

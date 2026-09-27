@@ -428,6 +428,15 @@ local function newRadialFixture(opts)
         -- performs its own real check and notifies specifically on failure.
         ToggleScentVision = record('ToggleScentVision'),
         ToggleCameraFeed = record('ToggleCameraFeed'),
+        -- ONE MENU PER PLAYER: the menu is built for who you are playing.
+        -- Every test above this pass was written from the dog's side, so
+        -- the fixture plays the dog unless a test passes opts.playingDog =
+        -- false (the handler's menu -- see the tests near the bottom).
+        IsOwnModelK9 = function() return opts.playingDog ~= false end,
+        -- Which OTHER players' peds are dogs (FindNearestPairCandidate).
+        IsEntityModelK9 = function(ped) return (opts.dogPeds or {})[ped] == true end,
+        MarkNearestSuspect = record('MarkNearestSuspect'),
+        CanMarkSuspectsHere = function() return opts.canMarkSuspects ~= false end,
     }
 
     local overrides = {
@@ -552,7 +561,7 @@ local function newRadialFixture(opts)
         end,
 
         --- Finds an item anywhere under the K9 menu -- the top level or any
-        --- sub-menu it opens (With Handler / Combat / Senses / Utility / Bark).
+        --- sub-menu it opens (Partner & Leash / Combat / Senses / Utility / Bark).
         --- @param itemId string
         --- @return table? item, string? menuId -- the menu it lives in
         findK9Item = function(itemId)
@@ -674,7 +683,7 @@ t.test('this spec\'s baseline flags: the k9unit submenu is registered and linked
     t.isNil(opener.onSelect, 'the opener is a pure navigation link, per this file\'s own header on menu-vs-navigation semantics -- it must carry no onSelect of its own')
 end)
 
-t.test('this spec\'s baseline flags: Bark, the With Handler group (Leash + Vehicle) and Utility (with Kennel) are what a K9 sees; every later-phase item stays absent', function()
+t.test('this spec\'s baseline flags: Bark, the Partner & Leash group (Leash + Vehicle) and Utility (with Kennel) are what a K9 sees; every later-phase item stays absent', function()
     local f = newRadialFixture()
     local items = f.findMenu('k9unit')
     local presentIds = {}
@@ -682,7 +691,7 @@ t.test('this spec\'s baseline flags: Bark, the With Handler group (Leash + Vehic
 
     t.isTrue(presentIds.k9_utility, 'the Utility sub-menu opener must be present -- k9_sit alone (no dedicated flag) guarantees the sub-menu is never empty')
     t.isTrue(presentIds.k9_bark)
-    t.isTrue(presentIds.k9_group_handler, 'Leash and Vehicle are both on here, so they share the With Handler group')
+    t.isTrue(presentIds.k9_group_handler, 'Leash and Vehicle are both on here, so they share the Partner & Leash group')
 
     local _, leashMenu = f.findK9Item('k9_leash')
     local _, vehicleMenu = f.findK9Item('k9_vehicle')
@@ -706,7 +715,7 @@ end)
 -- the 6th into "More..."; the K9 menu and every group must fit on one page.
 -- ----------------------------------------------------------------------
 
-t.test('NO "MORE..." PAGES: with every optional feature on, the K9 menu has at most six entries -- Tablet, Bark, With Handler, Combat, Senses, Utility -- and every action is at most two presses away', function()
+t.test('NO "MORE..." PAGES: with every optional feature on, the K9 menu has at most six entries -- Tablet, Bark, Partner & Leash, Combat, Senses, Utility -- and every action is at most two presses away', function()
     local f = newRadialFixture({
         features = {
             CommandTablet = true,
@@ -745,6 +754,49 @@ t.test('NO "MORE..." PAGES: with every optional feature on, the K9 menu has at m
     end
 end)
 
+t.test('ONE MENU PER PLAYER: a human handler gets the handler\'s buttons -- no Sit, Bark, Bite or dog senses that could only refuse', function()
+    local f = newRadialFixture({
+        playingDog = false,
+        features = {
+            CommandTablet = true, ScentTracking = true, ThermalVision = true, NightVision = true,
+            BiteAndHold = true, NonLethalTakedown = true, PropDragging = true,
+            HandlerPartnership = true, FetchMechanic = true, K9Medkit = true,
+        },
+    })
+    local topIds = {}
+    for i, item in ipairs(f.findMenu('k9unit')) do topIds[i] = item.id end
+    t.equals(table.concat(topIds, ','), 'k9_open_tablet,k9_group_handler,k9_mark_suspect,k9_camera_feed,k9_utility')
+
+    for _, dogOnly in ipairs({ 'k9_sit', 'k9_bark', 'k9_bite_hold', 'k9_takedown', 'k9_drag', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle', 'k9_track_certified' }) do
+        t.isNil(f.findK9Item(dogOnly), dogOnly .. ' is not in a human\'s menu')
+    end
+    local handlerIds = {}
+    for _, item in ipairs(f.findMenu('k9unit_handler')) do handlerIds[#handlerIds + 1] = item.id end
+    t.equals(table.concat(handlerIds, ','), 'k9_leash,k9_partner', 'Vehicle is the dog getting itself in and out, so it is on the dog\'s menu')
+    t.isNotNil(f.findInMenu('k9unit_utility', 'k9_treat_nearest'))
+    t.isNotNil(f.findInMenu('k9unit_utility', 'k9_fetch'))
+
+    f.findK9Item('k9_mark_suspect').onSelect()
+    t.equals(#f.calls.MarkNearestSuspect, 1, 'Mark / Clear Suspect marks whoever is nearest -- no ID to type')
+end)
+
+t.test('ONE MENU PER PLAYER: the dog never gets Mark Suspect or Treat K9, and a human who cannot mark suspects (off duty, other job) does not see the button', function()
+    local dog = newRadialFixture({ features = { K9Medkit = true, BiteAndHold = true } })
+    t.isNil(dog.findK9Item('k9_mark_suspect'))
+    t.isNil(dog.findK9Item('k9_treat_nearest'))
+
+    local civilian = newRadialFixture({ playingDog = false, canMarkSuspects = false, features = { BiteAndHold = true } })
+    t.isNil(civilian.findK9Item('k9_mark_suspect'))
+end)
+
+t.test('ONE MENU PER PLAYER: a bite still being held keeps its button even after the character changes -- it can always be let go', function()
+    local f = newRadialFixture({ playingDog = false, features = { BiteAndHold = true } })
+    t.isNil(f.findK9Item('k9_bite_hold'))
+    f.setState('isBiteHoldEngaged', true)
+    f.fireLeashStateChanged()
+    t.isNotNil(f.findK9Item('k9_bite_hold'), 'the release button is back while the hold runs')
+end)
+
 t.test('rebuilding the menu (it re-registers on every state change) never duplicates an item moved into a group or into Utility', function()
     local f = newRadialFixture({ features = { FetchMechanic = true, BiteAndHold = true, NonLethalTakedown = true } })
     f.fireLeashStateChanged()
@@ -764,7 +816,7 @@ t.test('a group with only ONE item available on this server is not wrapped -- th
     local f = newRadialFixture({ features = { VehicleEntryExit = false } })
     local item, menuId = f.findK9Item('k9_leash')
     t.isNotNil(item)
-    t.equals(menuId, 'k9unit', 'Leash is the only With Handler item here, so it sits in the top menu')
+    t.equals(menuId, 'k9unit', 'Leash is the only Partner & Leash item here, so it sits in the top menu')
     t.isNil(f.findMenu('k9unit_handler'))
 end)
 
@@ -815,7 +867,9 @@ local FALSE_BY_DEFAULT_SINGLE_ITEM_CASES = {
     -- case, precisely because nothing about them IS special-cased in the
     -- source.
     { flag = 'K9Inventory', itemId = 'k9_open_inventory', menu = 'k9unit_utility' },
-    { flag = 'K9Medkit', itemId = 'k9_treat_nearest', menu = 'k9unit_utility' },
+    -- Treat K9 is a person's action (a handler or medic treats the dog), so
+    -- it is looked for in the menu a human player gets.
+    { flag = 'K9Medkit', itemId = 'k9_treat_nearest', menu = 'k9unit_utility', playingDog = false },
     -- RESOLVED this pass: closed the exact disclosed gap
     -- a removed file's own header used to name ("not wired into
     -- client/radial.lua by this pass") -- same generic mechanism, nothing
@@ -829,12 +883,12 @@ for _, case in ipairs(FALSE_BY_DEFAULT_SINGLE_ITEM_CASES) do
     local menu = case.menu or 'k9unit'
 
     t.test(('%s: absent when Config.Features.%s is explicitly false'):format(case.itemId, case.flag), function()
-        local f = newRadialFixture()
+        local f = newRadialFixture({ playingDog = case.playingDog })
         t.isNil(f.findInMenu(menu, case.itemId))
     end)
 
     t.test(('%s: appears ONLY when Config.Features.%s is explicitly true'):format(case.itemId, case.flag), function()
-        local f = newRadialFixture({ features = { [case.flag] = true } })
+        local f = newRadialFixture({ features = { [case.flag] = true }, playingDog = case.playingDog })
         t.isNotNil(f.findInMenu(menu, case.itemId), ('%s must appear once %s is true'):format(case.itemId, case.flag))
     end)
 end
@@ -1321,20 +1375,20 @@ end)
 -- test's own "denied access never calls it" assertion described exactly
 -- the behavior this pass fixes.
 t.test('k9_treat_nearest ("Treat K9"): guarded -- absent RequestTreatNearestK9 does not throw; CanShowK9UI() is NEVER checked; it always calls through regardless of role/access (the server is the real gate)', function()
-    local fAbsent = newRadialFixture({ features = { K9Medkit = true }, omit = { 'RequestTreatNearestK9' } })
+    local fAbsent = newRadialFixture({ features = { K9Medkit = true }, omit = { 'RequestTreatNearestK9' }, playingDog = false })
     assertGuardDoesNotThrow(fAbsent.findInMenu('k9unit_utility', 'k9_treat_nearest'))
 
     -- The exact case this pass fixes: CanShowK9UI() false (not a K9 role
     -- holder at all -- e.g. a plain PD/EMS officer with no K9 certification)
     -- must still reach RequestTreatNearestK9(), never DenyK9UIAccess() at
     -- this layer.
-    local fNotAK9 = newRadialFixture({ features = { K9Medkit = true }, canShowK9UI = false })
+    local fNotAK9 = newRadialFixture({ features = { K9Medkit = true }, canShowK9UI = false, playingDog = false })
     fNotAK9.findInMenu('k9unit_utility', 'k9_treat_nearest').onSelect()
     t.equals(fNotAK9.denyCallCount(), 0, 'this item must never call DenyK9UIAccess() itself -- CanShowK9UI() is not this action\'s gate')
     t.equals(fNotAK9.canShowK9UICallCount(), 0, 'CanShowK9UI() must not even be READ by this onSelect -- it was fully removed, not merely ignored')
     t.equals(#fNotAK9.calls.RequestTreatNearestK9, 1)
 
-    local fGranted = newRadialFixture({ features = { K9Medkit = true } })
+    local fGranted = newRadialFixture({ features = { K9Medkit = true }, playingDog = false })
     fGranted.findInMenu('k9unit_utility', 'k9_treat_nearest').onSelect()
     t.equals(#fGranted.calls.RequestTreatNearestK9, 1)
     -- Reuses medkit.treat_target_label rather than minting a duplicate key,
@@ -1480,6 +1534,33 @@ t.test('k9_leash: Attach finds the nearest in-range candidate and calls RequestL
     f.findK9Item('k9_leash').onSelect()
     t.equals(#f.calls.RequestLeashAttach, 1)
     t.equals(f.calls.RequestLeashAttach[1][1], 222, 'must pick the in-range candidate, never the out-of-range one, and pass their real server id')
+end)
+
+t.test('k9_leash: a human handler (not a K9, no K9 access of their own) can clip the leash on -- the menu no longer refuses the person who holds the leash', function()
+    local f = newRadialFixture({ features = { LeashMechanics = true }, playingDog = false, canShowK9UI = false, dogPeds = { [101] = true } })
+    f.setState('isLeashed', false)
+    f.setActivePlayers({ 5 })
+    f.setPlayerPed(5, 101)
+    f.setPedCoords(101, vec3(1, 0, 0))
+    f.setPlayerServerId(5, 222)
+    f.findK9Item('k9_leash').onSelect()
+    t.equals(f.denyCallCount(), 0)
+    t.equals(#f.calls.RequestLeashAttach, 1)
+    t.equals(f.calls.RequestLeashAttach[1][1], 222)
+end)
+
+t.test('k9_leash: the handler gets their DOG even when a bystander is standing closer', function()
+    local f = newRadialFixture({ features = { LeashMechanics = true }, playingDog = false, dogPeds = { [101] = true } })
+    f.setState('isLeashed', false)
+    f.setActivePlayers({ 4, 5 })
+    f.setPlayerPed(4, 100)
+    f.setPedCoords(100, vec3(0.5, 0, 0)) -- a bystander, right next to the handler
+    f.setPlayerServerId(4, 111)
+    f.setPlayerPed(5, 101)
+    f.setPedCoords(101, vec3(2, 0, 0)) -- the dog, a little further
+    f.setPlayerServerId(5, 222)
+    f.findK9Item('k9_leash').onSelect()
+    t.equals(f.calls.RequestLeashAttach[1][1], 222)
 end)
 
 t.test('k9_leash: Attach with nobody in range notifies radial.no_leash_candidate and never calls RequestLeashAttach', function()

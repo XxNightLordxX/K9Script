@@ -88,6 +88,31 @@ its code.
 
 ---
 
+## How to play it (the 30-second version)
+
+Paste this to your players.
+
+**Playing the dog**
+1. Press **Z**, pick **K9 Unit**. Every move you have is in there.
+2. Go after a suspect with Bite (**B**), Takedown (**[**) or Drag (**Y**).
+   If they are not marked yet, your handler is asked to mark them. Try
+   again once they have.
+3. Sniff things out with scent vision (**.**). Hop in and out of the
+   patrol car with **Vehicle** in the same menu.
+
+**Playing the handler**
+1. Stand next to your dog, press **Z**, pick **K9 Unit** > **Partner &
+   Leash** > **Partner Up**. Your dog accepts once, and from then on
+   the leash clips on with no questions.
+2. When your dog goes for someone, tap **Mark them** on the pop-up, or
+   walk up to them and pick **Mark / Clear Suspect** in the same menu.
+3. **Leash** is right next to it: stand by your dog and press it.
+
+**Running the unit (chief / high command)**
+1. Open the tablet (`/k9tablet`), type a name in **Find a person**, open them.
+2. Under **Certifications**, set **Certify as** to a breed (makes them the
+   dog) or **Handler**, and press **Certify**. That's it.
+
 ## Default keys
 
 Every player can change any of these in **Settings > Key Bindings >
@@ -134,6 +159,11 @@ which one?
   as the K9 *and* turned into that dog, in the same press.
 - **`/k9certify`** and the walk-up **"Certify K9 Handler"** option always
   certify a handler — they never change anyone's looks.
+- **A handler doesn't strictly need a certification.** Any on-duty
+  officer from a K9 department who partners up with a certified dog gets
+  handler access (leash, ball, treats, partner camera, marking suspects)
+  for as long as that partnership lasts. Certify handlers when you want
+  them to have access on their own, without a dog.
 - **High command can also assign the K9 role directly** from the tablet
   (Assign K9 Role), to any citizenid, with a chosen model — also how you
   change an existing K9's breed.
@@ -730,12 +760,17 @@ A K9 can only bite, take down or drag a **player** who is a suspect
 (`Config.Combat.RequireWantedStatus`, on by default). A player becomes
 a suspect when:
 
+- **The handler taps "Mark them".** When a K9 goes after someone who
+  is not marked, its handler gets a pop-up: *"Your K9 is trying to go
+  after player 4. Mark them now?"*. One tap and the K9 can go.
 - **An officer marks them.** Any on-duty officer from a K9 department
-  (not the dog) types `/k9suspect <player id>`, or looks at the player
-  with the third eye (Left Alt) and picks **Mark as K9 Suspect**. Do it
-  again to clear it. The officer's K9 partner gets a message. A mark
-  lasts `Config.Combat.SuspectMarkMinutes` (10 by default) and ends
-  early if either player leaves.
+  (not the dog) walks up and picks **Mark / Clear Suspect** in the K9
+  menu (Z), or types `/k9suspect` (nearest person) or
+  `/k9suspect <player id>`, or uses the third eye (Left Alt) >
+  **Mark as K9 Suspect**. Do it again to clear it. The officer's K9
+  partner gets a message. A mark lasts
+  `Config.Combat.SuspectMarkMinutes` (10 by default) and ends early if
+  either player leaves.
 - **Your dispatch or MDT says so.** One line in that script, on the
   server: `TriggerEvent('qbx_k9unit:setK9Suspect', playerId, true, minutes)`
   (`false` clears it). Only server scripts can send this.

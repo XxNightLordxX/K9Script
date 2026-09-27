@@ -164,6 +164,61 @@ function ToggleK9SuspectMark(officerSrc, targetSrc)
     end
 end
 
+-- ======================================================================
+-- ONE-TAP ASK. A K9 that goes for someone not yet marked is refused -- and
+-- if its partner handler is on duty nearby in the game, the handler gets a
+-- "Mark them?" prompt instead of having to find the ID and type a command
+-- mid-chase. One ask per K9 every 15 seconds; an ask lapses after 30.
+-- ======================================================================
+local askCooldown = NewCooldown(15000)
+askCooldown.RegisterPlayerDropped()
+local ASK_TTL_MS = 30000
+--- [handlerSrc] = { target = src, k9 = src, expiresAt = ms }
+local pendingAsks = {}
+
+--- @return number? handlerSrc -- the K9's online partner, when k9Src is the dog side
+local function PartnerHandlerOf(k9Src)
+    if type(GetActivePartnerCitizenId) ~= 'function' then return nil end
+    local k9 = exports.qbx_core:GetPlayer(k9Src)
+    local cid = k9 and k9.PlayerData and k9.PlayerData.citizenid
+    if not cid then return nil end
+    local partnerCid, callerIsK9 = GetActivePartnerCitizenId(cid)
+    if not partnerCid or not callerIsK9 then return nil end
+    local handler = exports.qbx_core:GetPlayerByCitizenId(partnerCid)
+    return handler and handler.PlayerData and handler.PlayerData.source or nil
+end
+
+--- Called by server/combat.lua and server/pursuitsprint.lua right after they
+--- refuse a K9 because its target is not a suspect.
+--- @return boolean asked
+function AskHandlerToMarkSuspect(k9Src, targetSrc)
+    if not (Config.Combat and Config.Combat.RequireWantedStatus) then return false end
+    if not IsConnected(targetSrc) or IsK9SuspectMarked(targetSrc) then return false end
+    local handlerSrc = PartnerHandlerOf(k9Src)
+    if not handlerSrc or handlerSrc == targetSrc or not CanMarkSuspects(handlerSrc) then return false end
+    if not askCooldown.Consume(k9Src) then return false end
+
+    pendingAsks[handlerSrc] = { target = targetSrc, k9 = k9Src, expiresAt = GetGameTimer() + ASK_TTL_MS }
+    TriggerClientEvent('qbx_k9unit:client:suspectMarkAsked', handlerSrc, targetSrc)
+    NotifyPlayer(k9Src, locale('suspects.asked_handler', targetSrc), 'inform')
+    return true
+end
+
+RegisterNetEvent('qbx_k9unit:server:answerSuspectAsk', function(targetSrc, yes)
+    local handlerSrc = source
+    local ask = pendingAsks[handlerSrc]
+    pendingAsks[handlerSrc] = nil
+    if not ask or ask.target ~= tonumber(targetSrc) or GetGameTimer() > ask.expiresAt then return end
+    if yes ~= true then
+        NotifyPlayer(ask.k9, locale('suspects.handler_declined', ask.target), 'inform')
+        return
+    end
+    if not CanMarkSuspects(handlerSrc) or not SetMark(ask.target, true, nil, handlerSrc) then return end
+    NotifyPlayer(handlerSrc, locale('suspects.marked', ask.target, MarkMinutes()), 'success')
+    NotifyPlayer(ask.k9, locale('suspects.partner_marked', ask.target), 'success')
+    print(('[qbx_k9unit] K9 suspect mark set on %s by %s (asked by K9 %s)'):format(ask.target, handlerSrc, ask.k9))
+end)
+
 RegisterNetEvent('qbx_k9unit:server:toggleSuspectMark', function(targetSrc)
     ToggleK9SuspectMark(source, targetSrc)
 end)
@@ -172,7 +227,9 @@ RegisterCommand('k9suspect', function(source, args)
     if source <= 0 then return end
     local targetSrc = tonumber(args and args[1])
     if not targetSrc then
-        NotifyPlayer(source, locale('suspects.usage'), 'inform')
+        -- No ID typed: mark whoever is standing nearest (the client picks,
+        -- skipping dogs; the server re-checks everything as usual).
+        TriggerClientEvent('qbx_k9unit:client:markNearestSuspect', source)
         return
     end
     ToggleK9SuspectMark(source, targetSrc)
@@ -187,6 +244,7 @@ end)
 AddEventHandler('playerDropped', function()
     local dropped = source
     suspects[dropped] = nil
+    pendingAsks[dropped] = nil
     for target, entry in pairs(suspects) do
         if entry.markedBy == dropped then
             suspects[target] = nil
