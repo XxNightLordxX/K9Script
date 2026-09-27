@@ -156,7 +156,7 @@ which one?
   how they look changes. Pick a **breed** instead and they are certified
   as the K9 *and* turned into that dog, in the same press.
 - **Certifying is tablet-only.** There is no `/k9certify` and no walk-up
-  certify option any more; the same goes for every admin job (tiers,
+  certify option any more; the same goes for every admin job (roles,
   giving XP, permissions, the audit). If you want the old admin chat
   commands back for console use, set
   `Config.CommandTablet.adminChatCommands = true`.
@@ -168,6 +168,18 @@ which one?
   handler access (leash, ball, treats, partner camera)
   for as long as that partnership lasts. Certify handlers when you want
   them to have access on their own, without a dog.
+- **Roles decide what someone can do beyond the basics.** Tiers and
+  specializations are now one thing: a *role*. High command makes roles
+  under **Server Settings → Catalogs → Roles** — a name, the XP it needs,
+  and what it unlocks (which scents it can track, what it can sniff out,
+  whether it may bite / take down). Give someone a role on their tablet
+  page; it switches on by itself once their XP (K9 or handler XP,
+  whichever is higher) reaches the number. Until then their record shows
+  "Unlocks at N XP". Three roles ship ready to use: Narcotics and Patrol
+  (0 XP) and Explosives (1250 XP). Bite / takedown stays open to everyone
+  until you add it to some role — then only that role's holders can.
+- **The tablet only shows what you have.** Features you're not allowed
+  to use and roles you don't hold simply don't appear.
 - **High command can also assign the K9 role directly** from the tablet
   (Assign K9 Role), to any citizenid, with a chosen model — also how you
   change an existing K9's breed.
@@ -692,8 +704,8 @@ nothing about the tablet itself is a security shortcut.
 - **High command** (set per department via `highCommandGrade`, or
   `job.isboss`) gets the full roster and can certify, assign or revert
   the K9 role/appearance for any citizen, grant XP, hand out named
-  permissions, block individual people from individual features, add
-  or relabel certification tiers and permission keys, retune XP
+  permissions, block individual people from individual features, create
+  and edit roles and permission keys, retune XP
   thresholds, manage supply shop locations, hand-tune an individual
   K9's speed/scent/medkit-cooldown numbers on top of its rank, flip
   most feature switches and tune numbers live, and restyle the tablet
