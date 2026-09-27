@@ -1010,25 +1010,11 @@ local TAKEDOWN_XP_MINT_COOLDOWN_MS = 60000
 --- @param targetSrc number
 --- @return boolean eligible
 local function IsPlayerWantedEligible(targetSrc)
-    if not Config.Combat.RequireWantedStatus then return true end
-
-    local override = Config.Combat.WantedStatusCheckOverride
-    if type(override) == 'function' then
-        local ok, result = pcall(override, targetSrc)
-        if not ok then
-            print(('[qbx_k9unit] Config.Combat.WantedStatusCheckOverride errored for source %s: %s -- failing closed (target treated as NOT eligible)'):format(targetSrc, tostring(result)))
-            return false
-        end
-        return result == true
-    end
-
-    -- Default best-effort check -- see config.lua's own comment on this
-    -- field for the confidence caveat (LOWER confidence than
-    -- PropDragging's equivalent default, per DEVELOPER_REFERENCE.md §12.0 item 5).
-    local player = exports.qbx_core:GetPlayer(targetSrc)
-    local metadata = player and player.PlayerData and player.PlayerData.metadata
-    if type(metadata) ~= 'table' then return false end
-    return metadata.wanted == true or metadata.iswanted == true
+    -- One implementation for every combat path: server/suspects.lua
+    -- (officer marks, the setK9Suspect server event, the override, and the
+    -- metadata default). Fails closed if that file somehow did not load.
+    if type(IsPlayerK9Wanted) ~= 'function' then return not Config.Combat.RequireWantedStatus end
+    return IsPlayerK9Wanted(targetSrc)
 end
 
 --- DEVELOPER_REFERENCE.md §12.0 item 6 / §12.5.4 — PropDragging's "is this target

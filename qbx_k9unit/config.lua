@@ -2926,6 +2926,18 @@ Config.Combat = {
     -- DEVELOPER_REFERENCE.md §12.0 item 5 — RESOLVED, secure-by-default.
     RequireWantedStatus = true, -- a K9 may only target a PLAYER who is flagged wanted/suspect. Does NOT affect NPC targets (a "wanted" concept doesn't apply to an NPC this resource has no reason to protect from griefing).
 
+    -- HOW A PLAYER BECOMES A SUSPECT the K9 may act on (any one is enough):
+    --   * An on-duty officer from a department above (not the dog itself)
+    --     types /k9suspect <player id>, or looks at the player with the
+    --     third eye (Left Alt) and picks "Mark as K9 Suspect". Doing it
+    --     again clears the mark. The officer's K9 partner is told.
+    --   * Your dispatch or MDT script runs, on the server:
+    --       TriggerEvent('qbx_k9unit:setK9Suspect', playerId, true, minutes)
+    --     (false instead of true clears it). Only server scripts can do this.
+    --   * The override function below says yes.
+    -- A mark lasts this many minutes, and ends early if either player leaves.
+    SuspectMarkMinutes = 10,
+
     -- function(playerId: number) -> boolean, OPTIONAL, nil by default.
     -- Expected to be the NORMAL path for a real server, not the exceptional
     -- one — DEVELOPER_REFERENCE.md §12.0 item 5's own fragmentation note flags the

@@ -369,6 +369,8 @@ read_globals = {
     -- player"). Every call site in this resource is a client file.
     "GetPlayers", "GetActivePlayers", "GetPlayerFromServerId",
     "GetPlayerServerId", "GetPlayerName", "GetPlayerPed", "PlayerId",
+    -- Player(serverId).state -- CFX player statebag accessor, both realms
+    "Player",
     -- GetSelectedPedWeapon: a genuine SERVER native (CFX, apiset: server),
     -- verified against ext/native-decls/GetSelectedPedWeapon.md, where it
     -- is documented as an alias of GET_CURRENT_PED_WEAPON. That page also
@@ -1063,6 +1065,8 @@ globals = {
     "IsKnownPermissionCatalogKey", "GetPermissionCatalogLabel",
     "ListPermissionCatalogKeys", "PermissionKeyEditMutex",
     "IsFetchCarryEngaged", "IsMyFetchBallOut", "FetchContextual", "ReleaseFetchBall", "RequestRecallFetchBall", "RequestThrowFetchBall",
+    -- server/suspects.lua -- officer suspect marks and the one wanted-status check
+    "IsPlayerK9Wanted", "IsK9SuspectMarked", "ToggleK9SuspectMark",
     -- server/cooldowns.lua constructors
     "NewCooldown", "NewNestedCooldown", "NewMutex",
     -- server/notify.lua -- shared ox_lib notify wrapper, replacing 12

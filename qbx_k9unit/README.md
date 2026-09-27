@@ -726,11 +726,24 @@ radial menu, a keybind, or a typed command all exist), it goes through
 the exact same server-side check every time. There's no faster or
 looser path through a keybind than through the menu.
 
-Combat only ever targets a player your dispatch integration has
-flagged **wanted** by default (`Config.Combat.RequireWantedStatus`) —
-wire `Config.Combat.WantedStatusCheckOverride` to your own dispatch
-resource; the built-in fallback guess is lower-confidence and meant as
-a stopgap only.
+A K9 can only bite, take down or drag a **player** who is a suspect
+(`Config.Combat.RequireWantedStatus`, on by default). A player becomes
+a suspect when:
+
+- **An officer marks them.** Any on-duty officer from a K9 department
+  (not the dog) types `/k9suspect <player id>`, or looks at the player
+  with the third eye (Left Alt) and picks **Mark as K9 Suspect**. Do it
+  again to clear it. The officer's K9 partner gets a message. A mark
+  lasts `Config.Combat.SuspectMarkMinutes` (10 by default) and ends
+  early if either player leaves.
+- **Your dispatch or MDT says so.** One line in that script, on the
+  server: `TriggerEvent('qbx_k9unit:setK9Suspect', playerId, true, minutes)`
+  (`false` clears it). Only server scripts can send this.
+- `Config.Combat.WantedStatusCheckOverride` returns true, or the
+  player's `metadata.wanted` is set.
+
+Turn `RequireWantedStatus` off if you would rather a K9 could act on
+anyone.
 
 ---
 

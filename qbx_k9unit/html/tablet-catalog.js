@@ -880,6 +880,9 @@
         cmdref_k9takedown_usage: '/k9takedown',
         cmdref_k9takedown_does: 'Attempts a non-lethal takedown on the nearest fleeing eligible target.',
         cmdref_k9takedown_needs: 'K9 access, and Non-Lethal Takedown enabled on this server.',
+        cmdref_k9suspect_usage: '/k9suspect <player id>',
+        cmdref_k9suspect_does: 'Marks a player as a K9 suspect so K9s can bite, take down or drag them. Run it again to clear the mark. The same thing is on the third eye: look at the player and pick "Mark as K9 Suspect".',
+        cmdref_k9suspect_needs: 'On duty in a K9 department, and not playing a K9. Only needed while this server requires a player to be wanted before a K9 can act on them. A mark lasts a few minutes (SuspectMarkMinutes in config).',
         cmdref_k9dragtoggle_usage: '/k9dragtoggle',
         cmdref_k9dragtoggle_does: 'Toggles dragging the nearest downed target, or releases it if your K9 is already dragging one.',
         cmdref_k9dragtoggle_needs: 'K9 access, and Prop Dragging enabled on this server.',
@@ -1482,6 +1485,7 @@
         { command: 'k9bitehold', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9bitehold_usage', doesKey: 'cmdref_k9bitehold_does', needsKey: 'cmdref_k9bitehold_needs', gate: { kind: 'access', featureKey: 'BiteAndHold' }, defaultKeybind: 'B', keyLabelKey: 'keys_action_bite_hold' },
         { command: 'k9takedown', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9takedown_usage', doesKey: 'cmdref_k9takedown_does', needsKey: 'cmdref_k9takedown_needs', gate: { kind: 'access', featureKey: 'NonLethalTakedown' }, defaultKeybind: '[', keyLabelKey: 'keys_action_takedown' },
         { command: 'k9dragtoggle', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9dragtoggle_usage', doesKey: 'cmdref_k9dragtoggle_does', needsKey: 'cmdref_k9dragtoggle_needs', gate: { kind: 'access', featureKey: 'PropDragging' }, defaultKeybind: 'Y', keyLabelKey: 'keys_action_drag' },
+        { command: 'k9suspect', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9suspect_usage', doesKey: 'cmdref_k9suspect_does', needsKey: 'cmdref_k9suspect_needs', gate: { kind: 'open', featureKey: 'BiteAndHold' } },
         // qbx_k9unit:vault/qbx_k9unit:pursuitsprint (integration-sweep
         // fix): two REAL, working keybind commands that had ZERO
         // COMMAND_REFERENCE entry before that pass -- see

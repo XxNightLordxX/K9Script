@@ -222,6 +222,7 @@ local function newServerFixture(opts)
     local env = Sandbox.newEnv(overrides)
     Sandbox.loadInto('../server/cooldowns.lua', env)
     Sandbox.loadInto('../server/entities.lua', env)
+    Sandbox.loadSuspectsInto(env)
 
     local ok, err = pcall(Sandbox.loadInto, '../server/pursuitsprint.lua', env)
     if opts.expectLoadError then

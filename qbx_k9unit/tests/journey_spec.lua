@@ -216,12 +216,15 @@ t.test('4d. Rex tries to bite a player who is NOT wanted -- refused, and told ex
     tick()
     net('qbx_k9unit:server:requestBiteHold', 2, players[4].ped)
     check(lastNotify(2) == env.locale('combat.not_eligible_target'), 'refused with the wanted-status reason, got ' .. tostring(lastNotify(2)))
-    check(lastNotify(2):find('wanted', 1, true) ~= nil, 'the message names the reason')
+    check(lastNotify(2):find('/k9suspect', 1, true) ~= nil, 'the message says how to fix it')
 end)
 
-t.test('4e. once the suspect is flagged wanted, Rex bites and holds', function()
+t.test('4e. Rex cannot mark his own target; Sam marks Joe with /k9suspect, Rex is told, and then bites and holds', function()
     tick()
-    players[4].PlayerData.metadata.wanted = true
+    commands['k9suspect'](2, { '4' })
+    check(lastNotify(2) == env.locale('suspects.not_allowed'), 'the dog is refused, got ' .. tostring(lastNotify(2)))
+    commands['k9suspect'](3, { '4' })
+    check(lastNotify(2) == env.locale('suspects.partner_marked', 4), 'Rex hears Joe was marked, got ' .. tostring(lastNotify(2)))
     local before = #clientEvents
     net('qbx_k9unit:server:requestBiteHold', 2, players[4].ped)
     check(#clientEvents > before, 'the bite reached a client: ' .. tostring(lastNotify(2)))

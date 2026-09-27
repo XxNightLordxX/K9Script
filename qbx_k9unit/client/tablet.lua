@@ -1304,6 +1304,7 @@ local TABLET_STRING_KEYS = {
     'cmdref_k9scentvision_usage', 'cmdref_k9scentvision_does', 'cmdref_k9scentvision_needs',
     'cmdref_k9bitehold_usage', 'cmdref_k9bitehold_does', 'cmdref_k9bitehold_needs',
     'cmdref_k9takedown_usage', 'cmdref_k9takedown_does', 'cmdref_k9takedown_needs',
+    'cmdref_k9suspect_usage', 'cmdref_k9suspect_does', 'cmdref_k9suspect_needs',
     'cmdref_k9dragtoggle_usage', 'cmdref_k9dragtoggle_does', 'cmdref_k9dragtoggle_needs',
     'cmdref_k9deploykennel_usage', 'cmdref_k9deploykennel_does', 'cmdref_k9deploykennel_needs',
     'cmdref_k9exitkennel_usage', 'cmdref_k9exitkennel_does', 'cmdref_k9exitkennel_needs',
