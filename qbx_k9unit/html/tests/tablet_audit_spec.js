@@ -407,7 +407,7 @@ t.test('Search mode "plate": sends {mode:"plate", value, limit}', async () => {
 // than this screen's actual behavior.
 // ======================================================================
 
-t.test('Catalog Changes mode: a catalog select with 8 options, defaulting to Certification Tiers; no citizenid/department/search fields', async () => {
+t.test('Catalog Changes mode: a catalog select with 9 options, defaulting to Roles; no citizenid/department/search fields', async () => {
     const h = createHarness({
         fetchImpl: routeFetch(baseHandlers({
             'tablet:requestMyRecord': () => ({ ok: true, viewer: HIGH_COMMAND_VIEWER, certifications: [], xp: null, tierLabel: null, myFeatures: [] }),
@@ -421,12 +421,12 @@ t.test('Catalog Changes mode: a catalog select with 8 options, defaulting to Cer
 
     const select = findAllTag(h.getRoot(), 'select')[0];
     t.isDefined(select, 'catalog select present');
-    t.equals(select.value, 'certTiers', 'defaults to the first entry, same convention as auditSearchMode\'s own default');
-    t.equals(findAll(select, (n) => n.tagName === 'option').length, 8, 'all 8 real catalogs offered');
+    t.equals(select.value, 'roles', 'defaults to the first entry (Roles), same convention as auditSearchMode\'s own default');
+    t.equals(findAll(select, (n) => n.tagName === 'option').length, 9, 'all 9 real catalogs offered');
     t.isUndefined(findInputByPlaceholder(h.getRoot(), 'e.g. ABC12345'), 'no citizenid field for this mode');
 });
 
-t.test('Catalog Changes mode: sends {catalogName, limit}, renders the shared action/key/detail/changed-by/changed-at columns for certTiers', async () => {
+t.test('Catalog Changes mode: sends {catalogName, limit}, renders the shared action/key/detail/changed-by/changed-at columns for roles', async () => {
     let sentBody = null;
     const h = createHarness({
         fetchImpl: routeFetch(baseHandlers({
@@ -435,9 +435,9 @@ t.test('Catalog Changes mode: sends {catalogName, limit}, renders the shared act
                 sentBody = body;
                 return {
                     ok: true,
-                    label: 'Certification tier catalog audit trail',
+                    label: 'Role changes (created, edited, deleted)',
                     rows: [
-                        { action: 'update', tier_key: 'master', detail: 'multiplier 1.0 -> 1.2', changed_by: 'HC1', changed_by_name: 'Chief', changed_at: '2026-01-01 00:00:00' },
+                        { action: 'role_update', role_key: 'master', detail: 'label=Master xp=1200 unlocks=bite_takedown', changed_by: 'HC1', changed_by_name: 'Chief', changed_at: '2026-01-01 00:00:00' },
                     ],
                 };
             },
@@ -452,12 +452,12 @@ t.test('Catalog Changes mode: sends {catalogName, limit}, renders the shared act
     await settle();
 
     t.isDefined(sentBody);
-    t.equals(sentBody.catalogName, 'certTiers');
+    t.equals(sentBody.catalogName, 'roles');
     t.equals(sentBody.limit, 20);
-    t.isTrue(findByText(h.getRoot(), 'Certification tier catalog audit trail').length >= 1, 'server label rendered verbatim');
-    t.isTrue(findByText(h.getRoot(), 'update').length >= 1);
+    t.isTrue(findByText(h.getRoot(), 'Role changes (created, edited, deleted)').length >= 1, 'server label rendered verbatim');
+    t.isTrue(findByText(h.getRoot(), 'role_update').length >= 1);
     t.isTrue(findByText(h.getRoot(), 'master').length >= 1);
-    t.isTrue(findByText(h.getRoot(), 'multiplier 1.0 -> 1.2').length >= 1);
+    t.isTrue(findByText(h.getRoot(), 'label=Master xp=1200 unlocks=bite_takedown').length >= 1);
     t.isTrue(findByText(h.getRoot(), 'Chief (HC1)').length >= 1, 'changed_by pairs the raw id with its resolved name, same as every other audit mode');
 });
 

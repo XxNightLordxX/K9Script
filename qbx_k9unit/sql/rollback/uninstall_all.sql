@@ -378,7 +378,7 @@ BEGIN
                                     'k9_equipment_shop_items','k9_equipment_shop_item_audit',
                                     'k9_xp_tiers','k9_xp_tier_audit',
                                     'k9_individual_overrides','k9_individual_override_audit',
-                                    'k9_personnel','k9_dog_characters','k9_wellbeing','k9_roles')
+                                    'k9_personnel','k9_dog_characters','k9_wellbeing','k9_roles','k9_role_audit')
       AND TABLE_NAME NOT IN ('k9_certifications','k9_search_log','k9_partnerships',
                              'k9_partnership_pair_progress',
                              'k9_progression','k9_permissions','k9_certification_specializations',
@@ -390,7 +390,7 @@ BEGIN
                              'k9_equipment_shop_items','k9_equipment_shop_item_audit',
                              'k9_xp_tiers','k9_xp_tier_audit',
                              'k9_individual_overrides','k9_individual_override_audit',
-                             'k9_personnel','k9_dog_characters','k9_wellbeing','k9_roles');
+                             'k9_personnel','k9_dog_characters','k9_wellbeing','k9_roles','k9_role_audit');
 
 
     -- =================================================================
@@ -608,6 +608,11 @@ BEGIN
               (SELECT TABLE_TYPE  FROM INFORMATION_SCHEMA.TABLES  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_roles'),
               (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_roles'
                  AND COLUMN_NAME IN ('role_key','label','xp_required','unlocks','deleted','created_at','updated_by','updated_at'))
+            UNION ALL SELECT 'k9_role_audit', 6,
+              (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_role_audit'),
+              (SELECT TABLE_TYPE  FROM INFORMATION_SCHEMA.TABLES  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_role_audit'),
+              (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_role_audit'
+                 AND COLUMN_NAME IN ('id','action','role_key','detail','changed_by','changed_at'))
     ) shp
     WHERE shp.tbl_exists = 1
       AND (shp.obj_type <> 'BASE TABLE' OR shp.cols_found <> shp.cols_expected);
@@ -662,6 +667,7 @@ BEGIN
         UNION ALL SELECT 'k9_personnel' AS table_name, 'Every K9/Handler roster assignment and callsign, past and present (ROSTER_SPEC.md §3/§4). Dropping this silently sends every currently-assigned K9/handler back to the "Unassigned" bucket on the next roster read and forgets every current callsign -- a real change to the roster screens, but not to anyone''s actual in-game abilities.' AS what_you_would_lose
         UNION ALL SELECT 'k9_wellbeing' AS table_name, 'Every online K9''s current fatigue/mood/fear-stress/injury/hunger/thirst condition. Dropping this silently resets every K9''s wellbeing to fresh-and-uninjured the next time this resource loads that citizenid -- exactly the "nightly restart resets the dog" behavior this table was added to close. Not recomputable.' AS what_you_would_lose
         UNION ALL SELECT 'k9_roles' AS table_name, 'Every K9 role high command created, renamed, re-priced or removed on the tablet (name, XP needed, what it unlocks). Dropping this silently reverts the role list to config.lua''s three defaults on the next restart; who holds which role is kept (that is k9_certification_specializations).' AS what_you_would_lose
+        UNION ALL SELECT 'k9_role_audit' AS table_name, 'The full history of every role edit high command made on the tablet. Not recomputable from k9_roles.' AS what_you_would_lose
     ) w
     JOIN INFORMATION_SCHEMA.TABLES t
       ON t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME = w.table_name
@@ -843,6 +849,11 @@ BEGIN
               (SELECT TABLE_TYPE  FROM INFORMATION_SCHEMA.TABLES  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_roles'),
               (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_roles'
                  AND COLUMN_NAME IN ('role_key','label','xp_required','unlocks','deleted','created_at','updated_by','updated_at'))
+            UNION ALL SELECT 'k9_role_audit', 6,
+              (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_role_audit'),
+              (SELECT TABLE_TYPE  FROM INFORMATION_SCHEMA.TABLES  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_role_audit'),
+              (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_role_audit'
+                 AND COLUMN_NAME IN ('id','action','role_key','detail','changed_by','changed_at'))
         ) shp2
         WHERE shp2.tbl_exists = 1
           AND (shp2.obj_type <> 'BASE TABLE' OR shp2.cols_found <> shp2.cols_expected)
@@ -1037,6 +1048,9 @@ BEGIN
 
         -- migration 0023 -- the K9 role catalog (server/roles.lua).
         DROP TABLE IF EXISTS `k9_roles`;
+
+        -- migration 0024 -- role edit history (server/roles.lua).
+        DROP TABLE IF EXISTS `k9_role_audit`;
 
         -- RESIDUE REPORT: name any k9_* table this file did NOT drop. New
         -- migrations add tables, and if one is ever missed out of the list

@@ -55,6 +55,7 @@ local function fixture(opts)
             end,
             Role_Upsert = function(k, label, xpReq, unlocks) rows[k] = { label = label, xp = xpReq, unlocks = unlocks, deleted = 0 }; return true end,
             Role_Tombstone = function(k, label) rows[k] = { label = label, xp = 0, unlocks = '', deleted = 1 }; return true end,
+            RoleAudit_Append = function(action, key, detail, by) (opts.audit or {})[#(opts.audit or {}) + 1] = { action = action, key = key, detail = detail, by = by } end,
         },
         lib = setmetatable({ callback = { register = function(name, fn) (opts.callbacks or {})[name] = fn end } }, { __index = function() return function() end end }),
     })
@@ -171,6 +172,23 @@ t.test('a role that shop items still need cannot be deleted -- the refusal names
     t.isNotNil(f.Config.K9Specializations.explosives, 'still there')
     t.isNil(next(f.rows), 'nothing written')
     t.isTrue(f.cb['qbx_k9unit:server:tabletRolesDelete'](1, 'patrol').ok, 'a role no item needs deletes as normal')
+end)
+
+t.test('every role create, edit and delete is written to the audit trail with who did it', function()
+    local audit = {}
+    local f = fixture({ audit = audit })
+    f.cb['qbx_k9unit:server:tabletRolesSave'](1, { label = 'Tactical K9', xpRequired = 4000, unlocks = { 'bite_takedown' } })
+    f.env.GetGameTimer = function() return 2000000 end
+    f.cb['qbx_k9unit:server:tabletRolesSave'](1, { key = 'tactical_k9', label = 'Tactical K9', xpRequired = 3000, unlocks = { 'bite_takedown' } })
+    f.env.GetGameTimer = function() return 3000000 end
+    f.cb['qbx_k9unit:server:tabletRolesDelete'](1, 'tactical_k9')
+    t.equals(#audit, 3)
+    t.equals(audit[1].action, 'role_create')
+    t.equals(audit[1].detail, 'label=Tactical K9 xp=4000 unlocks=bite_takedown')
+    t.equals(audit[1].by, 'CID1')
+    t.equals(audit[2].action, 'role_update')
+    t.equals(audit[3].action, 'role_delete')
+    t.equals(audit[3].key, 'tactical_k9')
 end)
 
 t.test('saved edits survive a catalog refresh (they are read back from K9Store)', function()

@@ -356,7 +356,11 @@ lib.callback.register('qbx_k9unit:server:tabletRolesSave', function(source, data
         return { ok = false, error = 'db_error' }
     end
     RefreshRoleCatalog()
-    print(('[qbx_k9unit] role %s %s by %s: label=%q xp=%d unlocks=%s'):format(key, isNew and 'created' or 'updated', who, label, xp, table.concat(SortedUnlockList(unlocks), ',')))
+    local detail = ('label=%s xp=%d unlocks=%s'):format(label, xp, table.concat(SortedUnlockList(unlocks), ','))
+    if type(K9Store.RoleAudit_Append) == 'function' then
+        K9Store.RoleAudit_Append(isNew and 'role_create' or 'role_update', key, detail, who)
+    end
+    print(('[qbx_k9unit] role %s %s by %s: %s'):format(key, isNew and 'created' or 'updated', who, detail))
     return { ok = true, key = key, roles = ListRolesForDisplay() }
 end)
 
@@ -373,8 +377,12 @@ lib.callback.register('qbx_k9unit:server:tabletRolesDelete', function(source, ke
     if not RoleEditCooldown.Consume(source) then return { ok = false, error = 'rate_limited' } end
 
     local who = CallerCitizenId(source) or 'unknown'
-    if not K9Store.Role_Tombstone(key, ROLES[key].label, who) then return { ok = false, error = 'db_error' } end
+    local deletedLabel = ROLES[key].label
+    if not K9Store.Role_Tombstone(key, deletedLabel, who) then return { ok = false, error = 'db_error' } end
     RefreshRoleCatalog()
+    if type(K9Store.RoleAudit_Append) == 'function' then
+        K9Store.RoleAudit_Append('role_delete', key, ('label=%s'):format(tostring(deletedLabel)), who)
+    end
     print(('[qbx_k9unit] role %s deleted by %s'):format(key, who))
     return { ok = true, roles = ListRolesForDisplay() }
 end)

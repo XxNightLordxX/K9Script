@@ -178,6 +178,9 @@ which one?
   "Unlocks at N XP". Three roles ship ready to use: Narcotics and Patrol
   (0 XP) and Explosives (1250 XP). Bite / takedown stays open to everyone
   until you add it to some role — then only that role's holders can.
+  Supply shop items can require a role too (**Required Role** on each
+  item): only holders whose XP has reached it can buy that item. Every
+  role change is logged on the Audit Trail under Catalog Changes.
 - **The tablet only shows what you have.** Features you're not allowed
   to use and roles you don't hold simply don't appear.
 - **High command can also assign the K9 role directly** from the tablet

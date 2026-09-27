@@ -426,7 +426,7 @@ t.test('HANDLER RANK: the roster table carries a Handler XP column alongside the
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle(h);
 
-    t.isTrue(findByText(h.getRoot(), 'XP / Tier').length >= 1, 'the K9 column header is unchanged');
+    t.isTrue(findByText(h.getRoot(), 'XP / Rank').length >= 1, 'the K9 column header');
     t.isTrue(findByText(h.getRoot(), 'Handler XP / Rank').length >= 1, 'and the handler column header is present');
     t.isTrue(findByText(h.getRoot(), '1250 — Trained K9').length >= 1, 'the K9 cell still renders');
     t.isTrue(findByText(h.getRoot(), '220 — Senior Handler').length >= 1,

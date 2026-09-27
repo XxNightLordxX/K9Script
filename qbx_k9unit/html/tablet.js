@@ -1107,7 +1107,7 @@
         // (acceptance criterion #13) and NEVER persisted across a reopen
         // (§9's own explicit scope cut) -- reset to 'tier' in handleOpen(),
         // same as every other per-session-only value on this page.
-        personnelRosterSort: 'tier',
+        personnelRosterSort: 'xp',
         // WHICH ROSTER BUCKET THE ONE Roster TAB IS SHOWING -- 'k9' | 'handler'.
         // This used to be encoded in the SCREEN itself: two tabs, 'roster_k9'
         // and 'roster_handlers', both calling buildPersonnelRosterScreen()
@@ -1305,7 +1305,7 @@
         auditDepartment: '', // tabletAuditDept's own `departmentKey` input -- free text, but pre-offered as a <select> from state.myRecord.certifications' own real departmentKey list (never a hardcoded department list -- see buildAuditForm()'s own 'dept' branch, which offers knownDepartmentKeys() as a datalist)
         auditSearchMode: 'officer', // 'officer' | 'plate' | 'person' | 'recent' -- tabletAuditSearch's own `mode`
         auditSearchValue: '', // citizenid (officer/person) or plate (plate); unused for 'recent'
-        auditCatalogName: 'certTiers', // tabletAuditCatalog's own `catalogName` -- one of AUDIT_CATALOG_NAMES' 8 keys; 'certTiers' (that array's first entry) is the default, same "first entry of the fixed list" convention auditSearchMode's own 'officer' default already uses
+        auditCatalogName: 'roles', // tabletAuditCatalog's own `catalogName` -- one of AUDIT_CATALOG_NAMES' 9 keys; 'roles' (that array's first entry) is the default, same "first entry of the fixed list" convention auditSearchMode's own 'officer' default already uses
         auditLimit: 20, // shared numeric input for every mode except 'xp' (which takes none) -- clamped into [AUDIT_LIMIT_MIN, auditEffectiveCap()] before ever being sent, see runAuditQuery()
         auditServerCap: null, // the REAL cap (server/admin.lua's HARD_MAX_RESULTS) as reported by `result.cap` on the most recent successful tabletAudit* response -- null until the FIRST one ever succeeds this session, or if a response is ever missing the field (older server build) -- see auditEffectiveCap()/AUDIT_LIMIT_MAX_FALLBACK
         auditLoading: false,
@@ -5097,7 +5097,6 @@
         var wrap = mk('div', { class: 'k9tablet-toolbar k9tablet-roster-sort' });
         wrap.appendChild(mk('span', { class: 'k9tablet-roster-sort-label', text: S('roster_sort_label') }));
         var options = [
-            { key: 'tier', label: S('roster_sort_by_tier') },
             { key: 'grade', label: S('roster_sort_by_grade') },
             { key: 'xp', label: S('roster_sort_by_xp') },
         ];
@@ -9033,6 +9032,7 @@
      * heading and the closest real match.
      */
     var AUDIT_CATALOG_NAMES = [
+        ['roles', 'roles_heading'],
         ['certTiers', 'cert_tiers_heading'],
         ['permissionKeys', 'permission_keys_heading'],
         ['xpTiers', 'xp_tiers_heading'],
@@ -9308,6 +9308,8 @@
         var detailColumn = { header: S('column_detail'), render: function (r) { return auditText(r.detail); } };
 
         switch (catalogName) {
+            case 'roles':
+                return [actionColumn, { header: S('roles_column_name'), render: function (r) { return auditText(r.role_key); } }, detailColumn, changedByColumn, changedAtColumn];
             case 'certTiers':
                 return [actionColumn, { header: S('cert_tier_key_label'), render: function (r) { return auditText(r.tier_key); } }, detailColumn, changedByColumn, changedAtColumn];
             case 'permissionKeys':
@@ -10529,7 +10531,7 @@
         render();
         loadRuntimeFeatures();
         loadRuntimeTunables();
-        loadCertTiers();
+        loadRoles();
         loadXpTiers();
         loadEquipmentShopItems();
     }
@@ -10629,7 +10631,7 @@
 
         wrap.appendChild(buildSettingsOverriddenLine(state.runtimeFeatures, 'settings_overview_features_template'));
         wrap.appendChild(buildSettingsOverriddenLine(state.runtimeTunables, 'settings_overview_tunables_template'));
-        wrap.appendChild(buildSettingsCountLine(state.certTiers, 'settings_overview_tiers_template'));
+        wrap.appendChild(buildSettingsCountLine(state.roles, 'settings_overview_roles_template'));
         wrap.appendChild(buildSettingsCountLine(state.xpTiers, 'settings_overview_xp_template'));
         wrap.appendChild(buildSettingsCountLine(state.shopItems, 'settings_overview_shop_template'));
         return wrap;
@@ -12781,7 +12783,7 @@
         state.personnelRosterLoading = false;
         state.personnelRosterError = null;
         state.personnelRoster = null;
-        state.personnelRosterSort = 'tier';
+        state.personnelRosterSort = 'xp';
         state.personnelRosterBucket = 'k9';
         state.lastPermissionMutationAt = 0;
         state.actionNotice = null;
@@ -12790,7 +12792,7 @@
         state.auditDepartment = '';
         state.auditSearchMode = 'officer';
         state.auditSearchValue = '';
-        state.auditCatalogName = 'certTiers';
+        state.auditCatalogName = 'roles';
         state.auditError = null;
         state.auditResult = null;
         // state.auditServerCap is DELIBERATELY NOT reset here -- same

@@ -2172,6 +2172,7 @@ AddEventHandler('onResourceStart', function(resourceName)
     -- single generic function for all eight instead of a k9Profiles-specific
     -- branch living inside it.
     local CATALOG_AUDIT_SOURCES = {
+        roles            = { accessor = K9Store.RoleAudit_GetRecent,               labelKey = 'admin.catalog_audit_label_roles' },
         certTiers        = { accessor = K9Store.TierAudit_GetRecent,               labelKey = 'admin.catalog_audit_label_cert_tiers' },
         permissionKeys   = { accessor = K9Store.PermKeyAudit_GetRecent,            labelKey = 'admin.catalog_audit_label_permission_keys' },
         xpTiers          = { accessor = K9Store.XPTierAudit_GetRecent,             labelKey = 'admin.catalog_audit_label_xp_tiers' },

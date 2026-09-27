@@ -4,7 +4,7 @@
 -- MINIMUM SERVER VERSION: MySQL >= 5.7.8, or MariaDB >= 10.2.
 --
 -- This is a hard requirement, not a recommendation. Five of the
--- twenty-nine (29) tables below (k9_certifications,
+-- thirty (30) tables below (k9_certifications,
 -- k9_certification_specializations, k9_partnerships, k9_permissions,
 -- k9_personnel)
 -- declare an INDEXED VIRTUAL GENERATED COLUMN backing a UNIQUE KEY
@@ -13,7 +13,7 @@
 -- `k9_partnerships.active_partner_k9_key` and `active_partner_handler_key`,
 -- `k9_permissions.active_permission_key`,
 -- `k9_personnel.active_personnel_key` and `active_callsign_key`
--- (migration 0020, ROSTER_SPEC.md §3/§4)) -- the other twenty-four
+-- (migration 0020, ROSTER_SPEC.md §3/§4)) -- the other twenty-five
 -- (k9_search_log, k9_progression, k9_runtime_feature_overrides,
 -- k9_runtime_override_audit, k9_tablet_theme, k9_tablet_theme_audit,
 -- k9_ped_assignments, k9_certification_tiers,
@@ -22,7 +22,8 @@
 -- k9_permission_keys, k9_permission_key_audit, k9_equipment_shop_items,
 -- k9_equipment_shop_item_audit, k9_xp_tiers, k9_xp_tier_audit,
 -- k9_individual_overrides, k9_individual_override_audit,
--- k9_partnership_pair_progress, k9_dog_characters, k9_wellbeing, k9_roles) need
+-- k9_partnership_pair_progress, k9_dog_characters, k9_wellbeing, k9_roles,
+-- k9_role_audit) need
 -- nothing from this floor and would run on an older server on their own,
 -- but this resource has one stated minimum for the schema as a whole, not
 -- a per-table one.
@@ -1756,4 +1757,25 @@ CREATE TABLE IF NOT EXISTS `k9_roles` (
   `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`role_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================================
+-- qbx_k9unit :: k9_role_audit
+--
+-- The full history of every role edit high command makes on the tablet
+-- (server/roles.lua): who created, changed or deleted which role, and
+-- what it looked like afterwards. Append-only; shown on the tablet's
+-- Audit Trail under Catalog Changes. For an EXISTING database that
+-- predates this table, run `sql/migrations/0024_create_k9_role_audit.sql`.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS `k9_role_audit` (
+  `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `action`       VARCHAR(20)  NOT NULL,
+  `role_key`     VARCHAR(32)  NOT NULL,
+  `detail`       TEXT         NOT NULL,
+  `changed_by`   VARCHAR(50)  NOT NULL,
+  `changed_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`id`),
+  KEY `idx_role_changed_at` (`role_key`, `changed_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

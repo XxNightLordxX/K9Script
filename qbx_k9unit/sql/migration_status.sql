@@ -114,9 +114,11 @@ FROM (
       (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_wellbeing')
     UNION ALL SELECT 'k9_roles',
       (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_roles')
+    UNION ALL SELECT 'k9_role_audit',
+      (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_role_audit')
 ) t
 ORDER BY t.table_name;
--- NOTE: install.sql now converges with sql/migrations/0001-0023 (29 tables
+-- NOTE: install.sql now converges with sql/migrations/0001-0024 (30 tables
 -- total, including k9_progression's idx_xp, migration 0010's three
 -- certification-tier tables, migration 0011's two equipment-shop-location
 -- tables, migration 0013's two permission-key-catalog tables, migration
@@ -578,6 +580,19 @@ FROM (
       (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_roles') AS tbl_exists
 ) t;
 
+-- 0024: CREATE TABLE (k9_role_audit) -- the history of role edits made on
+-- the tablet (server/roles.lua). Independent of every other table.
+SELECT
+    t.table_name AS `0024_create_k9_role_audit.sql would...`,
+    CASE WHEN t.tbl_exists = 0
+         THEN CONCAT('CREATE TABLE `', t.table_name, '` (currently absent)')
+         ELSE CONCAT('no-op -- `', t.table_name, '` already exists')
+    END AS plan
+FROM (
+    SELECT 'k9_role_audit' AS table_name,
+      (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='k9_role_audit') AS tbl_exists
+) t;
+
 
 -- ---------------------------------------------------------------------
 -- PART 3: blast-radius summary -- row counts for every table that
@@ -597,7 +612,7 @@ WHERE TABLE_SCHEMA = DATABASE()
                       'k9_equipment_shop_items','k9_equipment_shop_item_audit',
                       'k9_xp_tiers','k9_xp_tier_audit',
                       'k9_individual_overrides','k9_individual_override_audit',
-                      'k9_partnership_pair_progress','k9_personnel','k9_dog_characters','k9_wellbeing','k9_roles')
+                      'k9_partnership_pair_progress','k9_personnel','k9_dog_characters','k9_wellbeing','k9_roles','k9_role_audit')
 ORDER BY TABLE_NAME;
 
 -- DRIFT CHECK -- same posture and same reasoning as preflight_check.sql's
@@ -627,6 +642,6 @@ WHERE TABLE_SCHEMA = DATABASE()
                           'k9_equipment_shop_items','k9_equipment_shop_item_audit',
                           'k9_xp_tiers','k9_xp_tier_audit',
                           'k9_individual_overrides','k9_individual_override_audit',
-                          'k9_partnership_pair_progress','k9_personnel','k9_dog_characters','k9_wellbeing','k9_roles');
+                          'k9_partnership_pair_progress','k9_personnel','k9_dog_characters','k9_wellbeing','k9_roles','k9_role_audit');
 
 SELECT 'DRY RUN COMPLETE -- nothing was changed by this report. Run sql/k9_setup.sh (without --dry-run) to actually apply the plan above; it backs up your whole database first, automatically, and refuses to write anything if that backup fails.' AS final_note;

@@ -94,55 +94,55 @@ local PENDING_CERT_LOCALE = {
     ['certifications.self_certification_disabled_hint'] =
         "Self-certification is disabled on this server -- ask another certifying officer to do this for you instead.",
     ['certifications.target_must_be_online_use_offline'] =
-        "Target must be online to be certified this way. If they are offline, use /k9certify [citizenid] [job] instead.",
+        "Target must be online to be certified this way. If they are offline, open them on the tablet and certify from there.",
     ['certifications.target_must_be_online_model_check'] =
         "Target must be online to be certified -- this server requires verifying their current K9 model, which cannot be checked while they are offline. There is no offline path for this while that check is enabled.",
     ['certifications.target_not_in_department_hint'] =
-        'Target is not employed by an eligible department. Configured departments: %s.',
+        "Target is not employed by an eligible department. Configured departments: %s.",
     ['certifications.target_too_far_to_certify_distance'] =
-        'Target is too far away to certify -- move within %sm of them and try again.',
+        "Target is too far away to certify -- move within %sm of them and try again.",
     ['certifications.target_too_far_to_revoke_distance'] =
-        'Target is too far away to revoke their certification -- move within %sm of them and try again.',
+        "Target is too far away to revoke their certification -- move within %sm of them and try again.",
     ['certifications.action_target_too_far_distance'] =
-        'Target is too far away for this action -- move within %sm of them and try again.',
+        "Target is too far away for this action -- move within %sm of them and try again.",
     ['certifications.target_not_k9_model_hint'] =
-        "Target is not playing a recognized K9 model. Ask them to switch to one of this server's configured K9 models before certifying, or ask an operator to turn off Config.K9Appearance.requireK9ModelForRole if that check isn't needed.",
+        "Target is not playing a recognized K9 model. Ask them to switch to one of this server's configured K9 models before certifying, or ask a server operator to turn off the K9-model check for certifying if it isn't needed here.",
     ['certifications.target_already_certified_hint'] =
-        "Target already holds an active certification for this department. Use /k9settier or /k9specialize to adjust it, or /k9decertify and re-certify to start over.",
+        "Target already holds an active certification for this department. Give them roles on their page on the tablet, or decertify and certify again to start over.",
     ['certifications.invalid_department_hint'] =
         "'%s' is not a configured department. Configured departments: %s.",
     ['certifications.tier_change_target_must_be_online_hint'] =
         "Target must be online for this action, or use /k9settier [citizenid] [job] [tier] to change their tier while they're offline.",
     ['certifications.renew_target_must_be_online_hint'] =
-        "Target must be online for this action, or use /k9certify [citizenid] [job] to renew their certification while they're offline.",
+        "Target must be online for this action, or renew their certification from their page on the tablet.",
     ['certifications.specialization_target_must_be_online_no_offline'] =
-        "Target must be online for this action -- specializations can only be granted while the target is connected; there is no offline path for this one.",
+        "Target must be online to be given a role.",
     ['certifications.target_not_actively_certified_needs_cert'] =
-        "Target does not hold an active certification for this department -- certify them first with /k9certify [server id] (or /k9certify [citizenid] [job] if they're offline).",
+        "Target does not hold an active certification for this department -- certify them first from their page on the tablet.",
     ['certifications.tier_change_busy'] =
-        'That tier is being edited elsewhere right now -- try again in a moment.',
+        "That tier is being edited elsewhere right now -- try again in a moment.",
     ['certifications.invalid_specialization_hint'] =
-        'That is not a configured K9 specialization. Configured specializations: %s.',
+        "That is not a K9 role. Roles: %s.",
     ['certifications.specialization_requires_active_cert_hint'] =
-        "That person must hold an active certification for this department before a specialization can be granted -- certify them first with /k9certify.",
+        "That person must hold an active certification for this department before they can be given a role -- certify them first on the tablet.",
     ['certifications.specialization_requires_tier_capability_hint'] =
-        "That person's certification tier does not permit specializations for this department -- change their tier with /k9settier, or ask an operator to grant this capability to their tier from the tablet.",
+        "That person's certification tier does not permit specializations for this department -- change their tier with /k9settier, or ask a High Command officer to grant this capability to their tier from the tablet.",
     ['certifications.grant_success_next_steps'] =
-        "They start at the '%s' tier with no specializations yet. %d feature(s) on this server also require a separate grant (/k9grantpermission, or the tablet) before they will work for them.",
+        "Certified. They have no roles yet -- give them roles on their page on the tablet. %d feature(s) on this server also need a separate grant (on the same page) before they will work for them.",
     ['certifications.grant_success_next_steps_no_grants'] =
-        "They start at the '%s' tier with no specializations yet.",
+        "Certified. They have no roles yet -- give them roles on their page on the tablet.",
     ['certifications.revoked_notice_online_with_reason'] =
-        'Your K9 certification has been revoked (reason: %s).',
+        "Your K9 certification has been revoked (reason: %s).",
     ['certifications.renew_success_granter_detail'] =
         "Target's certification has been renewed -- it now expires in %s day(s).",
     ['certifications.renew_success_target_detail'] =
-        'Your K9 certification has been renewed -- it now expires in %s day(s).',
+        "Your K9 certification has been renewed -- it now expires in %s day(s).",
     ['certifications.k9_access_lost_department_change'] =
-        'You are no longer employed by an eligible K9 department, so your K9 access permission no longer applies here. Any active K9 pairing has ended.',
+        "You are no longer employed by an eligible K9 department, so your K9 access permission no longer applies here. Any active K9 pairing has ended.",
     ['certifications.k9_access_lost_grade_change'] =
-        'Your K9 access has ended -- your current rank no longer qualifies you, and you hold no separate certification for this department. Any active K9 pairing has ended.',
+        "Your K9 access has ended -- your current rank no longer qualifies you, and you hold no separate certification for this department. Any active K9 pairing has ended.",
     ['certifications.revoked_notice_job_change_next_steps'] =
-        'If you need K9 access in your new department, ask a certifying officer there to certify you.',
+        "If you need K9 access in your new department, ask a certifying officer there to certify you.",
 }
 
 --- @param key string
@@ -1639,7 +1639,7 @@ end)
 -- Config.FeatureControl.RequireGrant), never a hardcoded assumption.
 -- ======================================================================
 
-t.test('GrantCertification: WORKFLOW CLARITY -- success sends the granter a follow-up naming the real tier and specialization count, with no features requiring a grant on this server (the shipped default)', function()
+t.test('GrantCertification: WORKFLOW CLARITY -- success sends the granter a follow-up pointing at roles, with no features requiring a grant on this server (the shipped default)', function()
     local f = newFixture()
     f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
     f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
@@ -1656,7 +1656,7 @@ t.test('GrantCertification: WORKFLOW CLARITY -- success sends the granter a foll
     -- NO-GRANTS-NEEDED variant is the one that must be sent, naming the
     -- REAL tier ('certified', the DB's own default -- read back from the
     -- cache this same call just populated, never hardcoded here).
-    t.isTrue(notifiedExactly(f, 10, localeWithPendingCertKeys('certifications.grant_success_next_steps_no_grants', 'certified'), 'inform'))
+    t.isTrue(notifiedExactly(f, 10, localeWithPendingCertKeys('certifications.grant_success_next_steps_no_grants'), 'inform'))
 end)
 
 t.test('GrantCertification: WORKFLOW CLARITY -- when Config.FeatureControl.RequireGrant lists features, the follow-up names the REAL, live count, not a hardcoded number', function()
@@ -1674,7 +1674,7 @@ t.test('GrantCertification: WORKFLOW CLARITY -- when Config.FeatureControl.Requi
     -- Exactly 2 of the 3 entries are `true` (PropDragging is `false`, and
     -- must NOT be counted) -- proves the count is computed live from the
     -- actual table shape, not merely "the table is non-empty".
-    t.isTrue(notifiedExactly(f, 10, localeWithPendingCertKeys('certifications.grant_success_next_steps', 'certified', 2), 'inform'))
+    t.isTrue(notifiedExactly(f, 10, localeWithPendingCertKeys('certifications.grant_success_next_steps', 2), 'inform'))
 end)
 
 t.test('GrantCertificationOffline: WORKFLOW CLARITY -- the same follow-up is sent on the offline grant path too, computed from the same just-refreshed real state', function()
@@ -1685,7 +1685,7 @@ t.test('GrantCertificationOffline: WORKFLOW CLARITY -- the same follow-up is sen
 
     f.commands['k9certify'].fn(1, { 'OFFLINE_CIT', 'police' })
 
-    t.isTrue(notifiedExactly(f, 1, localeWithPendingCertKeys('certifications.grant_success_next_steps', 'certified', 1), 'inform'))
+    t.isTrue(notifiedExactly(f, 1, localeWithPendingCertKeys('certifications.grant_success_next_steps', 1), 'inform'))
 end)
 
 -- ======================================================================

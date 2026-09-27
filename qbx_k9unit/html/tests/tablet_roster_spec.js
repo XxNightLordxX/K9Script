@@ -325,8 +325,8 @@ t.test('sorting by Department Grade or XP re-orders the already-fetched rows wit
     const personnelRoster = {
         ok: true,
         k9: [
-            rosterRow({ citizenid: 'LOW', name: 'Rookie Rex', tierOrdinal: 1, gradeLevel: 0, xp: 5 }),
-            rosterRow({ citizenid: 'HIGH', name: 'Veteran Vex', tierOrdinal: 3, gradeLevel: 9, xp: 900 }),
+            rosterRow({ citizenid: 'LOW', name: 'Rookie Rex', tierOrdinal: 1, gradeLevel: 9, xp: 5 }),
+            rosterRow({ citizenid: 'HIGH', name: 'Veteran Vex', tierOrdinal: 3, gradeLevel: 5, xp: 900 }),
             rosterRow({ citizenid: 'MID', name: 'Middle Max', tierOrdinal: 2, gradeLevel: 4, xp: 400 }),
         ],
         handlers: [],
@@ -355,19 +355,18 @@ t.test('sorting by Department Grade or XP re-orders the already-fetched rows wit
         return findAll(h.getRoot(), (n) => ['Rookie Rex', 'Veteran Vex', 'Middle Max'].indexOf(n._textContent) !== -1).map((n) => n._textContent);
     }
 
-    t.equals(nameOrder().join(','), 'Veteran Vex,Middle Max,Rookie Rex', 'default sort is tier ordinal descending');
-
-    findByText(h.getRoot(), 'XP')[0].click();
-    t.equals(nameOrder().join(','), 'Veteran Vex,Middle Max,Rookie Rex', 'XP sort, descending, happens to agree with tier order here too');
+    t.equals(nameOrder().join(','), 'Veteran Vex,Middle Max,Rookie Rex', 'default sort is XP descending');
+    t.equals(findByText(h.getRoot(), 'Certification Tier').length, 0, 'no tier sort any more -- tiers were merged into roles');
 
     findByText(h.getRoot(), 'Department Grade')[0].click();
-    t.equals(nameOrder().join(','), 'Veteran Vex,Middle Max,Rookie Rex', 'grade sort, descending');
+    t.equals(nameOrder().join(','), 'Rookie Rex,Veteran Vex,Middle Max', 'grade sort, descending');
 
-    findByText(h.getRoot(), 'Certification Tier')[0].click();
+    findByText(h.getRoot(), 'XP')[0].click();
+    t.equals(nameOrder().join(','), 'Veteran Vex,Middle Max,Rookie Rex', 'back to XP sort');
     await settle(h, 4);
 
     const callsAfterSorting = rosterCalls.filter((c) => c.name === 'tablet:rosterList').length;
-    t.equals(callsAfterSorting, callsAfterOpen, 'sorting three times fired ZERO additional qbx_k9unit:server:rosterList calls');
+    t.equals(callsAfterSorting, callsAfterOpen, 'sorting twice fired ZERO additional qbx_k9unit:server:rosterList calls');
 });
 
 // ============================================================================

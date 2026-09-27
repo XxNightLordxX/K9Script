@@ -432,7 +432,7 @@
       tablet:auditSearch {mode, value?, limit?}     -> cb(AuditResult)  [tabletAuditSearch -- mode in {'officer','plate','person','recent'}]
       tablet:auditXp {targetCitizenId}              -> cb(AuditResult)  [tabletAuditXp -- no limit, single-row point lookup]
       tablet:auditDept {departmentKey, limit?}      -> cb(AuditResult)  [tabletAuditDept]
-      tablet:auditCatalog {catalogName, limit?}     -> cb(AuditResult)  [tabletAuditCatalog -- catalogName MUST be an exact key of server/admin.lua's own CATALOG_AUDIT_SOURCES (certTiers/permissionKeys/xpTiers/shopItems/shopLocations/k9Profiles/runtimeOverrides/tabletThemes); forwarded VERBATIM, never whitelist-checked a second time here -- same THE SECURITY RULE as tablet:auditSearch's own `mode` immediately below, and for the identical reason: that file's own CATALOG_AUDIT_SOURCES lookup is the ONLY real gate, a second copy of its key list here could only drift from it, never make it safer]
+      tablet:auditCatalog {catalogName, limit?}     -> cb(AuditResult)  [tabletAuditCatalog -- catalogName MUST be an exact key of server/admin.lua's own CATALOG_AUDIT_SOURCES (roles/certTiers/permissionKeys/xpTiers/shopItems/shopLocations/k9Profiles/runtimeOverrides/tabletThemes); forwarded VERBATIM, never whitelist-checked a second time here -- same THE SECURITY RULE as tablet:auditSearch's own `mode` immediately below, and for the identical reason: that file's own CATALOG_AUDIT_SOURCES lookup is the ONLY real gate, a second copy of its key list here could only drift from it, never make it safer]
         AuditResult = { ok:true, rows:table, label:string, cap:number, limit?:number, truncated?:boolean } |
                       { ok:false, error:'not_authorized'|'rate_limited'|'invalid_args', message?:string }
         `cap` (server/admin.lua's own HARD_MAX_RESULTS, added in a LATER
@@ -1415,7 +1415,7 @@ local TABLET_STRING_KEYS = {
     -- labels and step names went with it; the Overview section kept that
     -- flow's live summary lines.
     'tab_settings', 'settings_section_overview', 'help_tab_settings_desc', 'help_task_hc_settings_sections_template', 'settings_overview_heading', 'settings_overview_intro', 'settings_overview_features_template', 'settings_overview_tunables_template',
-    'settings_overview_tiers_template', 'settings_overview_xp_template', 'settings_overview_shop_template', 'settings_overview_not_loaded',
+    'settings_overview_tiers_template', 'settings_overview_roles_template', 'settings_overview_xp_template', 'settings_overview_shop_template', 'settings_overview_not_loaded',
     -- MUTATION ERROR TEXT (this pass, state-handling/error-reporting
     -- consistency sweep) -- html/tablet.js's own mutationErrorText(), the
     -- per-`error`-code mapping runMutation() now uses instead of a single

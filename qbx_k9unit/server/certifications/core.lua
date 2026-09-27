@@ -2300,9 +2300,6 @@ end
 --- @param citizenid string
 --- @param jobName string
 local function SendGrantSuccessNextSteps(granterSrc, citizenid, jobName)
-    local cached = Certifications[citizenid]
-    local tierKey = (cached and cached.job == jobName and cached.tier) or DEFAULT_TIER
-
     local specCount = 0
     local specsForJob = Specializations[citizenid] and Specializations[citizenid][jobName]
     if type(specsForJob) == 'table' then
@@ -2316,9 +2313,9 @@ local function SendGrantSuccessNextSteps(granterSrc, citizenid, jobName)
 
     local requireGrantCount = CountFeaturesRequiringGrant()
     if requireGrantCount > 0 then
-        NotifyPlayer(granterSrc, locale('certifications.grant_success_next_steps', tierKey, requireGrantCount), 'inform')
+        NotifyPlayer(granterSrc, locale('certifications.grant_success_next_steps', requireGrantCount), 'inform')
     else
-        NotifyPlayer(granterSrc, locale('certifications.grant_success_next_steps_no_grants', tierKey), 'inform')
+        NotifyPlayer(granterSrc, locale('certifications.grant_success_next_steps_no_grants'), 'inform')
     end
 end
 
