@@ -1242,28 +1242,26 @@ Config.FeatureControl = {
     -- names the affected features and points at these commands whenever
     -- both conditions above are true at once.
     --
-    -- These four default to grant-required because they are the ones that
-    -- act ON another player rather than on the K9 itself, so "who is
-    -- allowed to do this" is a decision a server will actually want to
-    -- make per person rather than per rank.
-    RequireGrant = {
-        BiteAndHold       = true,
-        NonLethalTakedown = true,
-        PropDragging      = true,
-        AdminAuditCommands = true,
-        -- FindAlerts does NOT fit the "acts on another player" rationale
-        -- above -- it is cosmetic and affects only the searcher's own
-        -- character. It is listed anyway because the requirement is that
-        -- high command can switch ANY feature on or off for an individual,
-        -- not only the dangerous ones. Treat the paragraph above as the
-        -- reason the original four were chosen, not as a rule limiting what
-        -- may appear here.
-        FindAlerts        = true,
-        -- ScentTrailHunt's own RequireGrant entry was removed alongside the
-        -- feature itself (Config.Features' own comment where that key used
-        -- to live has the full removal writeup and revert instructions).
-        PursuitSprint     = true,
-    },
+    -- SHIPS EMPTY, ON PURPOSE: a K9 that high command has made a K9 can use
+    -- every ability straight away. Before, bite & hold, takedown, dragging,
+    -- pursuit sprint, find alerts and the audit commands were all listed
+    -- here, so every new K9 needed up to six separate per-person grants
+    -- before they could do their job -- and nothing told them why the keys
+    -- did nothing.
+    --
+    -- Taking an ability away from ONE person does not need this list: block
+    -- it for them from their record on the tablet. That works whatever is
+    -- (or is not) listed here.
+    --
+    -- Want "only the people I hand it to" for something? Add it back, one
+    -- line each -- the names are the Config.Features keys:
+    --     BiteAndHold = true,
+    --     NonLethalTakedown = true,
+    --     PropDragging = true,
+    --     PursuitSprint = true,
+    --     FindAlerts = true,
+    --     AdminAuditCommands = true,
+    RequireGrant = {},
 
     -- Whether high command can grant permissions to THEMSELVES. Ships on,
     -- at the owner's request.

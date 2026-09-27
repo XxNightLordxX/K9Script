@@ -639,15 +639,10 @@ end
 --- Read-only accessor over the `local` `Partnerships` cache, expressing
 --- exactly the boolean check DEVELOPER_REFERENCE.md §12.0 item 7 specifies for
 --- See "HOW TO CONSUME THIS REGISTRY" in this file's
---- header for the originally-intended caller. STILL not called that way:
---- every other caller (confirmed by direct read) never takes an
---- "alleged partner" from anywhere to validate against this function --
---- it derives the K9 to recall directly from `GetActivePartnerCitizenId(callerCitizenid)`
---- instead, which is strictly narrower (a caller can only ever recall their
---- own registered partner, never anyone else's) and needs no separate
---- alleged-partner comparison. This function has no internal caller today;
---- it remains reachable only via server/exports.lua's `IsActivePartnerOf`
---- export for other resources.
+--- header for the originally-intended caller. Called by server/main.lua's
+--- requestLeashAttach, which lets two partners leash without a prompt, and
+--- reachable by other resources via server/exports.lua's `IsActivePartnerOf`
+--- export.
 --- @param citizenid string
 --- @param allegedPartnerCitizenid string
 --- @return boolean

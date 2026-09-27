@@ -1432,16 +1432,13 @@ globals = {
     -- server/certifications.lua's RefreshCertificationCache reuse hook
     -- (called from this file's own onResourceStart backfill loop, exposed
     -- globally for the same "documented reuse hook" reason). GetActivePartnerCitizenId/
-    -- IsActivePartnerOf are read-only accessors with no consumer in this
-    -- resource today -- the two they were written for (a recall actor and
-    -- an automatic handler-down trigger) were removed at the owner's
-    -- request and are not coming back. ForceBreakPartnershipForCitizenId
-    -- is citizenid-keyed (not source-keyed, unlike leash's
-    -- ForceDetachLeashForSource/ForceDetachOfficerLeashForSource above) --
-    -- intended for server/certifications.lua's cert-revoke/department-change
-    -- call sites, which do not actually call it yet (a disclosed gap, not
-    -- fixed here -- see client/partnership.lua's own header for the
-    -- finding).
+    -- IsActivePartnerOf are read-only accessors (server/appearance.lua and
+    -- server/main.lua's partner leash shortcut, plus server/exports.lua).
+    -- ForceBreakPartnershipForCitizenId is citizenid-keyed (not
+    -- source-keyed, unlike leash's ForceDetachLeashForSource/
+    -- ForceDetachOfficerLeashForSource above) -- called by
+    -- server/certifications/'s cert-revoke/department-change teardowns and
+    -- the tablet's Force End.
     "RefreshPartnershipCache", "ForceBreakPartnershipForCitizenId",
     "GetActivePartnerCitizenId", "IsActivePartnerOf",
     -- client/partnership.lua (Phase 3, the client half of
