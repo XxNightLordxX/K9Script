@@ -1039,7 +1039,7 @@
         rosterError: null,
         roster: null, // { rows, truncated, truncatedMessage }
         rosterQuery: '',
-        openByIdValue: '', // console screen's "open by exact citizen ID" box -- see buildConsoleScreen()
+        findPersonQuery: '', // the Console's one search box -- see buildFindPersonBar()
 
         // ONLINE PLAYERS LIST (owner-directed, 2026-08-26: "make the add
         // permission section... where its a list when i choose a player
@@ -1324,7 +1324,6 @@
     };
 
     var searchDebounceTimer = null;
-    var onlinePlayersSearchDebounceTimer = null; // SEPARATE from searchDebounceTimer above -- the Online Players search box and the roster search box are two independent inputs on the same screen; sharing one timer would let typing in either box cancel/reschedule the other's pending fetch
 
     // ------------------------------------------------------------------
     // DOM REFS
@@ -4691,143 +4690,28 @@
 
         // NARROWED-ACCESS NOTICE (workflow audit finding #1, 2026-08-26) --
         // a 'k9.certify'/'k9.givexp' holder who lacks 'k9.audit'/high
-        // command reaches this screen via canOpenPersonRecord() (see that
-        // function's own doc comment), but the roster search/listing below
-        // stays k9.audit/high-command only, deliberately (server/tablet.lua's
-        // OWNER'S DECISION on CallerHasConsoleAccess, untouched). This
-        // notice is the ONLY thing telling that viewer why the search box
-        // and table they might expect are simply not here -- without it,
-        // a smaller screen with no explanation looks like a bug, not a
-        // deliberate boundary.
+        // command reaches this screen via canOpenPersonRecord(), but the
+        // listings below stay k9.audit/high-command only (server/tablet.lua's
+        // CallerHasConsoleAccess). This tells that viewer why they only get
+        // the open-by-citizen-ID half of the search box.
         var fullAccess = canAccessConsole();
         if (!fullAccess) {
             wrap.appendChild(mk('p', { class: 'k9tablet-muted', text: S('console_person_only_notice') }));
         }
 
-        // ONLINE PLAYERS LIST (this pass) -- see buildOnlinePlayersSection()'s
-        // own header. Placed FIRST, ahead of the certified-only roster and
-        // the "open by exact citizen ID" box below: it is the easiest,
-        // most immediately useful path for the common case ("who is on
-        // duty right now"), and closes the exact gap the owner named --
-        // picking someone by the server id visible in the pause menu,
-        // rather than needing a citizenid nothing in-game shows a player.
-        // Gated on fullAccess, the SAME audience as the roster -- see this
-        // section's own header for why this stays the narrower gate.
-        if (fullAccess) {
-            wrap.appendChild(buildOnlinePlayersSection());
-        }
+        wrap.appendChild(buildFindPersonBar(fullAccess));
 
-        // WHO HOLDS A PER-DOG OVERRIDE (plan item D) -- the one unique part
-        // of the old K9 Overrides tab, moved here beside the other "who has
-        // what" lists. High command only, matching the gate that tab had.
-        if (state.viewer && state.viewer.isHighCommand) {
-            wrap.appendChild(buildK9ProfilesOverviewSection());
-        }
-
-        if (fullAccess) {
-            var toolbar = mk('div', { class: 'k9tablet-toolbar' });
-            // A LABEL, not just a placeholder (2026-09-01). This one stays a
-            // plain search rather than moving to buildListFilterBar(): every
-            // keystroke re-queries the SERVER, so there is no local total to
-            // report a fraction of -- see that function's own note. What it
-            // was missing was any on-screen statement of what it searches
-            // and, more importantly, of what it does NOT: this list is
-            // certified people only, which a placeholder reading "Search by
-            // name, citizen ID, or department..." actively hides.
-            toolbar.appendChild(mk('label', {
-                class: 'k9tablet-feature-filter-label',
-                text: S('roster_search_label'),
-                attrs: { for: 'k9tablet-roster-search' },
-            }));
-            var search = mk('input', { class: 'k9tablet-search', attrs: { type: 'text', id: 'k9tablet-roster-search', placeholder: S('search_placeholder') } });
-            search.value = state.rosterQuery;
-            search.addEventListener('input', function (e) {
-                var q = e.target.value;
-                state.rosterQuery = q;
-                clearTimeout(searchDebounceTimer);
-                searchDebounceTimer = setTimeout(function () { loadRoster(q); }, SEARCH_DEBOUNCE_MS);
-            });
-            toolbar.appendChild(search);
-            toolbar.appendChild(mkButton(S('refresh_label'), 'k9tablet-btn', function () { loadRoster(state.rosterQuery); }));
-            wrap.appendChild(toolbar);
-        }
-
-        // "Open by exact citizen ID" -- see this file's header note on
-        // tablet:revertK9Ped's own NO-UNBOUNDED-TRAP contract. The roster
-        // above lists ONLY citizenids holding an ACTIVE certification
-        // (server/tablet.lua's tabletRequestRoster reads `active = 1`
-        // rows only), so a decertified or never-certified target can never
-        // appear in a search result there -- yet exactly that target must
-        // still be reachable to revert their appearance. This box calls
-        // tablet:requestPersonSummary directly by citizenid, which (per
-        // that callback's own contract) works for ANY citizenid regardless
-        // of certification state, bypassing the roster's own filter. ALWAYS
-        // rendered regardless of fullAccess -- server/tablet.lua's
-        // CallerHasPersonAccess() admits a 'k9.certify'/'k9.givexp' holder
-        // here specifically, so this is that viewer's ONLY way in.
-        var idBar = mk('div', { class: 'k9tablet-toolbar k9tablet-id-toolbar' });
-        // Workflow audit finding #2, 2026-08-26: this box previously had no
-        // text distinguishing it from the search bar above, so nothing told
-        // an operator it exists specifically FOR the case the roster search
-        // can never cover -- a person who has never held a certification
-        // (exactly who "Set Up a New Handler" targets). Rendered here for
-        // both fullAccess and narrowed viewers alike (the fact is true for
-        // both, and a narrowed viewer has no search bar to compare it
-        // against at all).
-        idBar.appendChild(mk('p', { class: 'k9tablet-hint k9tablet-open-by-id-hint', text: S('open_by_id_hint') }));
-        var idInput = mk('input', { class: 'k9tablet-search', attrs: { type: 'text', placeholder: S('open_by_id_placeholder') } });
-        idInput.value = state.openByIdValue;
-        idInput.addEventListener('input', function (e) { state.openByIdValue = e.target.value; });
-        idBar.appendChild(idInput);
-        idBar.appendChild(mkButton(S('open_by_id_label'), 'k9tablet-btn', function () {
-            var id = (idInput.value || '').trim();
-            if (id.length === 0) return;
-            // `name` starts null, deliberately -- the typed string is a
-            // citizenid, not a name, and tabletRequestPersonSummary's own
-            // `ok = true` for ANY syntactically valid citizenid (no
-            // existence check server-side; see loadPersonSummary()'s own
-            // "no record found" doc comment) means the id is not even
-            // confirmed to belong to a real person yet. openPerson()/
-            // loadPersonSummary() fill in the real (or honestly
-            // id-echoing) resolved name once the response lands; null
-            // here just means "unknown so far", never a guess.
-            openPerson(id, null);
-        }));
         // "OPEN MY OWN RECORD" (2026-09-01, owner's live testing: "as high
-        // command i cant certify myself").
+        // command i cant certify myself"). Nothing in this tablet shows a
+        // viewer their own citizen ID, so self-certification had no door
+        // in the UI. Fills in state.viewer.citizenid and opens the same
+        // Person screen; the server re-authorizes everything, and refuses a
+        // self-certify outright when Config.AllowSelfCertification is off.
         //
-        // Self-certification is a real, config-permitted flow --
-        // Config.AllowSelfCertification, re-checked server-side on every
-        // call, and refreshPersonAndSelf() below was written specifically
-        // to keep Home/My Record in step after one. But the ONLY way to
-        // reach it from this page was to type your own citizen ID into the
-        // box above, and NOTHING anywhere in this tablet ever shows a
-        // viewer what their own citizen ID is. So the capability existed
-        // server-side with no reachable path to it in the UI, which is
-        // exactly what "I cannot certify myself" looks like from the
-        // outside: not a refusal, just no door.
-        //
-        // This is a pure convenience -- it fills in a citizenid this page
-        // already holds in state.viewer and opens the same Person screen
-        // the box above opens. THE SECURITY RULE is untouched: the server
-        // re-authorizes the certify itself from the caller's own live
-        // job/grants, and refuses a self-certify outright when
-        // Config.AllowSelfCertification is false, exactly as it would if
-        // the id had been typed by hand.
-        wrap.appendChild(idBar);
-
-        // ITS OWN ROW, NOT INSIDE idBar -- and that is load-bearing, not
-        // layout taste. findEnterSubmitTarget() gives a text field an
-        // Enter-to-submit target only while its nearest container holds
-        // EXACTLY ONE candidate button, and deliberately refuses the
-        // moment there are two (ambiguity must never auto-fire something).
-        // Dropping this second button into idBar therefore silently broke
-        // Enter in the citizen ID box above -- caught by
-        // tablet_keyboard_operability_spec.js. Keeping it in a sibling
-        // container leaves idBar with its single "Open" button, so Enter
-        // keeps working exactly as it did, and the heuristic keeps its
-        // safety rule intact rather than having an exception carved into
-        // it for this one screen.
+        // ITS OWN ROW, NOT INSIDE THE SEARCH BAR -- findEnterSubmitTarget()
+        // only gives a text field an Enter-to-submit target while its
+        // container holds exactly one button, so a second button beside
+        // Open would silently break Enter in the search box.
         if (state.viewer && state.viewer.citizenid) {
             var selfBar = mk('div', { class: 'k9tablet-toolbar k9tablet-self-record-toolbar' });
             selfBar.appendChild(mk('p', { class: 'k9tablet-hint k9tablet-open-by-id-hint', text: S('open_my_own_record_hint') }));
@@ -4837,36 +4721,111 @@
             wrap.appendChild(selfBar);
         }
 
-        if (!fullAccess) {
-            // No roster to load/show for this viewer at all -- see the
-            // narrowed-access notice above. Never calls loadRoster()
-            // (goToConsoleScreen()/the tab button already skip that call
-            // for exactly this viewer, see their own comments) and never
-            // renders state.rosterLoading/rosterError/roster, all of which
-            // belong to a fetch this viewer's own tab never triggers.
-            return wrap;
+        if (fullAccess) {
+            // One Refresh for both result lists, in their own row (see the
+            // Enter-key note above for why it is not beside Open).
+            var refreshBar = mk('div', { class: 'k9tablet-toolbar k9tablet-find-person-refresh' });
+            refreshBar.appendChild(mkButton(S('refresh_label'), 'k9tablet-btn', function () {
+                loadOnlinePlayers(state.onlinePlayersQuery);
+                loadRoster(state.rosterQuery);
+            }));
+            wrap.appendChild(refreshBar);
+
+            wrap.appendChild(buildOnlinePlayersSection());
+            wrap.appendChild(buildRosterResultsSection());
         }
+
+        // WHO HOLDS A PER-DOG OVERRIDE (plan item D) -- the one unique part
+        // of the old K9 Overrides tab, beside the other "who has what"
+        // lists. High command only, matching the gate that tab had.
+        if (state.viewer && state.viewer.isHighCommand) {
+            wrap.appendChild(buildK9ProfilesOverviewSection());
+        }
+
+        return wrap;
+    }
+
+    /**
+     * ONE SEARCH BOX TO FIND ANYONE (the owner's rework pass: "make the
+     * workflows simpler"). This screen used to have three separate boxes
+     * -- search online players, search the certified roster, and open by
+     * exact citizen ID -- and the operator had to know which one could
+     * find the person they wanted (the roster never finds someone who was
+     * never certified; the online list never finds someone offline).
+     *
+     * Now one box does all of it. Typing searches BOTH lists at once
+     * (online players and certified people, shown below it); Open goes
+     * straight to whatever citizen ID is typed, which is how you reach a
+     * brand-new, never-certified, offline person. Open is the only button
+     * in this row, so Enter opens too -- exactly what Enter did in the old
+     * citizen-ID box.
+     *
+     * A narrowed viewer (see buildConsoleScreen()) gets the same box but
+     * no listing to search -- Open is their way in, as before.
+     * @param {boolean} fullAccess
+     * @returns {HTMLElement}
+     */
+    function buildFindPersonBar(fullAccess) {
+        var bar = mk('div', { class: 'k9tablet-toolbar k9tablet-id-toolbar k9tablet-find-person-toolbar' });
+        bar.appendChild(mk('label', {
+            class: 'k9tablet-feature-filter-label',
+            text: S('find_person_label'),
+            attrs: { for: 'k9tablet-find-person' },
+        }));
+        var input = mk('input', { class: 'k9tablet-search', attrs: { type: 'text', id: 'k9tablet-find-person', placeholder: S('find_person_placeholder') } });
+        input.value = state.findPersonQuery;
+        input.addEventListener('input', function (e) {
+            var q = e.target.value;
+            state.findPersonQuery = q;
+            if (!fullAccess) return;
+            // Both loaders' stale-response guards compare against these.
+            state.rosterQuery = q;
+            state.onlinePlayersQuery = q;
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(function () {
+                loadOnlinePlayers(q);
+                loadRoster(q);
+            }, SEARCH_DEBOUNCE_MS);
+        });
+        bar.appendChild(input);
+        bar.appendChild(mkButton(S('open_by_id_label'), 'k9tablet-btn', function () {
+            var id = (input.value || '').trim();
+            if (id.length === 0) return;
+            // `name` starts null, deliberately -- the typed string may be a
+            // citizen ID or anything else, and tabletRequestPersonSummary's
+            // own `target.exists` is what says whether it is a real person
+            // (loadPersonSummary()'s "no record found" handling).
+            openPerson(id, null);
+        }));
+        var outer = mk('div', { class: 'k9tablet-find-person' });
+        outer.appendChild(bar);
+        outer.appendChild(mk('p', { class: 'k9tablet-hint k9tablet-open-by-id-hint', text: fullAccess ? S('find_person_hint') : S('find_person_hint_id_only') }));
+        return outer;
+    }
+
+    /** The certified-people half of the search results. */
+    function buildRosterResultsSection() {
+        var section = mk('div', { class: 'k9tablet-roster-results-section' });
+        section.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('roster_results_heading') }));
 
         if (state.rosterLoading && !state.roster) {
-            wrap.appendChild(mk('p', { text: S('loading') }));
-            return wrap;
+            section.appendChild(mk('p', { text: S('loading') }));
+            return section;
         }
         if (state.rosterError) {
-            wrap.appendChild(mk('p', { class: 'k9tablet-error-text', text: errorText(state.rosterError) }));
-            wrap.appendChild(mkButton(S('retry_label'), 'k9tablet-btn', function () { loadRoster(state.rosterQuery); }));
-            return wrap;
+            section.appendChild(mk('p', { class: 'k9tablet-error-text', text: errorText(state.rosterError) }));
+            section.appendChild(mkButton(S('retry_label'), 'k9tablet-btn', function () { loadRoster(state.rosterQuery); }));
+            return section;
         }
         if (!state.roster || state.roster.rows.length === 0) {
-            wrap.appendChild(mk('p', { class: 'k9tablet-muted', text: S('empty_roster') }));
-            return wrap;
+            section.appendChild(mk('p', { class: 'k9tablet-muted', text: S('empty_roster') }));
+            return section;
         }
-
         if (state.roster.truncated) {
-            wrap.appendChild(mk('p', { class: 'k9tablet-truncated-note', text: state.roster.truncatedMessage || S('truncated_notice') }));
+            section.appendChild(mk('p', { class: 'k9tablet-truncated-note', text: state.roster.truncatedMessage || S('truncated_notice') }));
         }
-
-        wrap.appendChild(buildRosterTable(state.roster.rows));
-        return wrap;
+        section.appendChild(buildRosterTable(state.roster.rows));
+        return section;
     }
 
     function buildRosterTable(rows) {
@@ -4926,7 +4885,10 @@
      * EXACT SAME grant controls the roster's Manage button already opens.
      * No second grant mechanism exists here.
      *
-     * Same audience as the roster immediately above -- `fullAccess`
+     * Searched from the Console's one search box (buildFindPersonBar()),
+     * alongside the certified roster -- this section has no box of its own.
+     *
+     * Same audience as the roster list below it -- `fullAccess`
      * (canAccessConsole()) -- NOT the wider canOpenPersonRecord(): see
      * server/tablet.lua's own CALLBACK 2b/2c header for why a browse/list
      * capability stays at the narrower gate, matching the roster's own
@@ -4941,37 +4903,14 @@
      * per connected player on an interval, multiplied by however many
      * officers keep this screen open at once -- for staleness that only
      * ever matters at the ONE moment an operator is about to click a row,
-     * which the search box's own live round trip (see loadOnlinePlayers())
-     * already re-answers on every keystroke, and the Refresh button
-     * answers on demand for someone who is not typing at all.
+     * which the search box's live round trip (see loadOnlinePlayers())
+     * already re-answers on every keystroke, and the one Refresh button
+     * above both lists answers on demand for someone who is not typing.
      * @returns {HTMLElement}
      */
     function buildOnlinePlayersSection() {
         var wrap = mk('div', { class: 'k9tablet-online-players-section' });
         wrap.appendChild(mk('h3', { class: 'k9tablet-section-heading', text: S('online_players_heading') }));
-
-        var toolbar = mk('div', { class: 'k9tablet-toolbar' });
-        // See the roster search's own note -- a server-side search, so a
-        // label rather than the shared filter bar. The label is what makes
-        // the difference between these two boxes legible: this one reaches
-        // ANYONE currently connected, the roster below reaches only people
-        // who already hold a certification.
-        toolbar.appendChild(mk('label', {
-            class: 'k9tablet-feature-filter-label',
-            text: S('online_players_search_label'),
-            attrs: { for: 'k9tablet-online-players-search' },
-        }));
-        var search = mk('input', { class: 'k9tablet-search', attrs: { type: 'text', id: 'k9tablet-online-players-search', placeholder: S('online_players_search_placeholder') } });
-        search.value = state.onlinePlayersQuery;
-        search.addEventListener('input', function (e) {
-            var q = e.target.value;
-            state.onlinePlayersQuery = q;
-            clearTimeout(onlinePlayersSearchDebounceTimer);
-            onlinePlayersSearchDebounceTimer = setTimeout(function () { loadOnlinePlayers(q); }, SEARCH_DEBOUNCE_MS);
-        });
-        toolbar.appendChild(search);
-        toolbar.appendChild(mkButton(S('refresh_label'), 'k9tablet-btn', function () { loadOnlinePlayers(state.onlinePlayersQuery); }));
-        wrap.appendChild(toolbar);
 
         if (state.onlinePlayersLoading && !state.onlinePlayers) {
             wrap.appendChild(mk('p', { text: S('loading') }));
@@ -12730,7 +12669,8 @@
         state.roster = null;
         state.rosterError = null;
         state.rosterQuery = '';
-        state.openByIdValue = '';
+        state.onlinePlayersQuery = '';
+        state.findPersonQuery = '';
         state.person = null;
         state.personSummary = null;
         state.personFeatures = null;

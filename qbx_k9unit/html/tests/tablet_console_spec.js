@@ -117,7 +117,7 @@ t.test('roster search debounces and re-fetches with the typed query', async () =
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle(h); // initial load with empty query
 
-    const search = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') && i.getAttribute('placeholder').indexOf('Search by name') !== -1)[0];
+    const search = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     t.isDefined(search, 'search input exists');
 
     search.typeValue('r');
@@ -292,7 +292,7 @@ t.test('WORKFLOW AUDIT #1: a viewer holding ONLY k9.certify (no k9.audit, not hi
     t.isTrue(findByTextContaining(h.getRoot(), 'Browsing or searching the full roster needs the Audit capability or High Command').length >= 1);
 
     // The "open by exact citizen ID" box is still fully present and usable.
-    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     t.isDefined(idInput, 'the open-by-ID input is present for this viewer');
     idInput.typeValue('TARGET9');
     findByText(h.getRoot(), 'Open')[0].click();
@@ -324,7 +324,7 @@ t.test('WORKFLOW AUDIT #1: a viewer holding ONLY k9.givexp (no k9.audit, not hig
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle(h);
 
-    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     idInput.typeValue('TARGET10');
     findByText(h.getRoot(), 'Open')[0].click();
     await settle(h);
@@ -368,15 +368,15 @@ t.test('WORKFLOW AUDIT #2: an empty roster search explains that a brand-new (nev
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle(h);
 
-    t.isTrue(findByTextContaining(h.getRoot(), 'This list only ever shows people who already hold a certification').length >= 1, 'explains WHY the search came up empty');
+    t.isTrue(findByTextContaining(h.getRoot(), 'This list only shows people who already hold a certification').length >= 1, 'explains WHY the search came up empty');
     // Wording updated this pass (Online Players list): still tells the
     // operator exactly what to do, now preferring the new list for an
     // ONLINE target and falling back to the citizen-ID box otherwise --
     // see locales/en.json's own 'tablet.empty_roster' for the full text.
-    t.isTrue(findByTextContaining(h.getRoot(), 'otherwise use "Open by exact citizen ID"').length >= 1, 'and tells the operator exactly what to do about it');
+    t.isTrue(findByTextContaining(h.getRoot(), 'type their exact citizen ID in the search box and press Open').length >= 1, 'and tells the operator exactly what to do about it');
 });
 
-t.test('WORKFLOW AUDIT #2: the "open by exact citizen ID" box always carries its own hint that it works even for someone never certified, for a full-access viewer', async () => {
+t.test('WORKFLOW AUDIT #2: the one search box always carries a hint that Open works even for someone never certified, for a full-access viewer', async () => {
     const h = createHarness({
         fetchImpl: routeFetch({
             'tablet:requestMyRecord': () => ({ ok: true, viewer: { citizenid: 'V', name: 'V', isHighCommand: true, effectivePermissions: ['k9.access', 'k9.certify', 'k9.audit', 'k9.givexp'], allowSelfGrant: false }, certifications: [], xp: null, tierLabel: null, myFeatures: [] }),
@@ -388,7 +388,7 @@ t.test('WORKFLOW AUDIT #2: the "open by exact citizen ID" box always carries its
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle(h);
 
-    t.isTrue(findByTextContaining(h.getRoot(), 'even someone who has never held a certification').length >= 1);
+    t.isTrue(findByTextContaining(h.getRoot(), 'has never been certified, type their exact citizen ID and press Open').length >= 1);
 });
 
 // ----------------------------------------------------------------------

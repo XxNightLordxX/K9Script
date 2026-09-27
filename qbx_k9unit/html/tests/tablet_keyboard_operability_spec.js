@@ -329,7 +329,7 @@ t.test('Enter in a lone toolbar field fires the one nearby button (Open by ID)',
     findFirstButtonByText(h.getRoot(), 'Command Console').click();
     await settle();
 
-    const idInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+    const idInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     t.isDefined(idInput, 'the "open by ID" box exists');
     idInput.focus();
     idInput.value = 'TARGET9';

@@ -887,15 +887,14 @@ local TABLET_STRING_KEYS = {
     -- file's OPENING section), so they still see their own record beneath
     -- this notice rather than a blank or broken screen.
     'high_command_required_notice',
-    'retry_label', 'search_placeholder', 'refresh_label', 'empty_roster',
+    'retry_label', 'refresh_label', 'empty_roster',
     'column_name', 'column_citizenid', 'column_department', 'column_certified',
     'column_xp', 'column_handler_xp', 'column_actions', 'certified_yes', 'certified_no',
     -- ONLINE PLAYERS LIST (owner-directed, 2026-08-26: "make the add
     -- permission section... where its a list when i choose a player id")
     -- -- see html/tablet.js's buildOnlinePlayersSection() for the full
     -- contract this new entry point implements.
-    'online_players_heading', 'online_players_search_placeholder',
-    'online_players_empty', 'online_players_opening_label',
+    'online_players_heading',     'online_players_empty', 'online_players_opening_label',
     'column_server_id', 'column_job', 'column_k9_access',
     'online_k9_access_yes', 'online_k9_access_no',
     'certify_label', 'certify_as_label', 'certify_as_handler_option', 'certify_as_k9_option_template', 'certify_as_hint', 'decertify_label', 'confirm_label', 'grant_label',
@@ -957,13 +956,13 @@ local TABLET_STRING_KEYS = {
     'person_handler_xp_heading', 'person_handler_xp_untracked',
     'use_label', 'not_available_short', 'opening_person',
     'person_no_record_found',
-    'open_by_id_placeholder', 'open_by_id_label', 'open_my_own_record_label', 'open_my_own_record_hint',
+    'open_by_id_label', 'find_person_label', 'find_person_placeholder', 'find_person_hint', 'find_person_hint_id_only', 'roster_results_heading', 'open_my_own_record_label', 'open_my_own_record_hint',
     -- Workflow audit finding #1/#2, 2026-08-26 (html/tablet.js's
     -- canOpenPersonRecord()/buildConsoleScreen() narrowed rendering, and
     -- the "open by exact citizen ID" box's own new explanatory hint --
     -- see each string's own doc comment in DEFAULT_STRINGS for the full
     -- writeup).
-    'open_by_id_hint', 'console_person_only_notice',
+    'console_person_only_notice',
     'role_heading', 'role_assign_label',
     'role_assign_hint', 'role_revert_label', 'role_revert_hint',
     'role_no_peds_configured',
@@ -1288,8 +1287,7 @@ local TABLET_STRING_KEYS = {
     'cmdref_heading', 'cmdref_intro', 'cmdref_search_placeholder', 'cmdref_status_unknown',
     'cmdref_filter_label', 'cmdref_filter_no_matches',
     'cmdref_status_unavailable_loading', 'cmdref_status_unavailable_error',
-    'roster_search_label', 'online_players_search_label',
-    'cmdref_empty', 'cmdref_column_command', 'cmdref_column_does', 'cmdref_column_needs',
+        'cmdref_empty', 'cmdref_column_command', 'cmdref_column_does', 'cmdref_column_needs',
     'cmdref_admin_badge', 'cmdref_status_insufficient_authorization',
     -- Keybinds handoff (this pass, client/keybinds.lua's five new
     -- RegisterCommand entries + the new `defaultKeybind` display field on

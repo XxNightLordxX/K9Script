@@ -92,7 +92,7 @@ async function openPersonScreen(h, citizenId) {
         // "Open by exact citizen ID" -- reaches ANY citizenid, including the
         // viewer's own (see html/tablet.js's own header note on this box)
         // -- used by the self-grant test below to open the viewer's own record.
-        const idInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-search') && n.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+        const idInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-search') && n.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
         idInput.typeValue(citizenId);
         findByText(h.getRoot(), 'Open')[0].click();
     } else {

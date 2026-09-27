@@ -161,7 +161,7 @@ t.test('Revert to Human is reachable and enabled for a target holding ZERO certi
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle();
 
-    const idInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+    const idInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     t.isDefined(idInput, 'the open-by-ID box exists on the console screen even with an empty roster');
     idInput.typeValue('GHOST1');
     findByText(h.getRoot(), 'Open')[0].click();

@@ -150,7 +150,7 @@ t.test('REGRESSION: adding this button must not steal Enter from the citizen ID 
     const { h } = harness(HIGH_COMMAND_VIEWER);
     await openConsole(h);
 
-    const idInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+    const idInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     t.isDefined(idInput, 'sanity: the citizen ID box is on screen');
 
     // Walk up from the input to its own toolbar and count candidate

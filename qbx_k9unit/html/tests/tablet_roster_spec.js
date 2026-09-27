@@ -140,7 +140,7 @@ t.test('a non-high-command viewer opening a person via Console still sees NO Ros
     await settle(h);
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle(h);
-    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     idInput.typeValue('TARGET1');
     findByText(h.getRoot(), 'Open')[0].click();
     await settle(h);
@@ -173,7 +173,7 @@ t.test('callsign_taken renders a specific, useful message naming the problem -- 
     await settle(h);
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle(h);
-    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     idInput.typeValue('TARGET1');
     findByText(h.getRoot(), 'Open')[0].click();
     await settle(h, 4);
@@ -223,7 +223,7 @@ t.test('changing an already-assigned roster role shows the callsign-will-be-clea
     await settle(h);
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle(h);
-    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     idInput.typeValue('TARGET1');
     findByText(h.getRoot(), 'Open')[0].click();
     await settle(h, 4);
@@ -266,7 +266,7 @@ t.test('assigning a role to an UNASSIGNED person (no existing role) is a plain, 
     await settle(h);
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle(h);
-    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+    const idInput = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     idInput.typeValue('TARGET1');
     findByText(h.getRoot(), 'Open')[0].click();
     await settle(h, 4);

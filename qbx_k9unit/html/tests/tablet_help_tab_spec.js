@@ -314,7 +314,7 @@ t.test('WORKFLOW AUDIT #1: "Every Tab, Explained" now explains the Console tab t
     await openHelpScreen(h);
 
     t.isTrue(findByText(h.getRoot(), 'Command Console').length >= 1, 'the tab itself is explained (rendered) for this viewer -- it is visible to them now (workflow audit finding #1)');
-    t.isTrue(findByTextContaining(h.getRoot(), 'Open a specific handler or K9\'s record by their exact citizen ID').length >= 1, 'the description leads with the narrowed capability every k9.certify/k9.givexp holder actually gets');
+    t.isTrue(findByTextContaining(h.getRoot(), 'Press Open to go straight to an exact citizen ID -- that always works, even for someone who has never been certified').length >= 1, 'the description names the capability every k9.certify/k9.givexp holder actually gets');
 });
 
 t.test('WORKFLOW AUDIT #1: a plain handler with NEITHER k9.certify/k9.givexp NOR k9.audit still is not taught about the Console tab at all', async () => {
@@ -338,7 +338,7 @@ t.test('WORKFLOW AUDIT #1: the "Certify Someone" walkthrough never points a non-
     t.equals(findByText(h.getRoot(), 'Guided Flows').length, 0, 'this viewer cannot see the Guided Flows tab at all, so the walkthrough must never mention it');
     t.equals(findByTextContaining(h.getRoot(), 'Open the Guided Flows tab').length, 0, 'the Guided-Flows pointer step is entirely absent for this viewer');
     t.equals(findByTextContaining(h.getRoot(), 'Select Person → Certify').length, 0, 'the derived flow-step-sequence line is Guided-Flows-specific too, and is absent alongside it');
-    t.isTrue(findByTextContaining(h.getRoot(), 'if this is a brand-new person, use "Open by exact citizen ID" instead').length >= 1, 'step 1 now also warns that the roster search alone will never find someone who has never been certified');
+    t.isTrue(findByTextContaining(h.getRoot(), 'Someone brand new who is offline will not be in either list -- type their exact citizen ID and press Open').length >= 1, 'step 1 warns that the lists will never find someone who has never been certified, and says what to do');
 });
 
 t.test('WORKFLOW AUDIT #1, settled for good: high command and a k9.certify delegate now get the SAME Certify Someone walkthrough', async () => {
@@ -374,7 +374,7 @@ t.test('WORKFLOW AUDIT #1, settled for good: high command and a k9.certify deleg
     t.equals(findByText(dl.getRoot(), 'Certify Someone').length, 1, 'the delegate still gets the walkthrough');
 
     // The real point: same task, same instructions, whoever is reading.
-    const step1 = 'if this is a brand-new person, use "Open by exact citizen ID" instead';
+    const step1 = 'Someone brand new who is offline will not be in either list -- type their exact citizen ID and press Open';
     t.isTrue(findByTextContaining(hc.getRoot(), step1).length >= 1, 'high command gets the roster-search caveat');
     t.isTrue(findByTextContaining(dl.getRoot(), step1).length >= 1, 'and so does the delegate -- identical copy now');
 });
