@@ -186,7 +186,7 @@
     ever prompting a re-add. The entire "K9 Unit" radial menu -- submenu,
     every nested submenu, and the root opener -- would silently vanish the
     moment ox_lib restarts, no error, no log line; and if the (now
-    unregistered) 'k9unit'/'k9unit_bark'/'k9unit_fetch' ids
+    unregistered) 'k9unit'/'k9unit_bark' ids
     were ever still referenced via a stale `menu` field somewhere,
     ox_lib's `showRadial` does `return error('No radial menu with such id
     found.')` -- an UNCAUGHT hard Lua error, not a no-op.
@@ -347,7 +347,7 @@ end
 --- registries this file's own state lives inside, not ox_target's.
 ---
 --- ORDERING PRESERVED: this function still registers every submenu
---- ('k9unit_bark', 'k9unit_fetch', 'k9unit_utility') strictly BEFORE the
+--- ('k9unit_bark', 'k9unit_utility') strictly BEFORE the
 --- 'k9unit' registration that follows it and BEFORE the root opener
 --- `lib.addRadialItem` call at the very end -- i.e. before anything that
 --- references one of those submenu ids via an item's `menu` field. This
@@ -598,7 +598,7 @@ local function RegisterK9RadialMenu()
     -- below) — none of these carry their own `menu` field, UNLESS noted
     -- otherwise (an opener that navigates into a nested sub-menu, same
     -- `menu`-field mechanic this file's header already documents for
-    -- 'k9unit_bark'/'k9unit_fetch'/'k9unit_utility'). Every other item
+    -- 'k9unit_bark'/'k9unit_utility'). Every other item
     -- here is a terminal action with
     -- its own onSelect, so `menu` must stay unset on all of those.
     local k9SubmenuItems = {}
@@ -1497,79 +1497,20 @@ local function RegisterK9RadialMenu()
     --- proximity-driven actions on a specific ball/player, not a
     --- self-initiated radial verb) -- not duplicated here.
     ---
-    --- TWO ITEMS, NOT THREE, DESPITE THREE UNDERLYING FUNCTIONS -- Throw and
-    --- Release are combined into ONE context-sensitive toggle (same shape as
-    --- Attach/Detach Leash / Bite & Hold / Drag above: IsFetchCarryEngaged()
-    --- plays the same role IsLeashed()/IsBiteHoldEngaged()/IsDragEngaged() do),
-    --- since they are true opposites of the SAME per-client carry state, never
-    --- offered simultaneously. Recall stays a SEPARATE item because it is NOT
-    --- that state's opposite -- client/fetch.lua's own doc comment frames it as
-    --- "the THROWER's own early-interrupt for their currently active fetch
-    --- cycle (any state)," i.e. it belongs to the client who threw the ball,
-    --- who is typically NOT the client currently carrying it (the normal case
-    --- immediately after a throw, before any K9 has picked it up). Folding
-    --- Recall into the same toggle would mean a thrower who isn't the current
-    --- carrier -- the common case -- could never reach it, since
-    --- IsFetchCarryEngaged() would read false on their own client and route
-    --- them into "Throw" instead, silently losing the one control that lets
-    --- them call off a cycle they started.
-    ---
-    --- GATING: the Throw branch checks HasK9Access() directly (NOT
-    --- CanShowK9UI()) -- matching RequestThrowFetchBall()'s own doc comment
-    --- verbatim: "a HUMAN HANDLER action (gated on HasK9Access() alone, NOT
-    --- CanShowK9UI()/IsOwnModelK9() ... the thrower need not currently be
-    --- riding a K9 model)." Using CanShowK9UI() here instead would additionally
-    --- require IsOwnModelK9(), silently blocking the exact human-handler-not-
-    --- currently-a-K9 use case this feature exists for. The Release branch and
-    --- Recall are NOT gated at all -- same "no unbounded trap" reasoning as
-    --- every other release/termination item above; client/fetch.lua's own doc
-    --- comments state this explicitly for both ("Always available while
-    --- carrying -- no access gate on the way out" / "deliberately NOT gated on
-    --- HasK9Access()/CanShowK9UI() ... must still be able to call it off").
+    --- FETCH -- ONE item, one click (the owner's rework pass). It used to open
+    --- a sub-menu with Throw/Drop and Recall. client/fetch.lua's
+    --- FetchContextual() picks the right one: drop if carrying, recall if a
+    --- ball you threw is out (so the thrower, usually not the carrier, still
+    --- gets Recall), otherwise throw. Drop and Recall are never gated; Throw
+    --- gates itself (HasK9Access, a human-handler action).
     if Config.Features.FetchMechanic then
-        lib.registerRadial({
-            id = 'k9unit_fetch',
-            items = {
-                {
-                    id = 'k9_fetch_throw',
-                    label = locale('radial.fetch_throw_label'),
-                    icon = 'baseball',
-                    onSelect = function()
-                        if type(IsFetchCarryEngaged) == 'function' and IsFetchCarryEngaged() then
-                            if type(ReleaseFetchBall) == 'function' then
-                                ReleaseFetchBall()
-                            end
-                            return
-                        end
-
-                        if not HasK9Access() then
-                            DenyK9UIAccess('combat.no_access')
-                            return
-                        end
-
-                        if type(RequestThrowFetchBall) == 'function' then
-                            RequestThrowFetchBall()
-                        end
-                    end,
-                },
-                {
-                    id = 'k9_fetch_recall',
-                    label = locale('radial.fetch_recall_label'),
-                    icon = 'circle-down',
-                    onSelect = function()
-                        if type(RequestRecallFetchBall) == 'function' then
-                            RequestRecallFetchBall()
-                        end
-                    end,
-                },
-            },
-        })
-
         k9SubmenuItems[#k9SubmenuItems + 1] = {
             id = 'k9_fetch',
             label = locale('radial.fetch_menu_label'),
             icon = 'baseball',
-            menu = 'k9unit_fetch',
+            onSelect = function()
+                if type(FetchContextual) == 'function' then FetchContextual() end
+            end,
         }
     end
 
@@ -1908,7 +1849,7 @@ local function RegisterK9RadialMenu()
     -- touches no gate, no onSelect closure, no id, no Config.Features check,
     -- and changes which items exist for nobody -- only the sequence ox_lib's
     -- own wheel paginates them in. Every nested submenu (`k9unit_bark`/
-    -- `k9unit_fetch`/`k9unit_utility`) was already registered, in full,
+    -- `k9unit_utility`) was already registered, in full,
     -- by the code above --
     -- this pass only ever reshuffles the flat list of OPENER/terminal items
     -- that live directly inside 'k9unit' itself; it never reaches inside a

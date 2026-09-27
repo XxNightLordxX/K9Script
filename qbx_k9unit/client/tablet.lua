@@ -2091,14 +2091,18 @@ local FEATURE_TRIGGERS = {
         if type(TogglePartnership) ~= 'function' then return false, 'not_available' end
         return TogglePartnership()
     end,
-    -- DISCLOSED SIMPLIFICATION: throw/release toggle only (radial.lua's
-    -- own Throw item shape) -- Recall Fetch Ball is a separate action in
-    -- radial.lua with no feature key of its own to hang off here.
-    -- Gated on HasK9Access() ONLY, matching RequestThrowFetchBall()'s own
-    -- doc comment verbatim (a human-handler action).
+    -- Fetch: the same three-way choice as client/fetch.lua's
+    -- FetchContextual() (drop if carrying, recall if your ball is out,
+    -- otherwise throw), kept inline so the button can report ok/refused.
+    -- Only the throw branch is gated -- HasK9Access() ONLY, matching
+    -- RequestThrowFetchBall()'s own doc comment (a human-handler action).
     FetchMechanic = function()
         if type(IsFetchCarryEngaged) == 'function' and IsFetchCarryEngaged() then
             if type(ReleaseFetchBall) == 'function' then ReleaseFetchBall() end
+            return true
+        end
+        if type(IsMyFetchBallOut) == 'function' and IsMyFetchBallOut() then
+            if type(RequestRecallFetchBall) == 'function' then RequestRecallFetchBall() end
             return true
         end
         if not HasK9Access() then DenyK9UIAccess(); return false, 'not_available' end

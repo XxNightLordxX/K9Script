@@ -1489,8 +1489,6 @@
     "partner_toggle_label": "Partner Up / Break Partnership",
     "drag_toggle_label": "Drag/Release",
     "fetch_menu_label": "Fetch",
-    "fetch_recall_label": "Recall Fetch Ball",
-    "fetch_throw_label": "Throw/Drop Fetch Ball",
     "leash_toggle_label": "Attach/Detach Leash",
     "menu_open_label": "${common.notify_title}",
     "no_leash_candidate": "No nearby player to leash to.",

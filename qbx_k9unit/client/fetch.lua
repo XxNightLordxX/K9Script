@@ -186,6 +186,11 @@ local function PlayFetchCarryStance(ped)
 end
 
 --- @return boolean
+--- @return boolean -- a ball THIS client threw is still out (thrown, carried or dropped)
+function IsMyFetchBallOut()
+    return myThrownBallNetId ~= nil
+end
+
 function IsFetchCarryEngaged()
     return ActiveFetchCarry ~= nil
 end
@@ -517,11 +522,8 @@ end, false)
 --                                ended) -> RECALL (RequestRecallFetchBall()).
 --   neither                   -> nothing active for this client -> THROW
 --                                (RequestThrowFetchBall()).
--- Exactly mirrors client/radial.lua's own pre-existing 'k9_fetch_throw'
--- item (Throw/Release combined into one context-sensitive toggle keyed off
--- IsFetchCarryEngaged(), Recall kept as its own separate action) -- this
--- resource's own already-shipped house style for this exact shape, not a
--- new invention.
+-- The logic itself is FetchContextual() above, shared with the radial's
+-- one Fetch item and the tablet's Fetch button.
 --
 -- WHY THIS IS SAFE TO GUESS (never true for a destructive family):
 -- throw/drop/recall are all reversible, low-stakes actions -- worst case of
@@ -549,6 +551,29 @@ end, false)
 -- client read and why -- the underlying Request*/Release* call still fires
 -- its own success/failure notify on top, unchanged.
 -- ======================================================================
+--- ONE FETCH ACTION: drop the ball if your K9 is carrying it, call it back
+--- if a ball you threw is still out, otherwise throw one. Shared by
+--- /k9fetch (no argument), the radial's single Fetch item and the tablet's
+--- Fetch button (the owner's rework pass) -- the radial used to be a
+--- sub-menu with Throw/Drop and Recall as separate choices.
+---
+--- Recall keys off `myThrownBallNetId` -- the THROWER's own ball -- not the
+--- carry state, so the handler who threw (usually not the carrier) still
+--- gets Recall. Drop and Recall are never gated; Throw gates itself inside
+--- RequestThrowFetchBall().
+function FetchContextual()
+    if ActiveFetchCarry then
+        lib.notify({ title = locale('common.notify_title'), description = locale('fetch.contextual_dropping'), type = 'inform' })
+        ReleaseFetchBall()
+    elseif myThrownBallNetId then
+        lib.notify({ title = locale('common.notify_title'), description = locale('fetch.contextual_recalling'), type = 'inform' })
+        RequestRecallFetchBall()
+    else
+        lib.notify({ title = locale('common.notify_title'), description = locale('fetch.contextual_throwing'), type = 'inform' })
+        RequestThrowFetchBall()
+    end
+end
+
 local FETCH_EXPLICIT_ACTIONS = {
     throw = function() RequestThrowFetchBall() end,
     drop = function() ReleaseFetchBall() end,
@@ -572,16 +597,7 @@ RegisterCommand('k9fetch', function(_source, args)
     end
 
     -- Bare '/k9fetch' -- contextual dispatch, see this block's own header.
-    if ActiveFetchCarry then
-        lib.notify({ title = locale('common.notify_title'), description = locale('fetch.contextual_dropping'), type = 'inform' })
-        ReleaseFetchBall()
-    elseif myThrownBallNetId then
-        lib.notify({ title = locale('common.notify_title'), description = locale('fetch.contextual_recalling'), type = 'inform' })
-        RequestRecallFetchBall()
-    else
-        lib.notify({ title = locale('common.notify_title'), description = locale('fetch.contextual_throwing'), type = 'inform' })
-        RequestThrowFetchBall()
-    end
+    FetchContextual()
 end, false)
 
 -- "Pick Up Ball" / "Deliver to Handler" target options — ROUTED THROUGH

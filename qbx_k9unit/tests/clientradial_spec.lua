@@ -384,6 +384,7 @@ local function newRadialFixture(opts)
         BreakPartnership = record('BreakPartnership'),
         RequestPartnerUp = record('RequestPartnerUp'),
         TogglePartnership = record('TogglePartnership'),
+        FetchContextual = record('FetchContextual'),
         IsFetchCarryEngaged = queryFn('IsFetchCarryEngaged', 'isFetchCarryEngaged'),
         ReleaseFetchBall = record('ReleaseFetchBall'),
         RequestThrowFetchBall = record('RequestThrowFetchBall'),
@@ -1018,27 +1019,30 @@ t.test('HandlerPartnership true: ONE "Partner Up / Break Partnership" item, not 
 end)
 
 -- ----------------------------------------------------------------------
--- FetchMechanic -- gates a whole SEPARATE registerRadial('k9unit_fetch')
--- submenu PLUS the k9_fetch link item inside k9unit.
+-- FetchMechanic -- ONE Fetch item (the rework pass), no sub-menu. It hands
+-- to client/fetch.lua's FetchContextual(), which picks drop/recall/throw.
 -- ----------------------------------------------------------------------
 
-t.test('FetchMechanic explicitly false: neither the k9unit_fetch submenu nor its k9unit link item exists', function()
+t.test('FetchMechanic explicitly false: no Fetch item and no fetch sub-menu', function()
     local f = newRadialFixture()
     t.isNil(f.findMenu('k9unit_fetch'))
     t.isNil(f.findInMenu('k9unit', 'k9_fetch'))
 end)
 
-t.test('FetchMechanic true: registers k9unit_fetch with exactly k9_fetch_throw and k9_fetch_recall, linked from k9unit', function()
+t.test('FetchMechanic true: ONE Fetch item that acts in a single click -- no sub-menu to open first', function()
     local f = newRadialFixture({ features = { FetchMechanic = true } })
-    local link = f.findInMenu('k9unit', 'k9_fetch')
-    t.isNotNil(link)
-    t.equals(link.menu, 'k9unit_fetch')
+    local item = f.findInMenu('k9unit', 'k9_fetch')
+    t.isNotNil(item)
+    t.isNil(item.menu, 'not a sub-menu link')
+    t.isNil(f.findMenu('k9unit_fetch'), 'the old Throw/Recall sub-menu is gone')
 
-    local items = f.findMenu('k9unit_fetch')
-    t.isNotNil(items)
-    t.equals(#items, 2)
-    t.isNotNil(f.findInMenu('k9unit_fetch', 'k9_fetch_throw'))
-    t.isNotNil(f.findInMenu('k9unit_fetch', 'k9_fetch_recall'))
+    item.onSelect()
+    t.equals(#f.calls.FetchContextual, 1, 'one click runs the shared drop / recall / throw choice')
+end)
+
+t.test('FetchMechanic true: a missing FetchContextual does not throw', function()
+    local f = newRadialFixture({ features = { FetchMechanic = true }, omit = { 'FetchContextual' } })
+    assertGuardDoesNotThrow(f.findInMenu('k9unit', 'k9_fetch'))
 end)
 
 -- ----------------------------------------------------------------------
@@ -1341,43 +1345,6 @@ t.test('k9_treat_nearest ("Treat K9"): guarded -- absent RequestTreatNearestK9 d
     -- Reuses medkit.treat_target_label rather than minting a duplicate key,
     -- per this item's own comment -- confirmed against the real label.
     t.equals(fGranted.findInMenu('k9unit_utility', 'k9_treat_nearest').label, locale('medkit.treat_target_label'))
-end)
-
-t.test('k9_fetch_recall: guarded -- absent RequestRecallFetchBall does not throw; present, UNGATED (a termination action)', function()
-    local fAbsent = newRadialFixture({ features = { FetchMechanic = true }, omit = { 'RequestRecallFetchBall' }, canShowK9UI = false })
-    assertGuardDoesNotThrow(fAbsent.findInMenu('k9unit_fetch', 'k9_fetch_recall'))
-
-    local fPresent = newRadialFixture({ features = { FetchMechanic = true }, canShowK9UI = false })
-    fPresent.findInMenu('k9unit_fetch', 'k9_fetch_recall').onSelect()
-    t.equals(#fPresent.calls.RequestRecallFetchBall, 1)
-    t.equals(fPresent.canShowK9UICallCount(), 0)
-end)
-
-t.test('k9_fetch_throw: guarded triple (IsFetchCarryEngaged/ReleaseFetchBall/RequestThrowFetchBall) -- all three absent does not throw either branch', function()
-    local fAbsent = newRadialFixture({ features = { FetchMechanic = true }, omit = { 'IsFetchCarryEngaged', 'ReleaseFetchBall', 'RequestThrowFetchBall' } })
-    -- IsFetchCarryEngaged absent -> `type(...) == 'function' and ...()` short-circuits to false without calling it -- falls through to the HasK9Access branch.
-    assertGuardDoesNotThrow(fAbsent.findInMenu('k9unit_fetch', 'k9_fetch_throw'))
-end)
-
-t.test('k9_fetch_throw: gated on HasK9Access() DIRECTLY, NOT CanShowK9UI() -- the one item this file\'s own header documents as deliberately different', function()
-    local fDenied = newRadialFixture({ features = { FetchMechanic = true }, hasK9Access = false, canShowK9UI = true })
-    fDenied.findInMenu('k9unit_fetch', 'k9_fetch_throw').onSelect()
-    t.equals(fDenied.denyCallCount(), 1)
-    t.isNil(fDenied.calls.RequestThrowFetchBall)
-
-    local fGranted = newRadialFixture({ features = { FetchMechanic = true }, hasK9Access = true, canShowK9UI = false })
-    fGranted.findInMenu('k9unit_fetch', 'k9_fetch_throw').onSelect()
-    t.equals(#fGranted.calls.RequestThrowFetchBall, 1, 'HasK9Access() alone must be enough to proceed, even with CanShowK9UI() forced false')
-    t.equals(fGranted.canShowK9UICallCount(), 0, 'this item must never even ask CanShowK9UI -- see this file\'s own "Fetch\'s Throw branch" carve-out comment')
-end)
-
-t.test('k9_fetch_throw: while already carrying, selecting it releases instead of throwing again -- UNGATED, and RequestThrowFetchBall is never even attempted', function()
-    local f = newRadialFixture({ features = { FetchMechanic = true }, hasK9Access = false })
-    f.setState('isFetchCarryEngaged', true)
-    f.findInMenu('k9unit_fetch', 'k9_fetch_throw').onSelect()
-    t.equals(#f.calls.ReleaseFetchBall, 1)
-    t.isNil(f.calls.RequestThrowFetchBall)
-    t.equals(f.hasK9AccessCallCount(), 0, 'the release branch must return before ever consulting HasK9Access')
 end)
 
 -- ----------------------------------------------------------------------

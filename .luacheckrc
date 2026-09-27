@@ -1062,7 +1062,7 @@ globals = {
     -- for in server/certtiers.lua.
     "IsKnownPermissionCatalogKey", "GetPermissionCatalogLabel",
     "ListPermissionCatalogKeys", "PermissionKeyEditMutex",
-    "IsFetchCarryEngaged", "ReleaseFetchBall", "RequestRecallFetchBall", "RequestThrowFetchBall",
+    "IsFetchCarryEngaged", "IsMyFetchBallOut", "FetchContextual", "ReleaseFetchBall", "RequestRecallFetchBall", "RequestThrowFetchBall",
     -- server/cooldowns.lua constructors
     "NewCooldown", "NewNestedCooldown", "NewMutex",
     -- server/notify.lua -- shared ox_lib notify wrapper, replacing 12
