@@ -336,8 +336,26 @@ local function IsCertifiedK9ForAnyJob(citizenid)
     return idOrErr ~= nil
 end
 
---- THE decoupled role check (see this file's header). Server-authoritative,
---- model-independent by construction. Exposed globally.
+--- THE role check: "is this player the DOG half of a team?" Server-
+--- authoritative. Exposed globally; ~20 call sites (partnering, leashing,
+--- treating, the K9 menus, client IsK9Role()) ask it.
+---
+--- A CERTIFICATION ALONE DOES NOT MAKE YOU THE DOG. A certification is held
+--- by both halves of a team (the owner's rework pass: "Certify as Handler /
+--- as K9"). This used to answer `true` for anyone certified -- harmless
+--- only while certifying always turned the person into a dog. Once a
+--- handler could be certified without that, every certified handler read
+--- as a second K9: partnering and leashing refused with "Both of you are
+--- playing K9s", and handlers were shown dog-only abilities.
+---
+--- The dog is someone who:
+---   1. holds the 'k9.access' grant -- what Assign K9 Role gives, and
+---      model-independent by design; or
+---   2. is certified AND actually a K9: an active K9 appearance assignment
+---      (Certify as K9, Assign K9 Role, or a legacy auto-certify), a pinned
+---      dog character, or currently wearing a configured K9 model (servers
+---      that leave appearance to the player's own character system).
+--- A certified player who is none of those is a HANDLER.
 --- @param source number
 --- @return boolean
 function HasK9Role(source)
@@ -350,7 +368,17 @@ function HasK9Role(source)
     end
 
     local job = Player.PlayerData.job
-    return job ~= nil and IsCertifiedK9ForJob(citizenid, job.name)
+    if not (job ~= nil and IsCertifiedK9ForJob(citizenid, job.name)) then
+        return false
+    end
+
+    if type(IsConfiguredK9Model) == 'function' then
+        local ped = GetPlayerPed(source)
+        if ped and ped ~= 0 and IsConfiguredK9Model(GetEntityModel(ped)) then return true end
+    end
+    if GetAssignedK9Model(citizenid) ~= nil then return true end
+    if type(IsPinnedDogCharacter) == 'function' and IsPinnedDogCharacter(citizenid) then return true end
+    return false
 end
 
 lib.callback.register('qbx_k9unit:server:hasK9Role', function(source)
