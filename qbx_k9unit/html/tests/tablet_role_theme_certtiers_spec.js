@@ -184,6 +184,39 @@ t.test('My Record shows each role as Active or "Unlocks at N XP" against the vie
     t.isTrue(findByText(h.getRoot(), 'Unlocks at 1250 XP').length >= 1, 'a role above the viewer\'s XP says when it switches on');
 });
 
+t.test('certifying from the person page re-reads the roster, so Roster Role shows where they landed instead of "Unassigned"', async () => {
+    let rosterCalls = 0;
+    let certified = false;
+    const h = createHarness({
+        fetchImpl: routeFetch(baseHandlers({
+            'tablet:requestRoster': () => ({ ok: true, rows: [{ citizenid: 'TARGET1', name: 'K9 Rex', departmentLabel: 'Police', certified: false, xp: 0, tierLabel: null }], truncated: false }),
+            'tablet:requestPersonSummary': () => ({ ok: true, target: { citizenid: 'TARGET1', name: 'K9 Rex' }, xp: 0, tierLabel: null, permissions: [],
+                certifications: [certified
+                    ? { departmentKey: 'police', departmentLabel: 'Police', active: true, grantedBy: 'HC1', tier: 'certified', expiresAtUnix: null, expired: false, specializations: [] }
+                    : { departmentKey: 'police', departmentLabel: 'Police', active: false, grantedBy: null }] }),
+            'tablet:requestPersonFeatures': () => ({ ok: true, target: { citizenid: 'TARGET1', name: 'K9 Rex' }, features: [] }),
+            'tablet:rosterList': () => {
+                rosterCalls++;
+                const row = { citizenid: 'TARGET1', name: 'K9 Rex', departmentKey: 'police', departmentLabel: 'Police', personnelRole: 'k9', callsign: null };
+                return { ok: true, k9: certified ? [row] : [], handlers: [], unassigned: [] };
+            },
+            'tablet:certify': () => { certified = true; return { ok: true }; },
+        })),
+    });
+    h.postMessage('tablet:open', { peds: [{ model: 'a_c_shepherd', label: 'German Shepherd' }] });
+    await settle();
+    findByText(h.getRoot(), 'Command Console')[0].click();
+    await settle();
+    findByText(h.getRoot(), 'Manage')[0].click();
+    await settle(4);
+    const before = rosterCalls;
+    findByText(h.getRoot(), 'Certify')[0].click();
+    await new Promise((r) => setTimeout(r, 40));
+    t.isTrue(rosterCalls > before, 'the roster is fetched again after certifying');
+    t.equals(findByText(h.getRoot(), 'This person holds an active certification but has not been assigned to a roster yet. Choose one:').length, 0, 'no leftover "Unassigned -- choose one" prompt');
+    t.isTrue(findByText(h.getRoot(), 'K9').length >= 1, 'the section names the K9 roster');
+});
+
 t.test('Revert to Human is reachable and enabled for a target holding ZERO certifications/permissions -- NO UNBOUNDED TRAP at the UI layer', async () => {
     let revertBody = null;
     const h = createHarness({

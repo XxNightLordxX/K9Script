@@ -5587,7 +5587,7 @@
             wrap.appendChild(mk('p', { class: 'k9tablet-muted', text: S('rank_unavailable') }));
             return wrap;
         }
-        wrap.appendChild(mk('p', { class: 'k9tablet-rank-line', text: S('rank_department_label') + ': ' + job.departmentLabel }));
+        wrap.appendChild(mk('p', { class: 'k9tablet-rank-line', text: S('rank_department_label') + ': ' + ((typeof job.departmentLabel === 'string' && job.departmentLabel.length > 0) ? job.departmentLabel : S('not_available_short')) }));
         var gradeText = (typeof job.gradeLabel === 'string' && job.gradeLabel.length > 0)
             ? job.gradeLabel + (typeof job.gradeLevel === 'number' ? ' (' + job.gradeLevel + ')' : '')
             : (typeof job.gradeLevel === 'number' ? String(job.gradeLevel) : S('not_available_short'));
@@ -6021,10 +6021,16 @@
             if (extra) certifyPayload.k9Model = extra;
             runMutation('tablet:certify', certifyPayload, function () {
                 refreshPersonAndSelf(citizenid);
+                // Certifying also puts them on the matching roster
+                // (server/certifications/core.lua's GrantCertificationForTablet),
+                // so the Roster Role section must re-read it -- otherwise it
+                // keeps saying "Unassigned" for someone already assigned.
+                refreshPersonnelRosterIfShown();
             });
         } else if (kind === 'decertify') {
             runMutation('tablet:decertify', { targetCitizenId: citizenid, departmentKey: departmentKey }, function () {
                 refreshPersonAndSelf(citizenid);
+                refreshPersonnelRosterIfShown();
             });
         } else if (kind === 'setTier') {
             runMutation('tablet:setCertificationTier', { targetCitizenId: citizenid, departmentKey: departmentKey, tier: extra }, function () {
@@ -11173,6 +11179,13 @@
      * actually re-check" trap.
      * @param {string} citizenid
      */
+    /** Re-reads the roster for the person screen's Roster Role section --
+     * only for high command, the one viewer that section (and its roster
+     * fetch in openPerson()) exists for. */
+    function refreshPersonnelRosterIfShown() {
+        if (state.viewer && state.viewer.isHighCommand) loadPersonnelRoster();
+    }
+
     function refreshPersonAndSelf(citizenid) {
         loadPersonSummary(citizenid);
         if (state.viewer && citizenid === state.viewer.citizenid) loadMyRecord();
