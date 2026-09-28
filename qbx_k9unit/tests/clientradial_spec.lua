@@ -454,7 +454,15 @@ local function newRadialFixture(opts)
         GetPlayerServerId = GetPlayerServerId,
         AddEventHandler = AddEventHandler,
         GetCurrentResourceName = GetCurrentResourceName,
-        lib = { registerRadial = lib_registerRadial, addRadialItem = lib_addRadialItem, notify = lib_notify },
+        lib = { registerRadial = lib_registerRadial, addRadialItem = lib_addRadialItem, notify = lib_notify,
+            -- ox_lib's real removeRadialItem (resource/interface/client/radial.lua):
+            -- remove by id from the root wheel, a no-op when absent. Opt-in so
+            -- the older-ox_lib fallback (inert stub) stays covered too.
+            removeRadialItem = opts.withRemoveRadialItem and function(id)
+                for i, existing in ipairs(liveRootItems) do
+                    if existing.id == id then table.remove(liveRootItems, i); break end
+                end
+            end or nil },
         -- Top-level icon access gate (this pass) -- department membership
         -- check reads QBX.PlayerData.job.name directly. Defaults to no job
         -- at all (nil) -- a test wanting a department member sets
@@ -2018,7 +2026,7 @@ t.test('STARTUP GRACE WINDOW: a brand-new client (no department, no access, GetG
     t.isNotNil(f.findMenu('k9unit'), 'the submenu itself must also be registered while the icon is reachable')
 end)
 
-t.test('AFTER THE GRACE WINDOW: no department, no K9 access, no ongoing engagement -- the opener becomes an INERT stub (stays visible, denies via DenyK9UIAccess, does not navigate)', function()
+t.test('AFTER THE GRACE WINDOW, an ox_lib too old to remove items: no department, no K9 access, no ongoing engagement -- the opener becomes an INERT stub (stays visible, denies via DenyK9UIAccess, does not navigate)', function()
     local f = newRadialFixture({ canShowK9UI = false, hasK9Access = false })
     f.advanceGameTimer(8001)
     f.stepIconRefreshThread()
@@ -2029,6 +2037,21 @@ t.test('AFTER THE GRACE WINDOW: no department, no K9 access, no ongoing engageme
 
     opener.onSelect()
     t.isTrue(f.denyCallCount() >= 1, 'selecting the inert icon must deny via DenyK9UIAccess -- the SAME message every other gated action in this file already shows, not a new parallel string')
+end)
+
+t.test('AFTER THE GRACE WINDOW, current ox_lib: a civilian with no K9 department, access or engagement has NO K9 Unit button at all -- and gets it back on joining a K9 department', function()
+    local f = newRadialFixture({ canShowK9UI = false, hasK9Access = false, withRemoveRadialItem = true })
+    f.env.QBX.PlayerData.job.name = 'unemployed'
+    t.isNotNil(f.findRootItem('k9unit_open'), 'inside the startup window the button is there (fail open)')
+    f.advanceGameTimer(8001)
+    f.stepIconRefreshThread()
+    t.isNil(f.findRootItem('k9unit_open'), 'no dead button cluttering a civilian\'s radial')
+    f.env.QBX.PlayerData.job.name = 'police'
+    f.advanceGameTimer(20000)
+    f.stepIconRefreshThread()
+    local opener = f.findRootItem('k9unit_open')
+    t.isNotNil(opener, 'joining a K9 department brings it back without a reconnect')
+    t.equals(opener.menu, 'k9unit')
 end)
 
 t.test('AFTER THE GRACE WINDOW: department membership (QBX.PlayerData.job.name in Config.Departments) alone keeps the icon fully reachable, even with zero K9 access', function()

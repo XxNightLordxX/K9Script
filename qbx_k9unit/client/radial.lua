@@ -2150,16 +2150,30 @@ local function RegisterK9RadialMenu()
             -- string describes (not currently an on-duty, access-granted K9
             -- handler, and not mid-engagement) -- more specific than the
             -- bare fallback, and never factually wrong for this case.
-            lib.addRadialItem({
-                {
-                    id = 'k9unit_open',
-                    label = locale('radial.menu_open_label'),
-                    icon = 'dog',
-                    onSelect = function()
-                        if type(DenyK9UIAccess) == 'function' then DenyK9UIAccess('common.no_k9_role_or_access') end
-                    end,
-                },
-            })
+            --
+            -- NOW VERIFIED against ox_lib's own source
+            -- (resource/interface/client/radial.lua): `lib.removeRadialItem(id)`
+            -- is real -- it removes the item by id, does nothing if it is not
+            -- there, and a later `lib.addRadialItem` puts it back. So a
+            -- civilian or an officer with nothing to do with K9 no longer
+            -- carries a dead "K9 Unit" button in their radial; the periodic
+            -- refresh below re-adds it the moment they gain department /
+            -- access. An ox_lib too old to have the function keeps the
+            -- honest inert stub, exactly as before.
+            if type(lib.removeRadialItem) == 'function' then
+                lib.removeRadialItem('k9unit_open')
+            else
+                lib.addRadialItem({
+                    {
+                        id = 'k9unit_open',
+                        label = locale('radial.menu_open_label'),
+                        icon = 'dog',
+                        onSelect = function()
+                            if type(DenyK9UIAccess) == 'function' then DenyK9UIAccess('common.no_k9_role_or_access') end
+                        end,
+                    },
+                })
+            end
         else
             lib.addRadialItem({
                 {
