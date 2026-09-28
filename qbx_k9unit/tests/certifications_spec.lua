@@ -94,55 +94,55 @@ local PENDING_CERT_LOCALE = {
     ['certifications.self_certification_disabled_hint'] =
         "Self-certification is disabled on this server -- ask another certifying officer to do this for you instead.",
     ['certifications.target_must_be_online_use_offline'] =
-        "Target must be online to be certified this way. If they are offline, use /k9certify [citizenid] [job] instead.",
+        "Target must be online to be certified this way. If they are offline, open them on the tablet and certify from there.",
     ['certifications.target_must_be_online_model_check'] =
         "Target must be online to be certified -- this server requires verifying their current K9 model, which cannot be checked while they are offline. There is no offline path for this while that check is enabled.",
     ['certifications.target_not_in_department_hint'] =
-        'Target is not employed by an eligible department. Configured departments: %s.',
+        "Target is not employed by an eligible department. Configured departments: %s.",
     ['certifications.target_too_far_to_certify_distance'] =
-        'Target is too far away to certify -- move within %sm of them and try again.',
+        "Target is too far away to certify -- move within %sm of them and try again.",
     ['certifications.target_too_far_to_revoke_distance'] =
-        'Target is too far away to revoke their certification -- move within %sm of them and try again.',
+        "Target is too far away to revoke their certification -- move within %sm of them and try again.",
     ['certifications.action_target_too_far_distance'] =
-        'Target is too far away for this action -- move within %sm of them and try again.',
+        "Target is too far away for this action -- move within %sm of them and try again.",
     ['certifications.target_not_k9_model_hint'] =
-        "Target is not playing a recognized K9 model. Ask them to switch to one of this server's configured K9 models before certifying, or ask an operator to turn off Config.K9Appearance.requireK9ModelForRole if that check isn't needed.",
+        "Target is not playing a recognized K9 model. Ask them to switch to one of this server's configured K9 models before certifying, or ask a server operator to turn off the K9-model check for certifying if it isn't needed here.",
     ['certifications.target_already_certified_hint'] =
-        "Target already holds an active certification for this department. Use /k9settier or /k9specialize to adjust it, or /k9decertify and re-certify to start over.",
+        "Target already holds an active certification for this department. Give them roles on their page on the tablet, or decertify and certify again to start over.",
     ['certifications.invalid_department_hint'] =
         "'%s' is not a configured department. Configured departments: %s.",
     ['certifications.tier_change_target_must_be_online_hint'] =
         "Target must be online for this action, or use /k9settier [citizenid] [job] [tier] to change their tier while they're offline.",
     ['certifications.renew_target_must_be_online_hint'] =
-        "Target must be online for this action, or use /k9certify [citizenid] [job] to renew their certification while they're offline.",
+        "Target must be online for this action, or renew their certification from their page on the tablet.",
     ['certifications.specialization_target_must_be_online_no_offline'] =
-        "Target must be online for this action -- specializations can only be granted while the target is connected; there is no offline path for this one.",
+        "Target must be online to be given a role.",
     ['certifications.target_not_actively_certified_needs_cert'] =
-        "Target does not hold an active certification for this department -- certify them first with /k9certify [server id] (or /k9certify [citizenid] [job] if they're offline).",
+        "Target does not hold an active certification for this department -- certify them first from their page on the tablet.",
     ['certifications.tier_change_busy'] =
-        'That tier is being edited elsewhere right now -- try again in a moment.',
+        "That tier is being edited elsewhere right now -- try again in a moment.",
     ['certifications.invalid_specialization_hint'] =
-        'That is not a configured K9 specialization. Configured specializations: %s.',
+        "That is not a K9 role. Roles: %s.",
     ['certifications.specialization_requires_active_cert_hint'] =
-        "That person must hold an active certification for this department before a specialization can be granted -- certify them first with /k9certify.",
+        "That person must hold an active certification for this department before they can be given a role -- certify them first on the tablet.",
     ['certifications.specialization_requires_tier_capability_hint'] =
-        "That person's certification tier does not permit specializations for this department -- change their tier with /k9settier, or ask an operator to grant this capability to their tier from the tablet.",
+        "That person's certification tier does not permit specializations for this department -- change their tier with /k9settier, or ask a High Command officer to grant this capability to their tier from the tablet.",
     ['certifications.grant_success_next_steps'] =
-        "They start at the '%s' tier with no specializations yet. %d feature(s) on this server also require a separate grant (/k9grantpermission, or the tablet) before they will work for them.",
+        "Certified. They have no roles yet -- give them roles on their page on the tablet. %d feature(s) on this server also need a separate grant (on the same page) before they will work for them.",
     ['certifications.grant_success_next_steps_no_grants'] =
-        "They start at the '%s' tier with no specializations yet.",
+        "Certified. They have no roles yet -- give them roles on their page on the tablet.",
     ['certifications.revoked_notice_online_with_reason'] =
-        'Your K9 certification has been revoked (reason: %s).',
+        "Your K9 certification has been revoked (reason: %s).",
     ['certifications.renew_success_granter_detail'] =
         "Target's certification has been renewed -- it now expires in %s day(s).",
     ['certifications.renew_success_target_detail'] =
-        'Your K9 certification has been renewed -- it now expires in %s day(s).',
+        "Your K9 certification has been renewed -- it now expires in %s day(s).",
     ['certifications.k9_access_lost_department_change'] =
-        'You are no longer employed by an eligible K9 department, so your K9 access permission no longer applies here. Any active K9 pairing has ended.',
+        "You are no longer employed by an eligible K9 department, so your K9 access permission no longer applies here. Any active K9 pairing has ended.",
     ['certifications.k9_access_lost_grade_change'] =
-        'Your K9 access has ended -- your current rank no longer qualifies you, and you hold no separate certification for this department. Any active K9 pairing has ended.',
+        "Your K9 access has ended -- your current rank no longer qualifies you, and you hold no separate certification for this department. Any active K9 pairing has ended.",
     ['certifications.revoked_notice_job_change_next_steps'] =
-        'If you need K9 access in your new department, ask a certifying officer there to certify you.',
+        "If you need K9 access in your new department, ask a certifying officer there to certify you.",
 }
 
 --- @param key string
@@ -378,6 +378,7 @@ local function newFixture(opts)
     end
 
     local Config = {
+        CommandTablet = { adminChatCommands = true }, -- admin chat commands are off by default; these tests drive them
         Peds = opts.peds or {
             { model = 'a_c_shepherd' },
             { model = 'a_c_rottweiler' },
@@ -834,6 +835,30 @@ t.test('HasK9Access: a certified handler in the exact cached job passes', functi
     t.isTrue(f.env.HasK9Access(1))
 end)
 
+t.test('HasK9Access: an UNCERTIFIED handler partnered with a K9 has handler access while the partnership lasts -- the dog side never gets it this way', function()
+    local f = newFixture()
+    f.registerPlayer(4, 'HANDLER4', { name = 'police', grade = { level = 1 } })
+    f.registerPlayer(5, 'DOG5', { name = 'police', grade = { level = 1 } })
+    local partners = {}
+    f.env.GetActivePartnerCitizenId = function(cid) local p = partners[cid]; if p then return p[1], p[2] end end
+    t.isFalse(f.env.HasK9Access(4), 'not partnered yet')
+
+    partners.HANDLER4 = { 'DOG5', false }
+    partners.DOG5 = { 'HANDLER4', true }
+    t.isTrue(f.env.HasK9Access(4), 'partnered handler')
+    t.isFalse(f.env.HasK9Access(5), 'an uncertified dog is not let in by the partnership')
+
+    partners.HANDLER4, partners.DOG5 = nil, nil
+    t.isFalse(f.env.HasK9Access(4), 'gone again once the partnership ends')
+end)
+
+t.test('HasK9Access: a partnered handler who leaves the K9 department loses access -- the department check still comes first', function()
+    local f = newFixture()
+    f.registerPlayer(6, 'HANDLER6', { name = 'mechanic', grade = { level = 1 } })
+    f.env.GetActivePartnerCitizenId = function(cid) if cid == 'HANDLER6' then return 'DOGX', false end end
+    t.isFalse(f.env.HasK9Access(6))
+end)
+
 t.test('HasK9Access: a player with no cert at all (never refreshed) fails -- pure cache miss', function()
     local f = newFixture()
     f.registerPlayer(2, 'CIT2', { name = 'police', grade = { level = 1 } })
@@ -1050,6 +1075,60 @@ t.test('GrantCertification: self-certification is rejected when Config.AllowSelf
     f.setSource(1)
     f.events['qbx_k9unit:server:certifyHandler'](1)
     t.isTrue(notifiedExactly(f, 1, localeWithPendingCertKeys('certifications.self_certification_disabled_hint'), 'error'))
+end)
+
+-- ======================================================================
+-- THE OWNER'S OWN LIVE REPORT, END TO END
+--
+-- "i am rank 8 on the police job and it says i am not high command to
+-- certify myself with /k9certify" -- on a STOCK install, which ships
+-- Config.Database.enabled = false.
+--
+-- The cause was in server/permissions.lua (memory-only mode being read as
+-- "cannot verify blocks", so block.k9.certify came back TRUE for
+-- everyone) and permissions_spec.lua's own CASE 0 block pins that unit
+-- directly. What NOTHING pinned was the whole journey: a boss-ranked
+-- officer, nobody having blocked them, actually getting certified by
+-- pressing the thing they pressed.
+--
+-- Those are different failures. The unit test would still pass if some
+-- later change broke self-certification for a boss somewhere further down
+-- GrantCertification -- proximity, eligibility, the self-cert branch --
+-- and the owner would be looking at the same refusal message again. This
+-- asserts the outcome he actually cared about.
+-- ======================================================================
+
+t.test('OWNER REPORT, END TO END: a boss-ranked officer self-certifies successfully on a stock install with nothing blocked', function()
+    local f = newFixture()
+    f.registerPlayer(1, 'CHIEF', { name = 'police', isboss = true, grade = { level = 8 } })
+    f.setPed(1, 100, vec3(0, 0, 0))
+    -- Stock install: no permission rows exist at all, so HasPermission
+    -- answers false for EVERY key -- including block.k9.certify. This is
+    -- exactly the state the CASE 0 fix restored; before it, this same
+    -- accessor returned true for the block key and refused the request.
+    f.env.HasPermission = function() return false end
+    f.setSource(1)
+    f.events['qbx_k9unit:server:certifyHandler'](1)
+
+    t.isFalse(notifiedExactly(f, 1, localeWithPendingCertKeys('certifications.not_authorized_to_certify_hint'), 'error'),
+        'THE REPORTED BUG: a rank-8 boss must never be told they are not authorized to certify on a stock install')
+    t.isFalse(notifiedExactly(f, 1, localeWithPendingCertKeys('certifications.self_certification_disabled_hint'), 'error'),
+        'and Config.AllowSelfCertification ships true, so self-certification must not be refused either')
+end)
+
+t.test('OWNER REPORT, CONTROL: reintroducing the defect (block.k9.certify reading true, as memory-mode used to) refuses that same officer', function()
+    local f = newFixture()
+    f.registerPlayer(1, 'CHIEF', { name = 'police', isboss = true, grade = { level = 8 } })
+    f.setPed(1, 100, vec3(0, 0, 0))
+    -- The pre-fix behaviour, reproduced exactly: memory-only mode made the
+    -- block namespace fail closed, so this key answered true for a
+    -- citizenid nobody had ever blocked.
+    f.env.HasPermission = function(_, key) return key == 'block.k9.certify' end
+    f.setSource(1)
+    f.events['qbx_k9unit:server:certifyHandler'](1)
+
+    t.isTrue(notifiedExactly(f, 1, localeWithPendingCertKeys('certifications.not_authorized_to_certify_hint'), 'error'),
+        'proves the test above is really watching this path -- with the defect back, the same officer is refused again')
 end)
 
 t.test('GrantCertification: an offline target (not currently connected) is rejected -- grant requires an online target', function()
@@ -1560,7 +1639,7 @@ end)
 -- Config.FeatureControl.RequireGrant), never a hardcoded assumption.
 -- ======================================================================
 
-t.test('GrantCertification: WORKFLOW CLARITY -- success sends the granter a follow-up naming the real tier and specialization count, with no features requiring a grant on this server (the shipped default)', function()
+t.test('GrantCertification: WORKFLOW CLARITY -- success sends the granter a follow-up pointing at roles, with no features requiring a grant on this server (the shipped default)', function()
     local f = newFixture()
     f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
     f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
@@ -1577,7 +1656,7 @@ t.test('GrantCertification: WORKFLOW CLARITY -- success sends the granter a foll
     -- NO-GRANTS-NEEDED variant is the one that must be sent, naming the
     -- REAL tier ('certified', the DB's own default -- read back from the
     -- cache this same call just populated, never hardcoded here).
-    t.isTrue(notifiedExactly(f, 10, localeWithPendingCertKeys('certifications.grant_success_next_steps_no_grants', 'certified'), 'inform'))
+    t.isTrue(notifiedExactly(f, 10, localeWithPendingCertKeys('certifications.grant_success_next_steps_no_grants'), 'inform'))
 end)
 
 t.test('GrantCertification: WORKFLOW CLARITY -- when Config.FeatureControl.RequireGrant lists features, the follow-up names the REAL, live count, not a hardcoded number', function()
@@ -1595,7 +1674,7 @@ t.test('GrantCertification: WORKFLOW CLARITY -- when Config.FeatureControl.Requi
     -- Exactly 2 of the 3 entries are `true` (PropDragging is `false`, and
     -- must NOT be counted) -- proves the count is computed live from the
     -- actual table shape, not merely "the table is non-empty".
-    t.isTrue(notifiedExactly(f, 10, localeWithPendingCertKeys('certifications.grant_success_next_steps', 'certified', 2), 'inform'))
+    t.isTrue(notifiedExactly(f, 10, localeWithPendingCertKeys('certifications.grant_success_next_steps', 2), 'inform'))
 end)
 
 t.test('GrantCertificationOffline: WORKFLOW CLARITY -- the same follow-up is sent on the offline grant path too, computed from the same just-refreshed real state', function()
@@ -1606,7 +1685,7 @@ t.test('GrantCertificationOffline: WORKFLOW CLARITY -- the same follow-up is sen
 
     f.commands['k9certify'].fn(1, { 'OFFLINE_CIT', 'police' })
 
-    t.isTrue(notifiedExactly(f, 1, localeWithPendingCertKeys('certifications.grant_success_next_steps', 'certified', 1), 'inform'))
+    t.isTrue(notifiedExactly(f, 1, localeWithPendingCertKeys('certifications.grant_success_next_steps', 1), 'inform'))
 end)
 
 -- ======================================================================
@@ -1620,23 +1699,87 @@ end)
 -- touched.
 -- ======================================================================
 
-t.test('GrantCertification: APPEARANCE FIX -- with Config.K9Appearance.applyPedModelOnCertify on, a successful online grant calls ApplyK9AppearanceOnGrant(targetCitizenid, granterCitizenid)', function()
+-- CERTIFY AS HANDLER OR AS K9 (the owner's rework pass). Certifying used
+-- to ALWAYS turn the person into Config.Peds[1] -- so every new HANDLER
+-- was turned into a dog. Now: no breed = a handler, looks untouched; a
+-- breed = certified as the K9 AND turned into that breed, one step.
+
+t.test('CERTIFY AS HANDLER: a plain certify (walk-up option / chat command, no breed) certifies them and NEVER changes how they look', function()
     local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true } })
     f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
     f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
     f.setPed(10, 1000, vec3(0, 0, 0))
-    f.setPed(20, 2000, vec3(1, 0, 0), K9_HASH_SHEPHERD)
+    f.setPed(20, 2000, vec3(1, 0, 0), NON_K9_HASH)
+
+    local scalarCallCount = 0
+    f.mysql.scalar.await = function()
+        scalarCallCount = scalarCallCount + 1
+        if scalarCallCount == 1 then return nil end
+        return 77
+    end
 
     f.setSource(10)
     f.events['qbx_k9unit:server:certifyHandler'](20)
 
-    t.equals(#f.appearanceApplyCalls, 1, 'a plain /k9certify grant must apply the K9 ped, exactly like a k9.access permission grant already does')
-    t.equals(f.appearanceApplyCalls[1][1], 'TARGET')
-    t.equals(f.appearanceApplyCalls[1][2], 'GRANTER')
-    t.isNil(f.appearanceApplyCalls[1][3], 'this function carries no explicit model choice of its own -- ApplyK9AppearanceOnGrant\'s own Config.Peds[1].model default must apply, same as the k9.access-grant path')
+    t.isTrue(f.env.HasK9Access(20), 'the handler is certified')
+    t.equals(#f.appearanceApplyCalls, 0, 'a handler must not be turned into a dog by being certified')
 end)
 
-t.test('GrantCertification: APPEARANCE FIX -- the role-holder ends up on an ORDINARY HUMAN BODY (no configured K9 model) and the certification/appearance-apply still both succeed -- role and model are genuinely independent', function()
+t.test('CERTIFY AS K9: certifying from the tablet with a breed picked certifies them AND turns them into exactly that breed, in one step', function()
+    local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true }, features = { CommandTablet = true } })
+    f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
+    f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
+    f.setPed(10, 1000, vec3(0, 0, 0))
+    f.setPed(20, 2000, vec3(1, 0, 0), NON_K9_HASH)
+
+    local scalarCallCount = 0
+    f.mysql.scalar.await = function()
+        scalarCallCount = scalarCallCount + 1
+        if scalarCallCount == 1 then return nil end
+        return 77
+    end
+
+    local result = f.callbacks['qbx_k9unit:server:tabletCertify'](10, 'TARGET', 'police', 'a_c_rottweiler')
+
+    t.isTrue(result.ok)
+    t.isTrue(f.env.HasK9Access(20))
+    t.equals(#f.appearanceApplyCalls, 1)
+    t.equals(f.appearanceApplyCalls[1][1], 'TARGET')
+    t.equals(f.appearanceApplyCalls[1][2], 'GRANTER')
+    t.equals(f.appearanceApplyCalls[1][3], 'a_c_rottweiler', 'the breed the certifier picked, not a default')
+end)
+
+t.test('CERTIFY AS K9: a breed that is not in Config.Peds is refused before anything is written -- never quietly certified as a handler instead', function()
+    local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true }, features = { CommandTablet = true } })
+    f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
+    f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
+    f.setPed(10, 1000, vec3(0, 0, 0))
+    f.setPed(20, 2000, vec3(1, 0, 0), NON_K9_HASH)
+    local inserted = false
+    f.mysql.insert.await = function() inserted = true; return 1 end
+
+    for _, bad in ipairs({ 'a_c_pig', '', 42 }) do
+        local result = f.callbacks['qbx_k9unit:server:tabletCertify'](10, 'TARGET', 'police', bad)
+        t.isFalse(result.ok)
+        t.equals(result.error, 'invalid_model', tostring(bad))
+    end
+    t.isFalse(inserted)
+    t.equals(#f.appearanceApplyCalls, 0)
+end)
+
+t.test('CERTIFY AS K9: from the tablet with NO breed (Handler picked) behaves exactly like a handler certify -- looks unchanged', function()
+    local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true }, features = { CommandTablet = true } })
+    f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
+    f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
+    f.setPed(10, 1000, vec3(0, 0, 0))
+    f.setPed(20, 2000, vec3(1, 0, 0), NON_K9_HASH)
+
+    local result = f.callbacks['qbx_k9unit:server:tabletCertify'](10, 'TARGET', 'police', nil)
+    t.isTrue(result.ok)
+    t.equals(#f.appearanceApplyCalls, 0)
+end)
+
+t.test('CERTIFY AS K9: a target on an ORDINARY HUMAN BODY is certified AND the breed is applied -- role and model are genuinely independent', function()
     -- Config.K9Appearance.requireK9ModelForRole is absent (shipped default,
     -- false) -- the target's LIVE ped model is deliberately NOT a
     -- configured K9 model at all, proving the grant (and its automatic
@@ -1662,14 +1805,15 @@ t.test('GrantCertification: APPEARANCE FIX -- the role-holder ends up on an ORDI
     end
 
     f.setSource(10)
-    f.events['qbx_k9unit:server:certifyHandler'](20)
+    t.isTrue(f.env.K9Cert.GrantCertification(10, 20, 'a_c_shepherd'))
 
     t.isTrue(f.env.HasK9Access(20), 'the ROLE must be granted regardless of the target\'s CURRENT model')
-    t.equals(#f.appearanceApplyCalls, 1, 'the automatic appearance-apply side effect must still fire for a human-bodied role-holder -- it is what is SUPPOSED to turn them into the ped, not a check that refuses because they are not one yet')
+    t.equals(#f.appearanceApplyCalls, 1, 'the chosen breed is applied to a human-bodied target -- that is what turns them into the dog, not a check that refuses because they are not one yet')
     t.equals(f.appearanceApplyCalls[1][1], 'TARGET')
+    t.equals(f.appearanceApplyCalls[1][3], 'a_c_shepherd')
 end)
 
-t.test('GrantCertification: APPEARANCE FIX -- with Config.K9Appearance.applyPedModelOnCertify explicitly false, the appearance-apply hook is never called', function()
+t.test('GrantCertification: with Config.K9Appearance.applyPedModelOnCertify explicitly false, the appearance-apply hook is never called -- even with a breed picked', function()
     local f = newFixture({ k9Appearance = { applyPedModelOnCertify = false } })
     f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
     f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
@@ -1684,7 +1828,7 @@ t.test('GrantCertification: APPEARANCE FIX -- with Config.K9Appearance.applyPedM
     end
 
     f.setSource(10)
-    f.events['qbx_k9unit:server:certifyHandler'](20)
+    f.env.K9Cert.GrantCertification(10, 20, 'a_c_shepherd')
 
     t.isTrue(f.env.HasK9Access(20), 'the role itself must still be granted -- only the automatic appearance side effect is opted out')
     t.equals(#f.appearanceApplyCalls, 0)
@@ -1726,22 +1870,36 @@ t.test('GrantCertification: APPEARANCE FIX -- the runtime existence guard genuin
     end
 
     f.setSource(10)
-    local ok = pcall(f.events['qbx_k9unit:server:certifyHandler'], 20)
+    local ok = pcall(f.env.K9Cert.GrantCertification, 10, 20, 'a_c_shepherd')
 
     t.isTrue(ok, 'a missing soft dependency must never throw out of the grant path')
     t.isTrue(f.env.HasK9Access(20), 'the grant itself must still succeed with server/appearance.lua entirely absent')
 end)
 
-t.test('GrantCertificationOffline: APPEARANCE FIX -- with Config.K9Appearance.applyPedModelOnCertify on, a successful offline grant (/k9certify with a citizenid) calls ApplyK9AppearanceOnGrant(citizenid, granterCitizenid) too -- closes the "only one of the two doors" asymmetry', function()
+t.test('CERTIFY AS HANDLER (offline): /k9certify [citizenid] [job] certifies an offline handler and never changes how they look', function()
     local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true } })
     f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
     -- TARGET intentionally never registered -- genuinely offline.
+    local inserted = false
+    f.mysql.insert.await = function() inserted = true; return 1 end
 
     f.commands['k9certify'].fn(10, { 'TARGET', 'police' })
 
-    t.equals(#f.appearanceApplyCalls, 1, 'an offline /k9certify grant must apply the K9 ped exactly like the online path -- ApplyK9AppearanceOnGrant/SendSwapRequest already handle a currently-offline target on their own')
+    t.isTrue(inserted, 'the certification is written')
+    t.equals(#f.appearanceApplyCalls, 0)
+end)
+
+t.test('CERTIFY AS K9 (offline): from the tablet with a breed picked, an offline target is certified and the breed is applied for their next login', function()
+    local f = newFixture({ k9Appearance = { applyPedModelOnCertify = true }, features = { CommandTablet = true } })
+    f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
+
+    local result = f.callbacks['qbx_k9unit:server:tabletCertify'](10, 'TARGET', 'police', 'a_c_rottweiler')
+
+    t.isTrue(result.ok)
+    t.equals(#f.appearanceApplyCalls, 1)
     t.equals(f.appearanceApplyCalls[1][1], 'TARGET')
     t.equals(f.appearanceApplyCalls[1][2], 'GRANTER')
+    t.equals(f.appearanceApplyCalls[1][3], 'a_c_rottweiler')
 end)
 
 -- ----------------------------------------------------------------------
@@ -3462,6 +3620,20 @@ t.test('HasSpecialization: true only when BOTH the base cert is active/unexpired
     t.isFalse(f.env.HasSpecialization('CIT1', 'police', 'explosives'), 'a specialization never granted must read false')
 end)
 
+t.test('HasSpecialization: a granted ROLE only counts once its XP is reached (server/roles.lua IsRoleXpUnlocked)', function()
+    local f = newFixture()
+    f.registerPlayer(1, 'CIT1', { name = 'police', grade = { level = 1 } })
+    f.mysql.scalar.await = function() return 5 end
+    f.mysql.query.await = function() return { { specialization = 'narcotics' } } end
+    f.env.RefreshCertificationCache('CIT1', 'police')
+
+    local reached = false
+    f.env.IsRoleXpUnlocked = function(cid, key) return cid == 'CIT1' and key == 'narcotics' and reached end
+    t.isFalse(f.env.HasSpecialization('CIT1', 'police', 'narcotics'), 'held, but the XP is not reached yet')
+    reached = true
+    t.isTrue(f.env.HasSpecialization('CIT1', 'police', 'narcotics'), 'held and unlocked')
+end)
+
 t.test('HasSpecialization: an EXPIRED base cert soft-disables its specializations too, without any DB write', function()
     local f = newFixture()
     f.registerPlayer(1, 'CIT1', { name = 'police', grade = { level = 1 } })
@@ -4169,7 +4341,7 @@ end)
 -- now; the refusal case is reported, not silently skipped.
 -- ======================================================================
 
-t.test('GrantSpecialization: TIER CAPABILITY -- consulted with (targetCitizenid, jobName, \'specializations_eligible\') AFTER the active-cert check passes, and a tier that HOLDS the capability still grants normally', function()
+t.test('GrantSpecialization: the old tier capability is RETIRED -- a tier that would deny specializations no longer blocks giving someone a role', function()
     local f = newFixture()
     f.registerPlayer(10, 'GRANTER', { name = 'police', isboss = true })
     f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
@@ -4178,24 +4350,31 @@ t.test('GrantSpecialization: TIER CAPABILITY -- consulted with (targetCitizenid,
     f.mysql.scalar.await = function() return 5 end -- active base cert
     f.env.RefreshCertificationCache('TARGET', 'police')
 
-    local capturedArgs
-    f.env.TierCapabilityPermits = function(citizenid, jobName, capabilityKey)
-        capturedArgs = { citizenid, jobName, capabilityKey }
-        return true -- this tier HOLDS the capability
-    end
+    local consulted = false
+    f.env.TierCapabilityPermits = function() consulted = true; return false end -- a tier box ticked long ago, now uneditable
 
-    f.mysql.scalar.await = function() return nil end -- pre-check: no existing active specialization row
+    f.mysql.scalar.await = function() return nil end
     local insertParams
     f.mysql.insert.await = function(_sql, params) insertParams = params; return 1 end
     f.mysql.query.await = function() return { { specialization = 'narcotics' } } end
 
     f.commands['k9specialize'].fn(10, { '20', 'narcotics' })
 
-    t.equals(capturedArgs[1], 'TARGET')
-    t.equals(capturedArgs[2], 'police')
-    t.equals(capturedArgs[3], 'specializations_eligible')
-    t.equals(insertParams[1], 'TARGET', 'a tier that holds the capability must not block the grant')
+    t.isFalse(consulted, 'the grant path no longer asks the tier at all')
+    t.equals(insertParams[1], 'TARGET', 'the role is granted')
     t.isTrue(f.env.HasSpecialization('TARGET', 'police', 'narcotics'))
+end)
+
+t.test('HasSpecializationGranted: true once given, even before the XP is reached -- HasSpecialization only once it is', function()
+    local f = newFixture()
+    f.registerPlayer(20, 'TARGET', { name = 'police', grade = { level = 1 } })
+    f.mysql.scalar.await = function() return 5 end
+    f.mysql.query.await = function() return { { specialization = 'explosives' } } end
+    f.env.RefreshCertificationCache('TARGET', 'police')
+    f.env.IsRoleXpUnlocked = function() return false end -- XP not reached yet
+    t.isTrue(f.env.HasSpecializationGranted('TARGET', 'police', 'explosives'))
+    t.isFalse(f.env.HasSpecialization('TARGET', 'police', 'explosives'))
+    t.isFalse(f.env.HasSpecializationGranted('TARGET', 'police', 'narcotics'), 'a role never given is not granted')
 end)
 
 t.test('GrantSpecialization: TIER CAPABILITY -- the runtime existence guard genuinely tolerates TierCapabilityPermits being entirely absent (server/certtiers.lua not loaded), failing OPEN to the ordinary grant path', function()
@@ -5509,6 +5688,30 @@ t.test('tabletCertify: ONLINE grant is COMPLETELY UNAFFECTED by this pass -- sti
     t.isFalse(result.ok)
     t.equals(result.error, 'target_not_k9_model')
     t.isFalse(insertCalled)
+end)
+
+t.test('requireK9ModelForRole on: Certify as K9 WITH a breed is not refused for the target not being a dog yet -- the certify is what makes them one', function()
+    local f = tabletFixture({ k9Appearance = { requireK9ModelForRole = true, applyPedModelOnCertify = true } })
+    f.registerPlayer(1, 'G1', { name = 'police', isboss = true })
+    f.registerPlayer(2, 'T1', { name = 'police', grade = { level = 1 } })
+    f.setPed(1, 100, vec3(0, 0, 0))
+    f.setPed(2, 200, vec3(1, 0, 0), NON_K9_HASH)
+
+    local result = f.callbacks['qbx_k9unit:server:tabletCertify'](1, 'T1', 'police', 'a_c_shepherd')
+    t.isTrue(result.ok, 'got ' .. tostring(result.error))
+    t.equals(#f.appearanceApplyCalls, 1)
+end)
+
+t.test('requireK9ModelForRole on: certifying a HUMAN as a handler (no breed) is still refused, as the operator opted in', function()
+    local f = tabletFixture({ k9Appearance = { requireK9ModelForRole = true, applyPedModelOnCertify = true } })
+    f.registerPlayer(1, 'G1', { name = 'police', isboss = true })
+    f.registerPlayer(2, 'T1', { name = 'police', grade = { level = 1 } })
+    f.setPed(1, 100, vec3(0, 0, 0))
+    f.setPed(2, 200, vec3(1, 0, 0), NON_K9_HASH)
+
+    local result = f.callbacks['qbx_k9unit:server:tabletCertify'](1, 'T1', 'police')
+    t.isFalse(result.ok)
+    t.equals(result.error, 'target_not_k9_model')
 end)
 
 t.test('tabletCertify: ONLINE grant STILL succeeds against a real K9 model, unaffected by this pass, when requireK9ModelForRole is true', function()

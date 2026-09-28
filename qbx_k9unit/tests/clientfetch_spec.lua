@@ -470,6 +470,21 @@ local function findK9Fetch(f)
     error('k9fetch command not registered')
 end
 
+t.test('FetchContextual is the shared one-click action (radial Fetch item, tablet button, bare /k9fetch); IsMyFetchBallOut tracks this client\'s own ball', function()
+    local f = newFetchFixture()
+    t.equals(type(f.env.FetchContextual), 'function')
+    t.isFalse(f.env.IsMyFetchBallOut())
+
+    f.env.FetchContextual()
+    t.equals(f.lastServerEvent().event, 'qbx_k9unit:server:requestThrowFetchBall')
+
+    f.dispatchNetEvent('qbx_k9unit:client:throwFetchBallAt', 65535, 10.0, 20.0, 5.0, 1.0, 2.0, 3.0)
+    t.isTrue(f.env.IsMyFetchBallOut(), 'the thrower\'s own ball is out')
+
+    f.env.FetchContextual()
+    t.equals(f.lastServerEvent().event, 'qbx_k9unit:server:requestRecallFetchBall', 'the same click now calls it back')
+end)
+
 t.test('CONTEXTUAL DISPATCH: bare /k9fetch THROWS when nothing is active (no carry, no thrown ball)', function()
     local f = newFetchFixture()
     local k9fetch = findK9Fetch(f)

@@ -438,6 +438,7 @@ local function newMovementFixture(opts)
 
     return {
         env = env,
+        commands = commands,
         setIsOwnModelK9 = function(v) isOwnModelK9 = v end,
         setCanShowK9UI = function(v) canShowK9UI = v end,
         canShowK9UICallCount = function() return canShowK9UICallCount end,
@@ -612,6 +613,60 @@ end)
 -- TriggerServerEvent -- the server (CheckLeashEligibility) is the one place
 -- that actually decides role/eligibility.
 -- ========================================================================
+
+-- ========================================================================
+-- /k9leash -- ONE command: detach when leashed, otherwise attach to the
+-- nearest candidate. Detach is never gated ("gate the start, never the
+-- stop"); attach is.
+-- ========================================================================
+
+--- @return table f, table calls -- calls.detach / calls.attach (target ids)
+local function leashCommandFixture(leashed, candidate)
+    local f = newMovementFixture()
+    local calls = { detach = 0, attach = {} }
+    f.env.IsLeashed = function() return leashed end
+    f.env.DetachLeash = function() calls.detach = calls.detach + 1 end
+    f.env.RequestLeashAttach = function(id) calls.attach[#calls.attach + 1] = id end
+    f.env.FindNearestLeashCandidate = function() return candidate end
+    return f, calls
+end
+
+t.test('/k9leash while leashed detaches -- even for a player who has lost K9 access', function()
+    local f, calls = leashCommandFixture(true, 7)
+    f.setCanShowK9UI(false)
+    f.commands['k9leash']()
+    t.equals(calls.detach, 1)
+    t.equals(#calls.attach, 0)
+    t.equals(f.denyCallCount(), 0, 'letting go is never refused')
+end)
+
+t.test('/k9leash while not leashed attaches to the nearest candidate', function()
+    local f, calls = leashCommandFixture(false, 7)
+    f.setCanShowK9UI(true)
+    f.commands['k9leash']()
+    t.equals(calls.detach, 0)
+    t.equals(#calls.attach, 1)
+    t.equals(calls.attach[1], 7)
+end)
+
+t.test('/k9leash with nobody nearby says so, and sends nothing', function()
+    local f, calls = leashCommandFixture(false, nil)
+    f.setCanShowK9UI(true)
+    f.commands['k9leash']()
+    t.equals(#calls.attach, 0)
+    local n = f.notifyCalls[#f.notifyCalls]
+    t.isNotNil(n)
+    t.equals(n.description, locale('radial.no_leash_candidate'))
+    t.equals(n.type, 'error')
+end)
+
+t.test('/k9leash from a player without K9 access is refused before looking for anyone', function()
+    local f, calls = leashCommandFixture(false, 7)
+    f.setCanShowK9UI(false)
+    f.commands['k9leash']()
+    t.equals(f.denyCallCount(), 1)
+    t.equals(#calls.attach, 0)
+end)
 
 t.test('RequestLeashAttach: K9-role initiator (IsOwnModelK9 true) BLOCKED locally when CanShowK9UI is false -- denied before ever reaching the server', function()
     local f = newMovementFixture()
@@ -1519,7 +1574,7 @@ end)
 --     denial-path notify text).
 --   - K9Sit() -- not exercised at all (no ClearPedTasksImmediately/
 --     TaskStartScenarioInPlace stubs are even provided).
---   - RegisterLeashOxTargetOption() / RegisterCertifyOxTargetOptions() /
+--   - RegisterLeashOxTargetOption() /
 --     RegisterDoorInteractionOxTargetOptions() and their canInteract/
 --     onSelect closures -- these `local` functions are only reachable via
 --     the combined onResourceStart handler this spec confirms is

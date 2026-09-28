@@ -542,6 +542,8 @@ if ONBOARD_CFG.enabled ~= false then
         body = locale('hud.onboarding_body'),
         dismissHint = locale('hud.onboarding_dismiss_hint', ONBOARD_DISMISS_LABEL),
     }
+    -- The dog and the handler each get the one line that matters to them.
+    local ONBOARD_HANDLER_BODY = locale('hud.onboarding_body_handler')
 
     -- Tick cadence -- same idle/active TWO-SPEED PATTERN this file already
     -- established for the vitals poll thread below (HUD_POLL_TICK_MS/
@@ -603,9 +605,14 @@ if ONBOARD_CFG.enabled ~= false then
     --- @param visible boolean
     local function PushOnboardVisibility(visible)
         onboardState.visible = visible
+        local amDog = type(IsOwnModelK9) == 'function' and IsOwnModelK9()
         SendNUIMessage({
             action = 'hud:onboardingHint',
-            data = { visible = visible, strings = ONBOARD_STRINGS },
+            data = { visible = visible, strings = {
+                title = ONBOARD_STRINGS.title,
+                body = amDog and ONBOARD_STRINGS.body or ONBOARD_HANDLER_BODY,
+                dismissHint = ONBOARD_STRINGS.dismissHint,
+            } },
         })
     end
 
@@ -663,7 +670,9 @@ if ONBOARD_CFG.enabled ~= false then
             local durablySuppressed = citizenid == nil
                 or HasDurablyOpenedTablet(citizenid)
                 or HasDurablyDismissedHint(citizenid)
-            local eligible = (not durablySuppressed) and CanShowK9UI()
+            -- The K9 itself, or a handler who has just partnered up with one.
+            local eligible = (not durablySuppressed)
+                and (CanShowK9UI() or (type(IsPartnered) == 'function' and IsPartnered()))
 
             if not eligible then
                 onboardState.windowStartedAt = nil

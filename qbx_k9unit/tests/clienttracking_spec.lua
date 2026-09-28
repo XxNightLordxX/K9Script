@@ -546,6 +546,35 @@ t.test("k9track chat command: dispatches straight to StartCertifiedTrack -- same
     t.equals(f.env.GetActiveTrackType(), 'scent')
 end)
 
+t.test('k9track chat command: pressed again while tracking, it STOPS the track -- the same as the radial item and the tablet, never "already tracking"', function()
+    local f = newTrackingFixture()
+    f.queueCallbackResponse({ found = true, trackType = 'scent', coords = vec3(1, 0, 0) })
+    f.runK9TrackCommand()
+    t.isTrue(f.env.IsTracking())
+    local callsBefore = f.callbackCallCount()
+    local notifiesBefore = #f.notifyCalls
+
+    f.runK9TrackCommand()
+
+    t.isFalse(f.env.IsTracking(), 'the second press stopped it')
+    t.equals(f.callbackCallCount(), callsBefore, 'stopping needs no server round trip')
+    for i = notifiesBefore + 1, #f.notifyCalls do
+        t.isTrue(f.notifyCalls[i].description ~= locale('tracking.already_tracking'), 'never answered with "already tracking"')
+    end
+end)
+
+t.test('k9track chat command: stopping works even for a player who has since lost K9 access -- gate the start, never the stop', function()
+    local f = newTrackingFixture()
+    f.queueCallbackResponse({ found = true, trackType = 'scent', coords = vec3(1, 0, 0) })
+    f.runK9TrackCommand()
+    t.isTrue(f.env.IsTracking())
+    f.env.HasK9Access = function() return false end
+
+    f.runK9TrackCommand()
+
+    t.isFalse(f.env.IsTracking())
+end)
+
 t.test('StartScentTrack: result.found == false notifies tracking.nothing_to_track and leaves IsTracking() false', function()
     local f = newTrackingFixture()
     f.queueCallbackResponse({ found = false })

@@ -989,127 +989,9 @@ end
 -- this follows that same, already-established convention rather than
 -- inventing a new toggle for it.
 --
--- config-validator finding: both options below used to have a bare 2.5
--- `distance` with no relationship to any Config value, even though the
--- REAL server-side proximity check for both grant and revoke is
--- Config.CertifyProximityMeters (server/certifications/'s
--- GrantCertification and RevokeCertification, both of which reject past
--- that value — see the header comment above and server/certifications/
--- itself for the exact call sites). Deriving from it here means an
--- installer who edits Config.CertifyProximityMeters now sees these
--- options' visible range move with it, instead of it silently staying
--- frozen at an unrelated magic number — exactly the drift the finding
--- flagged.
---
--- Kept at HALF Config.CertifyProximityMeters, same "don't vanish right at
--- the server's exact edge" reasoning as LEASH_TARGET_DISTANCE_FACTOR
--- above: this is a DISPLAY-ONLY UI gate (the server re-validates
--- authoritatively regardless), so being deliberately tighter than the
--- server bound is intentional, giving margin against a player drifting a
--- few centimetres between opening ox_target and the server processing the
--- resulting certifyHandler/revokeHandler event.
---
--- NOTE for reviewers: with the current default (Config.CertifyProximityMeters
--- = 5.0), this evaluates to 2.5m — the SAME value as the previous
--- hardcoded constant. That match is coincidental (this file's original
--- 2.5 was never actually derived from Config.CertifyProximityMeters), not
--- load-bearing: this now tracks any future change to that config value
--- instead of staying frozen.
-local CERTIFY_TARGET_DISTANCE_FACTOR = 0.5
-
--- LIFECYCLE FIX (this pass): extracted into a named function — see this
--- file's "Attach Leash" option above for the full writeup this shares
--- (same ox_target lifecycle bug, same fix shape, same combined
--- `AddEventHandler` near the end of this file).
--- THIRD-EYE CLARITY PASS (this pass, owner-directed): icon fas fa-id-badge
--- is this resource's own "High Command / credentialing" icon (the fourth
--- role bucket alongside fas fa-dog for K9-role options and fas fa-user-tie
--- for a separate human acting on/for a K9, both confirmed with the
--- sibling agent covering the vehicle/object half of this same pass) --
--- unchanged from before this pass, kept deliberately since it already read
--- correctly and is already confirmed available. Labels below reworded to
--- plain English (what will actually happen, from the granter's own point
--- of view), per this pass's brief -- canInteract/onSelect are UNCHANGED,
--- this is a text/labeling pass only.
-local function RegisterCertifyOxTargetOptions()
-    K9Compat.Get('target').AddGlobalPlayer({
-        {
-            name = 'qbx_k9unit:certifyHandler',
-            icon = 'fas fa-id-badge',
-            label = locale('movement.certify_handler_target_label'),
-            distance = CERTIFY_TARGET_DISTANCE_FACTOR * Config.CertifyProximityMeters,
-            canInteract = function(entity, distance, coords, name)
-                if NetworkGetPlayerIndexFromPed(entity) == PlayerId() then return false end -- self-cert stays command-only (/k9certify [own id]), matches the leash option's self-exclusion above
-
-                -- DEVELOPER_REFERENCE.md §4.2 condition 5: grant requires the TARGET's live
-                -- ped model to be a configured K9 model -- BUT ONLY when
-                -- Config.K9Appearance.requireK9ModelForRole is explicitly
-                -- true (K9 role/model decoupling, server/appearance.lua).
-                -- REPRODUCIBLE BUG, FIXED THIS PASS: at the shipped (false)
-                -- default this predicate used to demand a K9 model
-                -- unconditionally while GrantCertification itself does not
-                -- -- a perfectly certifiable candidate (any job-member,
-                -- any model) never showed this option at all. Mirrors
-                -- GrantCertification's own gate exactly (same config read,
-                -- same default), not a statebag/round-trip question at
-                -- all: a target who does not YET hold the role has nothing
-                -- for IsK9RoleForPlayer to answer true to, so the fix here
-                -- is to stop requiring a model instead. Cheap client-side
-                -- plausibility check only either way — the server
-                -- independently re-verifies via
-                -- GetEntityModel(GetPlayerPed(targetServerId)) regardless,
-                -- see GrantCertification.
-                if Config.K9Appearance and Config.K9Appearance.requireK9ModelForRole == false then
-                    return true
-                end
-
-                return IsEntityModelK9(entity)
-            end,
-            onSelect = function(data)
-                local targetPlayer = NetworkGetPlayerIndexFromPed(data.entity)
-                if not targetPlayer or targetPlayer == -1 then return end
-
-                TriggerServerEvent('qbx_k9unit:server:certifyHandler', GetPlayerServerId(targetPlayer))
-            end,
-        },
-        {
-            name = 'qbx_k9unit:revokeHandler',
-            icon = 'fas fa-id-badge',
-            label = locale('movement.revoke_certification_target_label'),
-            distance = CERTIFY_TARGET_DISTANCE_FACTOR * Config.CertifyProximityMeters,
-            canInteract = function(entity, distance, coords, name)
-                if NetworkGetPlayerIndexFromPed(entity) == PlayerId() then return false end -- self-decert stays command-only, matches certify above
-
-                -- DEVELOPER_REFERENCE.md §4.2 item 5: the model check applies to GRANT only, not
-                -- revoke (revoking must remain possible even if the target has
-                -- already left K9 form) — but this predicate still reuses
-                -- IsEntityModelK9 as the display-only plausibility gate rather
-                -- than showing this option on every nearby player regardless
-                -- of appearance, per this block's header note above. A handler who
-                -- has already left K9 form and needs their cert pulled remains
-                -- reachable via /k9decertify [id] (or /k9decertifyoffline if
-                -- they've since disconnected), neither of which has any model
-                -- restriction at all — this ox_target option is a convenience
-                -- entry point, not the only way to revoke. WIDENED (K9
-                -- role/model decoupling) with IsK9RoleForPlayer(...) --
-                -- unlike certify above, a REVOKE target by definition
-                -- already holds the role, so this is exactly the "is that
-                -- other player a K9" question that cached, per-target
-                -- server round trip answers (see the "Attach Leash" option
-                -- above for the full reasoning) -- letting this option
-                -- also show up for a role-holder who was never on, or has
-                -- already left, a configured K9 model.
-                return IsEntityModelK9(entity) or IsK9RoleForPlayer(ResolvePlayerServerIdFromPed(entity))
-            end,
-            onSelect = function(data)
-                local targetPlayer = NetworkGetPlayerIndexFromPed(data.entity)
-                if not targetPlayer or targetPlayer == -1 then return end
-
-                TriggerServerEvent('qbx_k9unit:server:revokeHandler', GetPlayerServerId(targetPlayer))
-            end,
-        },
-    })
-end
+-- NO THIRD-EYE CERTIFY / REVOKE. Certifying and decertifying are done on
+-- the K9 Command Tablet only (owner's choice); the walk-up "Certify K9
+-- Handler" / "Revoke Certification" options were removed.
 
 -- ======================================================================
 -- MOVE-RATE COMPOSER (DEVELOPER_REFERENCE.md §13.0 Decision 2) -- REAL BUG FIX,
@@ -2490,8 +2372,8 @@ local function RegisterDoorInteractionOxTargetOptions()
     end
 end
 
--- Sole call site for RegisterLeashOxTargetOption() / RegisterCertifyOxTargetOptions()
--- / RegisterDoorInteractionOxTargetOptions() above: this resource's own
+-- Sole call site for RegisterLeashOxTargetOption() /
+-- RegisterDoorInteractionOxTargetOptions() above: this resource's own
 -- start, or a restart of whatever resource actually backs the 'target'
 -- system -- mirrors server/tracking.lua's RegisterScentInventoryHook /
 -- server/inventory.lua's RegisterK9InventoryItemFilterHook fixes for the
@@ -2506,7 +2388,6 @@ end
 AddEventHandler('onResourceStart', function(resourceName)
     if resourceName == GetCurrentResourceName() then
         RegisterLeashOxTargetOption()
-        RegisterCertifyOxTargetOptions()
         RegisterDoorInteractionOxTargetOptions()
         return
     end
@@ -2514,7 +2395,6 @@ AddEventHandler('onResourceStart', function(resourceName)
     K9Compat.Redetect()
     if resourceName == K9Compat.Which('target') then
         RegisterLeashOxTargetOption()
-        RegisterCertifyOxTargetOptions()
         RegisterDoorInteractionOxTargetOptions()
     end
 end)

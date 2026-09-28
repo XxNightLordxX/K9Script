@@ -27,6 +27,18 @@
     QueryCertificationRecord and QueryActiveSpecializations.
 ]]
 
+-- ADMIN CHAT COMMANDS ARE OFF BY DEFAULT (owner: "k9certify should only
+-- be done through the tablet", and all other admin work with it). They are
+-- only registered when Config.CommandTablet.adminChatCommands is true --
+-- the tablet does every one of these. The handlers below are kept (and
+-- tested) so an owner who wants console access can switch them back on.
+local function RegisterAdminCommand(name, handler, restricted)
+    if type(Config.CommandTablet) == 'table' and Config.CommandTablet.adminChatCommands == true then
+        RegisterCommand(name, handler, restricted)
+    end
+end
+
+
 -- Re-bound from the shared K9Cert transport (see this file's own header).
 -- Same names as in the original single file, so every body below is
 -- unchanged.
@@ -76,8 +88,11 @@ local Specializations = K9Cert.Specializations
 -- translation client/tablet.lua's AwaitServerCallback expects.
 -- ======================================================================
 if Config.Features and Config.Features.CommandTablet == true then
-    lib.callback.register('qbx_k9unit:server:tabletCertify', function(source, targetCitizenid, departmentKey)
-        local ok, outcome = GrantCertificationForTablet(source, targetCitizenid, departmentKey)
+    -- `k9Model`: nil certifies a handler (no change to how they look); a
+    -- Config.Peds model certifies them AS A K9 of that breed, in the same
+    -- step. See core.lua's "CERTIFY AS HANDLER OR AS K9".
+    lib.callback.register('qbx_k9unit:server:tabletCertify', function(source, targetCitizenid, departmentKey, k9Model)
+        local ok, outcome = GrantCertificationForTablet(source, targetCitizenid, departmentKey, k9Model)
         if ok then return { ok = true } end
         return { ok = false, error = outcome }
     end)
@@ -138,6 +153,14 @@ if Config.Features and Config.Features.CommandTablet == true then
     end)
 end
 
+-- The two walk-up events (the old third-eye Certify / Revoke options) are
+-- admin chat surface too: only registered with the admin switch on. The
+-- third-eye options themselves are gone -- certifying is on the tablet.
+local function AdminChatCommandsOn()
+    return type(Config.CommandTablet) == 'table' and Config.CommandTablet.adminChatCommands == true
+end
+
+if AdminChatCommandsOn() then
 RegisterNetEvent('qbx_k9unit:server:certifyHandler', function(targetServerId)
     GrantCertification(source, targetServerId)
 end)
@@ -149,6 +172,7 @@ end)
 RegisterNetEvent('qbx_k9unit:server:revokeHandler', function(targetServerId, reason)
     RevokeCertification(source, targetServerId, reason)
 end)
+end
 
 -- ======================================================================
 -- COMMAND CONSOLIDATION (docs/history/COMMAND_CONSOLIDATION_SPEC.md §2/§5 item 8) --
@@ -300,7 +324,7 @@ end
 --
 -- EVERY GATE IS UNCHANGED. This routes; it does not authorize. See
 -- ShouldRenewOnlineTarget's own header.
-RegisterCommand('k9certify', function(source, args)
+RegisterAdminCommand('k9certify', function(source, args)
     -- DISCOVERABILITY (§4): a totally bare `/k9certify` has no target of
     -- EITHER shape to resolve -- show the combined usage string (both
     -- shapes) rather than silently falling into the offline branch below
@@ -328,7 +352,7 @@ RegisterCommand('k9certify', function(source, args)
 end, false)
 
 
-RegisterCommand('k9decertify', function(source, args)
+RegisterAdminCommand('k9decertify', function(source, args)
     -- DISCOVERABILITY (§4): same "show the combined usage, not the narrower
     -- offline one" reasoning as k9certify above.
     if args[1] == nil or args[1] == '' then
@@ -379,7 +403,7 @@ end, false)
 -- COMMAND CONSOLIDATION (§2/§5 item 8) -- same dispatcher shape as
 -- k9certify/k9decertify above; see that block's own header comment for the
 -- full resolution-rule/recycled-id/hidden-alias writeup, not repeated here.
-RegisterCommand('k9settier', function(source, args)
+RegisterAdminCommand('k9settier', function(source, args)
     if args[1] == nil or args[1] == '' then
         local usage = locale('certifications.usage_settier')
         if source == 0 then print('[qbx_k9unit] ' .. usage) else NotifyPlayer(source, usage, 'error') end
@@ -422,7 +446,7 @@ end, false)
 -- taking a capability away can safely fail closed, handing one out cannot.
 -- So this refuses, clearly and by name, rather than shipping a materially
 -- weaker grant. See GrantSpecializationForTablet's own header.
-RegisterCommand('k9specialize', function(source, args)
+RegisterAdminCommand('k9specialize', function(source, args)
     if args[1] == nil or args[1] == '' then
         local usage = locale('certifications.usage_specialize')
         if source == 0 then print('[qbx_k9unit] ' .. usage) else NotifyPlayer(source, usage, 'error') end
@@ -468,7 +492,7 @@ end, false)
 -- unmerged -- it has no offline counterpart at all (GrantSpecializationForTablet's
 -- own doc comment: granting a specialization always requires the target to
 -- be online), so there is nothing to fold into it.
-RegisterCommand('k9unspecialize', function(source, args)
+RegisterAdminCommand('k9unspecialize', function(source, args)
     if args[1] == nil or args[1] == '' then
         local usage = locale('certifications.usage_unspecialize')
         if source == 0 then print('[qbx_k9unit] ' .. usage) else NotifyPlayer(source, usage, 'error') end

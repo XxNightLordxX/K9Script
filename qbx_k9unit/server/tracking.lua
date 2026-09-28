@@ -711,6 +711,17 @@ end
 local function ResolveEnabledTrackTypesForCitizenId(citizenid, jobName)
     local enabled = { scent = true } -- base capability, NEVER gated -- see this function's own doc comment
 
+    -- ROLES (server/roles.lua): a trail type is on when a held, unlocked
+    -- role has track_<type>. Replaces the fixed specialization -> trail
+    -- mapping below whenever the roles module is loaded.
+    if type(GetHeldRoleUnlocks) == 'function' and type(citizenid) == 'string' then
+        for unlock in pairs(GetHeldRoleUnlocks(citizenid, jobName)) do
+            local trackType = unlock:match('^track_(.+)$')
+            if trackType then enabled[trackType] = true end
+        end
+        return enabled
+    end
+
     -- Soft dependency, this resource's established `type(...) == 'function'`
     -- convention (server/equipmentshop.lua's own HasSpecialization call
     -- site) -- if server/certifications/ is ever unavailable, this
@@ -2721,6 +2732,15 @@ end
 local function ResolveHeldContrabandSpecializationsForCitizenId(citizenid, jobName)
     local held = {}
     if type(HasSpecialization) ~= 'function' or type(citizenid) ~= 'string' then
+        return held
+    end
+    -- ROLES (server/roles.lua): a category counts when a held, unlocked
+    -- role has detect_<category>.
+    if type(GetHeldRoleUnlocks) == 'function' then
+        for unlock in pairs(GetHeldRoleUnlocks(citizenid, jobName)) do
+            local category = unlock:match('^detect_(.+)$')
+            if category then held[category] = true end
+        end
         return held
     end
     local knownSpecializations = type(Config.K9Specializations) == 'table' and Config.K9Specializations or {}

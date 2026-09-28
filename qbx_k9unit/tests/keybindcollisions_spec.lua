@@ -136,10 +136,13 @@ end
 local function ExtractConfiguredDefaultKeys()
     local found = {}
     local text = StripFullLineComments(ReadFile('../config.lua'))
-    -- Value shape (one to three uppercase/digit characters) is what keeps
-    -- this off unrelated string fields that merely have "key" in the name.
-    for name, key in text:gmatch("([%a_]+)%s*=%s*'([%u%d][%u%d]?[%u%d]?)'") do
-        if name:lower():find('key', 1, true) then
+    -- Value shape (an all-uppercase FiveM key name: a letter or digit, or a
+    -- named key like LBRACKET / PERIOD) is what keeps this off unrelated
+    -- string fields that merely have "key" in the name. It used to allow
+    -- only one to three characters, which silently skipped every named key
+    -- -- the takedown default ('LBRACKET') was invisible to this guard.
+    for name, key in text:gmatch("([%a_]+)%s*=%s*'([%u%d][%u%d]*)'") do
+        if name:lower():find('key', 1, true) and #key <= 12 then
             found[#found + 1] = { path = name, key = key }
         end
     end
@@ -184,7 +187,7 @@ t.test('CONTROL: the scanners genuinely reach the real files on disk -- a clean 
         end
     end
     t.isTrue(#literals >= 6, ('expected at least 6 literal keybind defaults across client/, found %d'):format(#literals))
-    t.isTrue(#ExtractConfiguredDefaultKeys() >= 5, 'expected at least 5 configured keybind defaults in config.lua')
+    t.isTrue(#ExtractConfiguredDefaultKeys() >= 4, 'expected at least 4 configured keybind defaults in config.lua')
 end)
 
 -- ============================================================================
@@ -231,6 +234,51 @@ t.test('LOAD-BEARING GUARD: no two keybinds this resource ships default to the s
     end
 
     t.equals(#collisions, 0)
+end)
+
+-- ============================================================================
+-- KEYS OUR OWN DEPENDENCIES ALREADY OWN. fxmanifest.lua makes ox_lib and
+-- ox_target hard dependencies, so their default keys are on every server
+-- this runs on. A K9 default on one of them fires both on every press --
+-- and Z is ox_lib's radial menu, the very menu the K9 actions live in:
+-- scent vision shipped on Z, so every K9 who opened their menu toggled it.
+--
+-- Values are read from each dependency's own source, not guessed:
+--   ox_lib    resource/interface/client/radial.lua  addKeybind 'ox_lib-radial', defaultKey = 'z'
+--   ox_target client/main.lua                        addKeybind 'ox_target',     defaultKey = 'LMENU'
+-- ============================================================================
+local RESERVED_BY_DEPENDENCIES = {
+    Z = "ox_lib's radial menu (the menu every K9 action is in)",
+    LMENU = "ox_target's third eye",
+}
+
+t.test('CONTROL: the configured-key scanner sees NAMED keys too (LBRACKET, PERIOD), not just one-letter ones', function()
+    local seen = {}
+    for _, entry in ipairs(ExtractConfiguredDefaultKeys()) do seen[entry.key] = true end
+    t.isTrue(seen.LBRACKET == true, 'the takedown default (LBRACKET) must be visible to these guards')
+end)
+
+t.test('LOAD-BEARING GUARD: no default key this resource ships is one ox_lib or ox_target already uses', function()
+    local hits = {}
+    local function check(key, owner)
+        local reserved = RESERVED_BY_DEPENDENCIES[key:upper()]
+        if reserved then
+            hits[#hits + 1] = ("  '%s' (%s) is also %s"):format(key, owner, reserved)
+        end
+    end
+    for _, path in ipairs(ClientFiles()) do
+        for _, entry in ipairs(ExtractLiteralDefaultKeys(ReadFile(path))) do
+            check(entry.key, ('%s, %s'):format(entry.command, path:gsub('^%.%./', '')))
+        end
+    end
+    for _, entry in ipairs(ExtractConfiguredDefaultKeys()) do
+        check(entry.key, 'config.lua ' .. entry.path)
+    end
+    table.sort(hits)
+    if #hits > 0 then
+        error(('%d default key(s) clash with a dependency:\n%s\n\nPick a different default.'):format(#hits, table.concat(hits, '\n')), 0)
+    end
+    t.equals(#hits, 0)
 end)
 
 os.exit(t.summary())

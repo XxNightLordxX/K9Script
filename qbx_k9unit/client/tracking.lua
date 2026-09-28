@@ -508,7 +508,17 @@ end
 -- a coarser, display-only check — see client/radial.lua's own comment on
 -- that item).
 -- ======================================================================
+--
+-- ONE KEY STARTS AND STOPS (the owner's rework pass). The radial item and
+-- the tablet trigger both already stop a running track; this command used
+-- to answer "already tracking" instead, so the same action behaved
+-- differently depending on where you pressed it. Stopping is checked first
+-- and is never gated -- "gate the start, never the stop".
 RegisterCommand('k9track', function()
+    if IsTracking() then
+        StopTracking()
+        return
+    end
     StartCertifiedTrack()
 end, false)
 

@@ -176,7 +176,7 @@ t.test('a NEVER-MINTED / garbage response (no citizenid despite ok:true) is trea
     t.equals(findByText(h.getRoot(), 'Back').length, 0, 'the Person screen\'s own Back button never appears -- never opened');
 });
 
-t.test('search debounces and re-fetches tablet:requestOnlinePlayers with the typed query, independently of the roster\'s own search box', async () => {
+t.test('ONE SEARCH BOX: typing searches BOTH lists at once -- online players and the certified roster -- debounced, with the final typed query', async () => {
     const onlineQueriesSeen = [];
     const rosterQueriesSeen = [];
     const h = createHarness({
@@ -188,18 +188,20 @@ t.test('search debounces and re-fetches tablet:requestOnlinePlayers with the typ
     });
     await openConsole(h);
 
-    const onlineSearch = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') && i.getAttribute('placeholder').indexOf('online players') !== -1)[0];
-    t.isDefined(onlineSearch, 'online players search input exists');
+    const inputs = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('type') === 'text');
+    t.equals(inputs.length, 1, 'exactly one search box on the Console -- not one per list');
+    const search = inputs[0];
+    t.equals(search.getAttribute('placeholder'), 'Name, citizen ID or server ID...');
 
-    onlineSearch.typeValue('r');
-    onlineSearch.typeValue('re');
-    onlineSearch.typeValue('rex');
+    search.typeValue('r');
+    search.typeValue('re');
+    search.typeValue('rex');
     await new Promise((r) => setTimeout(r, 40));
 
     t.equals(onlineQueriesSeen[0], '', 'initial load used an empty query');
-    t.equals(onlineQueriesSeen[onlineQueriesSeen.length - 1], 'rex', 'only the final debounced value was sent');
-    t.isTrue(onlineQueriesSeen.length < 4, 'rapid keystrokes were coalesced, not fired individually');
-    t.equals(rosterQueriesSeen[rosterQueriesSeen.length - 1], '', 'typing in the ONLINE PLAYERS box never re-fires the roster\'s own search');
+    t.equals(onlineQueriesSeen[onlineQueriesSeen.length - 1], 'rex', 'online players searched with the final value');
+    t.equals(rosterQueriesSeen[rosterQueriesSeen.length - 1], 'rex', 'the certified roster searched with the same value');
+    t.isTrue(onlineQueriesSeen.length < 4 && rosterQueriesSeen.length < 4, 'rapid keystrokes were coalesced, not fired individually');
 });
 
 t.test('a truncated online-players list shows the server-provided message', async () => {
@@ -215,21 +217,24 @@ t.test('a truncated online-players list shows the server-provided message', asyn
     t.isTrue(findByText(h.getRoot(), 'Showing the first 100 online players — narrow your search to see the rest.').length >= 1);
 });
 
-t.test('the Refresh button next to Online Players re-fetches tablet:requestOnlinePlayers', async () => {
+t.test('the one Refresh button re-fetches both lists', async () => {
     let calls = 0;
+    let rosterCalls = 0;
     const h = createHarness({
         fetchImpl: routeFetch({
             'tablet:requestMyRecord': () => ({ ok: true, viewer: CONSOLE_VIEWER, certifications: [], xp: null, tierLabel: null, myFeatures: [] }),
-            'tablet:requestRoster': () => ({ ok: true, rows: [], truncated: false }),
+            'tablet:requestRoster': () => { rosterCalls++; return { ok: true, rows: [], truncated: false }; },
             'tablet:requestOnlinePlayers': () => { calls++; return { ok: true, rows: [], truncated: false }; },
         }),
     });
     await openConsole(h);
     t.equals(calls, 1, 'initial console entry loads it once');
+    t.equals(findByText(h.getRoot(), 'Refresh').length, 1, 'one Refresh, not one per list');
 
     findByText(h.getRoot(), 'Refresh')[0].click();
     await settle(h);
     t.equals(calls, 2, 'Refresh fires a real, fresh fetch -- this list is never polled automatically');
+    t.equals(rosterCalls, 2, 'and refreshes the certified list too');
 });
 
 t.test('no results (empty search) shows an honest empty state, never a blank gap', async () => {

@@ -1288,7 +1288,7 @@ end
 -- this file has no access to and does not own). Any table not in this map
 -- is still reported, just by its bare name -- see CheckDatabaseSchemaState.
 local NOTABLE_TABLE_DESCRIPTIONS = {
-    k9_wellbeing = 'K9 fatigue/mood/fear-stress/injury/hunger/thirst',
+    k9_wellbeing = 'K9 fatigue',
     k9_dog_characters = 'admin-pinned "this citizenid is permanently a dog" records (/k9setdog)',
     k9_personnel = 'the K9/Handler roster assignments and callsigns',
     k9_individual_overrides = 'per-officer speed/scent/cooldown overrides',

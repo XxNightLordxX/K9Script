@@ -501,6 +501,33 @@ function NewCooldown(defaultThresholdMs)
     --- @param key any
     --- @param thresholdMs number?
     --- @param now number? -- override GetGameTimer(); pass the SAME timestamp already captured earlier in a call site that needs to compare multiple cooldowns against one consistent instant (mirrors the original code's own single-`now`-variable pattern).
+    --- How much longer this key is on cooldown, in milliseconds; 0 when it
+    --- is not. Same key/threshold/now contract as IsOnCooldown below, and
+    --- deliberately reads the SAME `store` and threshold resolution rather
+    --- than keeping a second copy of either.
+    ---
+    --- WHY THIS EXISTS: a refusal that says only "you must wait" gives the
+    --- player nothing to act on, so they mash the key -- which is exactly
+    --- what a cooldown is meant to stop. Callers pass the number into their
+    --- refusal message so it can say how long.
+    ---
+    --- Never negative, and never larger than the threshold: a clock that
+    --- jumped backwards would otherwise report a wait longer than the
+    --- cooldown itself.
+    --- @param key any @param thresholdMs number|nil @param now number|nil
+    --- @return number -- whole milliseconds remaining, 0 if not on cooldown
+    function tracker.RemainingMs(key, thresholdMs, now)
+        local lastAt = store[key]
+        if not lastAt then return 0 end
+        local threshold = thresholdMs or defaultThresholdMs
+        if not IsValidThreshold(threshold) then return 0 end
+        local elapsed = (now or GetGameTimer()) - lastAt
+        if elapsed < 0 then return threshold end
+        local left = threshold - elapsed
+        if left <= 0 then return 0 end
+        return math.floor(left)
+    end
+
     --- @return boolean
     function tracker.IsOnCooldown(key, thresholdMs, now)
         local lastAt = store[key]

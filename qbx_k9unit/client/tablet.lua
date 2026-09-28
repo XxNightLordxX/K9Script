@@ -201,7 +201,7 @@
       tablet:requestPartnershipsForTarget {targetCitizenId}       -> cb(PartnershipsResult)      [Partnerships tab admin lookup, high command only]
       tablet:forceEndPartnership {targetCitizenId}                -> cb({ok,error?})             [Partnerships tab admin control, high command only -- server/partnership.lua's existing ForceBreakPartnershipForCitizenId]
       tablet:triggerFeature {feature}                             -> cb({ok,error?})            [SECTION 2]
-      tablet:certify {targetCitizenId, departmentKey}             -> cb({ok,error?,message?})   [server/certifications/'s tabletCertify -- online OR offline, see GrantCertificationForTablet's own header]
+      tablet:certify {targetCitizenId, departmentKey, k9Model?}   -> cb({ok,error?,message?})   [server/certifications/'s tabletCertify -- online OR offline, see GrantCertificationForTablet's own header]
       tablet:decertify {targetCitizenId, departmentKey}           -> cb({ok,error?,message?})   [server/certifications/'s tabletDecertify -- online OR offline, see RevokeCertificationForTablet's own header]
       tablet:setCertificationTier {targetCitizenId, departmentKey, tier}     -> cb({ok,error?})  [server/certifications/'s tabletSetCertificationTier -- online OR offline]
       tablet:renewCertification {targetCitizenId, departmentKey}            -> cb({ok,error?})  [tabletRenewCertification -- online OR offline]
@@ -432,7 +432,7 @@
       tablet:auditSearch {mode, value?, limit?}     -> cb(AuditResult)  [tabletAuditSearch -- mode in {'officer','plate','person','recent'}]
       tablet:auditXp {targetCitizenId}              -> cb(AuditResult)  [tabletAuditXp -- no limit, single-row point lookup]
       tablet:auditDept {departmentKey, limit?}      -> cb(AuditResult)  [tabletAuditDept]
-      tablet:auditCatalog {catalogName, limit?}     -> cb(AuditResult)  [tabletAuditCatalog -- catalogName MUST be an exact key of server/admin.lua's own CATALOG_AUDIT_SOURCES (certTiers/permissionKeys/xpTiers/shopItems/shopLocations/k9Profiles/runtimeOverrides/tabletThemes); forwarded VERBATIM, never whitelist-checked a second time here -- same THE SECURITY RULE as tablet:auditSearch's own `mode` immediately below, and for the identical reason: that file's own CATALOG_AUDIT_SOURCES lookup is the ONLY real gate, a second copy of its key list here could only drift from it, never make it safer]
+      tablet:auditCatalog {catalogName, limit?}     -> cb(AuditResult)  [tabletAuditCatalog -- catalogName MUST be an exact key of server/admin.lua's own CATALOG_AUDIT_SOURCES (roles/certTiers/permissionKeys/xpTiers/shopItems/shopLocations/k9Profiles/runtimeOverrides/tabletThemes); forwarded VERBATIM, never whitelist-checked a second time here -- same THE SECURITY RULE as tablet:auditSearch's own `mode` immediately below, and for the identical reason: that file's own CATALOG_AUDIT_SOURCES lookup is the ONLY real gate, a second copy of its key list here could only drift from it, never make it safer]
         AuditResult = { ok:true, rows:table, label:string, cap:number, limit?:number, truncated?:boolean } |
                       { ok:false, error:'not_authorized'|'rate_limited'|'invalid_args', message?:string }
         `cap` (server/admin.lua's own HARD_MAX_RESULTS, added in a LATER
@@ -887,18 +887,17 @@ local TABLET_STRING_KEYS = {
     -- file's OPENING section), so they still see their own record beneath
     -- this notice rather than a blank or broken screen.
     'high_command_required_notice',
-    'retry_label', 'search_placeholder', 'refresh_label', 'empty_roster',
+    'retry_label', 'refresh_label', 'empty_roster',
     'column_name', 'column_citizenid', 'column_department', 'column_certified',
     'column_xp', 'column_handler_xp', 'column_actions', 'certified_yes', 'certified_no',
     -- ONLINE PLAYERS LIST (owner-directed, 2026-08-26: "make the add
     -- permission section... where its a list when i choose a player id")
     -- -- see html/tablet.js's buildOnlinePlayersSection() for the full
     -- contract this new entry point implements.
-    'online_players_heading', 'online_players_search_placeholder',
-    'online_players_empty', 'online_players_opening_label',
+    'online_players_heading',     'online_players_empty', 'online_players_opening_label',
     'column_server_id', 'column_job', 'column_k9_access',
     'online_k9_access_yes', 'online_k9_access_no',
-    'certify_label', 'decertify_label', 'confirm_label', 'grant_label',
+    'certify_label', 'certify_as_label', 'certify_as_handler_option', 'certify_as_k9_option_template', 'certify_as_hint', 'decertify_label', 'confirm_label', 'grant_label',
     'revoke_label', 'block_label', 'unblock_label', 'manage_label',
     -- Block Effect column (html/tablet.js's featureBlockEnforcement()) --
     -- THE HONESTY REQUIREMENT: server/tablet.lua's own `blocked`/`state`
@@ -957,15 +956,16 @@ local TABLET_STRING_KEYS = {
     'person_handler_xp_heading', 'person_handler_xp_untracked',
     'use_label', 'not_available_short', 'opening_person',
     'person_no_record_found',
-    'open_by_id_placeholder', 'open_by_id_label', 'open_my_own_record_label', 'open_my_own_record_hint',
+    'open_by_id_label', 'find_person_label', 'find_person_placeholder', 'find_person_hint', 'find_person_hint_id_only', 'roster_results_heading', 'open_my_own_record_label', 'open_my_own_record_hint',
     -- Workflow audit finding #1/#2, 2026-08-26 (html/tablet.js's
     -- canOpenPersonRecord()/buildConsoleScreen() narrowed rendering, and
     -- the "open by exact citizen ID" box's own new explanatory hint --
     -- see each string's own doc comment in DEFAULT_STRINGS for the full
     -- writeup).
-    'open_by_id_hint', 'console_person_only_notice',
+    'console_person_only_notice',
     'role_heading', 'role_assign_label',
     'role_assign_hint', 'role_revert_label', 'role_revert_hint',
+    'role_pin_label', 'role_pin_hint', 'role_pinned_status_template', 'role_unpin_label',
     'role_no_peds_configured',
     -- Rank/department + partnership (person screen, read-only -- owner-
     -- directed "roster panel shows everything about a person" pass). See
@@ -1157,6 +1157,34 @@ local TABLET_STRING_KEYS = {
     -- BuildTabletStrings() now resolves every one of them for real.
     'tier_label', 'tier_set_label', 'renew_label', 'specializations_heading',
     'no_specializations', 'expires_label', 'expired_badge',
+    'role_option_xp_template',
+    'role_status_active', 'role_status_deleted',
+    'role_status_locked_template',
+    'roles_heading',
+    'roles_intro',
+    'roles_column_name',
+    'roles_column_xp',
+    'roles_column_unlocks',
+    'roles_add_label',
+    'roles_edit_label',
+    'roles_delete_label',
+    'roles_save_label',
+    'roles_cancel_label',
+    'roles_name_label',
+    'roles_xp_label',
+    'roles_unlocks_label',
+    'roles_no_unlocks',
+    'roles_error_invalid_label',
+    'roles_error_invalid_xp',
+    'roles_error_invalid_unlocks',
+    'roles_error_too_many',
+    'roles_error_unknown',
+    'roles_error_in_use_by_shop_template',
+    'roles_saved',
+    'roles_deleted',
+    'roles_audit_created',
+    'roles_audit_edited',
+    'roles_audit_deleted',
     -- XP RANK EDITOR (owner-directed "...set experience level for each
     -- rank up" pass, server/xptiers.lua) -- sits alongside the
     -- cert-tier/permission-key/shop-location/runtime-control tabs above.
@@ -1229,7 +1257,7 @@ local TABLET_STRING_KEYS = {
     'shop_item_key_label', 'shop_item_key_placeholder', 'shop_item_price_label',
     'shop_item_label_label', 'shop_item_label_placeholder', 'shop_item_currency_label',
     'shop_item_currency_placeholder', 'shop_item_required_tier_label',
-    'shop_item_required_specialization_label', 'shop_item_no_requirement',
+    'shop_item_required_specialization_label', 'shop_item_legacy_tier_template', 'shop_item_legacy_tier_hint', 'shop_item_no_requirement',
     'shop_item_retired_reference_badge',
     'shop_item_save_label', 'shop_item_cancel_label', 'shop_item_edit_label',
     'shop_item_delete_label', 'shop_item_move_up_label', 'shop_item_move_up_title',
@@ -1269,7 +1297,6 @@ local TABLET_STRING_KEYS = {
     'list_join_and',
     'home_no_certification_title', 'home_no_certification_body', 'home_no_certification_next_steps',
 
-    'home_blocked_count_template',
     -- COMMAND REFERENCE (this pass -- "the resource registers 36 commands,
     -- a player has no way to discover them in-game"). See
     -- html/tablet.js's own COMMAND_REFERENCE/buildCommandReferenceScreen()
@@ -1285,11 +1312,10 @@ local TABLET_STRING_KEYS = {
     -- mid-pass -- server/permissions.lua registered both concurrently
     -- while this list was being written; tests/commandreferenceregistry_spec.lua
     -- is what actually caught the gap.)
-    'cmdref_heading', 'cmdref_intro', 'cmdref_search_placeholder', 'cmdref_status_unknown',
+    'keys_heading', 'keys_intro', 'keys_action_radial', 'keys_action_third_eye', 'keys_action_sit', 'keys_action_bark', 'keys_action_scent_vision', 'keys_action_bite_hold', 'keys_action_takedown', 'keys_action_drag', 'keys_action_vault', 'keys_action_pursuit_sprint', 'keys_action_toggle_camera', 'keys_action_vision_cycle', 'keys_name_radial', 'keys_name_third_eye', 'cmdref_heading', 'cmdref_intro', 'cmdref_search_placeholder', 'cmdref_status_unknown',
     'cmdref_filter_label', 'cmdref_filter_no_matches',
     'cmdref_status_unavailable_loading', 'cmdref_status_unavailable_error',
-    'roster_search_label', 'online_players_search_label',
-    'cmdref_empty', 'cmdref_column_command', 'cmdref_column_does', 'cmdref_column_needs',
+        'cmdref_empty', 'cmdref_column_command', 'cmdref_column_does', 'cmdref_column_needs',
     'cmdref_admin_badge', 'cmdref_status_insufficient_authorization',
     -- Keybinds handoff (this pass, client/keybinds.lua's five new
     -- RegisterCommand entries + the new `defaultKeybind` display field on
@@ -1308,7 +1334,6 @@ local TABLET_STRING_KEYS = {
     'cmdref_k9takedown_usage', 'cmdref_k9takedown_does', 'cmdref_k9takedown_needs',
     'cmdref_k9dragtoggle_usage', 'cmdref_k9dragtoggle_does', 'cmdref_k9dragtoggle_needs',
     'cmdref_k9deploykennel_usage', 'cmdref_k9deploykennel_does', 'cmdref_k9deploykennel_needs',
-    'cmdref_k9exitkennel_usage', 'cmdref_k9exitkennel_does', 'cmdref_k9exitkennel_needs',
     -- k9kennel -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #5's merged, ADDITIVE entry
     -- point. Landed here in the SAME change as html/tablet.js's own
     -- DEFAULT_STRINGS entry and locales/en.json's `tablet` group entry --
@@ -1336,7 +1361,6 @@ local TABLET_STRING_KEYS = {
     -- here with k9kennel rather than beside their own old per-command
     -- siblings purely because these four landed as one change; the list
     -- itself is order-insensitive (it is read as a set).
-    'cmdref_k9dog_usage', 'cmdref_k9dog_does', 'cmdref_k9dog_needs',
     'cmdref_k9propattach_usage', 'cmdref_k9propattach_does', 'cmdref_k9propattach_needs',
     'cmdref_k9throwfetchball_usage', 'cmdref_k9throwfetchball_does', 'cmdref_k9throwfetchball_needs',
     'cmdref_k9dropfetchball_usage', 'cmdref_k9dropfetchball_does', 'cmdref_k9dropfetchball_needs',
@@ -1344,19 +1368,12 @@ local TABLET_STRING_KEYS = {
     -- k9fetch -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #3's merged entry point.
     'cmdref_k9fetch_usage', 'cmdref_k9fetch_does', 'cmdref_k9fetch_needs',
     'cmdref_k9stats_usage', 'cmdref_k9stats_does', 'cmdref_k9stats_needs',
-    'cmdref_k9certify_usage', 'cmdref_k9certify_does', 'cmdref_k9certify_needs',
-    'cmdref_k9decertify_usage', 'cmdref_k9decertify_does', 'cmdref_k9decertify_needs',
-    'cmdref_k9settier_usage', 'cmdref_k9settier_does', 'cmdref_k9settier_needs',
-    'cmdref_k9specialize_usage', 'cmdref_k9specialize_does', 'cmdref_k9specialize_needs',
-    'cmdref_k9unspecialize_usage', 'cmdref_k9unspecialize_does', 'cmdref_k9unspecialize_needs',
-    'cmdref_k9givexp_usage', 'cmdref_k9givexp_does', 'cmdref_k9givexp_needs',
     -- Threat, added 2026-08-27 alongside its new command. Alert had a
     -- command AND a keybind while Threat had neither, so the two halves of
     -- one feature were reachable in completely different ways -- Threat is
     -- now a command, and deliberately NOT a keybind, because every letter
     -- this resource ships is already taken and the gap that mattered was
     -- discoverability rather than a missing key.
-    'cmdref_k9audit_usage', 'cmdref_k9audit_does', 'cmdref_k9audit_needs',
     'cmdref_k9track_usage', 'cmdref_k9track_does', 'cmdref_k9track_needs',
     -- ADDED 2026-08-27, for the five commands that close the owner's
     -- "chat commands 3rd eye and radial menus" requirement. Leash,
@@ -1377,9 +1394,6 @@ local TABLET_STRING_KEYS = {
     'cmdref_k9gear_usage', 'cmdref_k9gear_does', 'cmdref_k9gear_needs',
     'cmdref_k9treat_usage', 'cmdref_k9treat_does', 'cmdref_k9treat_needs',
     'cmdref_k9bonetool_usage', 'cmdref_k9bonetool_does', 'cmdref_k9bonetool_needs',
-    'cmdref_k9permission_usage', 'cmdref_k9permission_does', 'cmdref_k9permission_needs',
-    'cmdref_k9grantpermission_usage', 'cmdref_k9grantpermission_does', 'cmdref_k9grantpermission_needs',
-    'cmdref_k9revokepermission_usage', 'cmdref_k9revokepermission_does', 'cmdref_k9revokepermission_needs',
     -- Integration-sweep fix (this pass): seven REAL, working keybind
     -- commands (RegisterCommand + RegisterKeyMapping, confirmed in
     -- client/agility.lua, client/pursuitsprint.lua, client/movement.lua,
@@ -1394,66 +1408,28 @@ local TABLET_STRING_KEYS = {
     'cmdref_vault_usage', 'cmdref_vault_does', 'cmdref_vault_needs',
     'cmdref_pursuitsprint_usage', 'cmdref_pursuitsprint_does', 'cmdref_pursuitsprint_needs',
     'cmdref_toggle_camera_usage', 'cmdref_toggle_camera_does', 'cmdref_toggle_camera_needs',
-    'cmdref_toggle_camera_feed_usage', 'cmdref_toggle_camera_feed_does', 'cmdref_toggle_camera_feed_needs',
-    'cmdref_toggle_thermal_vision_usage', 'cmdref_toggle_thermal_vision_does', 'cmdref_toggle_thermal_vision_needs',
-    'cmdref_toggle_night_vision_usage', 'cmdref_toggle_night_vision_does', 'cmdref_toggle_night_vision_needs',
-    -- OWNER REVERSAL (coder-architect, this pass): a prior "vision merge"
-    -- pass folded the two entries directly above into a single 'k9vision'
-    -- cycle and left their keys here only as "harmless inert leftovers"
-    -- (their COMMAND_REFERENCE row had been removed from html/tablet.js).
-    -- The owner has since asked for thermal and night vision to be
-    -- separate, first-class controls again -- both keys ABOVE are back to
-    -- backing a real COMMAND_REFERENCE row again (html/tablet.js), not
-    -- inert. 'k9vision' below is KEPT too, as an extra optional
-    -- convenience alongside the two explicit toggles (not a replacement for
-    -- them) -- its own COMMAND_REFERENCE triple.
+    -- 'k9vision' is the one vision key (the separate thermal and night
+    -- vision keys were removed at the owner's request).
     'cmdref_k9vision_usage', 'cmdref_k9vision_does', 'cmdref_k9vision_needs',
     'cmdref_default_keybind_configurable_template', 'cmdref_category_vision',
-    -- GUIDED FLOWS (this pass, owner's own words: "expand the workflow
-    -- paths for all the features to make them smoother, easier to
-    -- understand") -- high command only, html/tablet.js's own
-    -- buildFlowsHubScreen()/buildFlowOnboardScreen()/buildFlowOffboardScreen()/
-    -- buildFlowProblemScreen()/buildFlowTuningScreen(). LANDED (verified
-    -- directly against locales/en.json's `tablet` group, same posture as
-    -- every other block above): these 88 keys used to be NOT YET present
-    -- as of the pass that added them, flagged to that file's owner -- they
-    -- have since been added, so BuildTabletStrings() now resolves every
-    -- one of them for real.
-    'tab_flows', 'flows_heading', 'flows_intro', 'flow_onboard_card_label',
-    'flow_onboard_card_hint', 'flow_offboard_card_label', 'flow_offboard_card_hint', 'flow_problem_card_label',
-    'flow_problem_card_hint', 'flow_tuning_card_label', 'flow_tuning_card_hint', 'flow_back_to_flows_label',
-    'flow_next_label', 'flow_back_label', 'flow_skip_label', 'flow_finish_label',
-    'flow_select_person_prompt', 'flow_select_label', 'flow_change_person_label', 'flow_working_with_label',
-    'flow_onboard_heading', 'flow_onboard_step_select', 'flow_onboard_step_certify', 'flow_onboard_step_k9role',
-    'flow_onboard_step_tier', 'flow_onboard_step_features', 'flow_onboard_step_summary', 'flow_onboard_certify_intro',
-    'flow_onboard_k9role_intro', 'flow_onboard_pick_department_first',
-    'flow_onboard_tier_intro', 'flow_onboard_features_intro', 'flow_onboard_summary_heading', 'flow_onboard_summary_certified_template',
-    'flow_onboard_summary_not_certified', 'flow_onboard_summary_k9role_skipped', 'flow_onboard_summary_k9role_assigned_template', 'flow_onboard_summary_k9role_not_applied',
-    'flow_onboard_summary_tier_template', 'flow_onboard_summary_no_tier', 'flow_onboard_summary_specializations_template',
-    'flow_onboard_summary_features_granted_template', 'flow_onboard_summary_features_still_missing_template', 'flow_onboard_summary_features_none_required', 'flow_offboard_heading',
-    'flow_offboard_step_select', 'flow_offboard_step_decertify', 'flow_offboard_step_access', 'flow_offboard_step_appearance',
-    'flow_offboard_step_summary', 'flow_offboard_decertify_intro', 'flow_offboard_no_active_certs', 'flow_offboard_access_intro',
-    'flow_offboard_appearance_intro', 'flow_offboard_summary_heading', 'flow_offboard_summary_decertified_template', 'flow_offboard_summary_still_certified_template',
-    'flow_offboard_summary_features_revoked_template', 'flow_offboard_summary_features_remaining_template', 'flow_offboard_summary_permissions_revoked_template', 'flow_offboard_summary_permissions_remaining_template',
-    'flow_offboard_summary_reverted', 'flow_offboard_summary_not_reverted', 'flow_problem_heading', 'flow_problem_step_select',
-    'flow_problem_step_review', 'flow_problem_step_audit', 'flow_problem_step_act', 'flow_problem_step_summary',
-    'flow_problem_review_intro', 'flow_problem_audit_intro', 'flow_problem_act_intro', 'flow_problem_summary_heading',
-    'flow_problem_summary_audit_ran_template', 'flow_problem_summary_audit_not_run', 'flow_problem_summary_features_blocked_template', 'flow_problem_summary_permissions_revoked_template',
-    'flow_problem_summary_no_actions', 'flow_tuning_heading', 'flow_tuning_step_overview', 'flow_tuning_step_features',
-    'flow_tuning_step_tunables', 'flow_tuning_step_tiers', 'flow_tuning_step_xp', 'flow_tuning_step_shop',
-    'flow_tuning_overview_heading', 'flow_tuning_overview_intro', 'flow_tuning_overview_features_template', 'flow_tuning_overview_tunables_template',
-    'flow_tuning_overview_tiers_template', 'flow_tuning_overview_xp_template', 'flow_tuning_overview_shop_template', 'flow_tuning_overview_not_loaded',
+    -- SERVER SETTINGS -- html/tablet.js's one admin settings tab
+    -- (buildSettingsSectionNav()/buildSettingsOverviewScreen()). It replaced
+    -- five tabs, including the Server Tuning guided flow whose Back/Next
+    -- labels and step names went with it; the Overview section kept that
+    -- flow's live summary lines.
+    'tab_settings', 'settings_section_overview', 'help_tab_settings_desc', 'help_task_hc_settings_sections_template', 'settings_overview_heading', 'settings_overview_intro', 'settings_overview_features_template', 'settings_overview_tunables_template',
+    'settings_overview_tiers_template', 'settings_overview_roles_template', 'settings_overview_xp_template', 'settings_overview_shop_template', 'settings_overview_not_loaded',
     -- MUTATION ERROR TEXT (this pass, state-handling/error-reporting
     -- consistency sweep) -- html/tablet.js's own mutationErrorText(), the
     -- per-`error`-code mapping runMutation() now uses instead of a single
     -- generic 'action_failed' line for every certify/decertify/tier/
     -- renewal/specialization/givexp/permission/feature/role-mutation
     -- refusal. LANDED (verified directly against locales/en.json's
-    -- `tablet` group, same posture as the GUIDED FLOWS block just above):
-    -- these 35 keys used to be NOT YET present as of the pass that added
+    -- `tablet` group, same posture as the SERVER SETTINGS block just above):
+    -- these keys used to be NOT YET present as of the pass that added
     -- them, flagged to that file's owner -- they have since been added, so
     -- BuildTabletStrings() now resolves every one of them for real.
-    'action_submitted', 'mutation_error_invalid_target', 'mutation_error_invalid_department', 'mutation_error_department_mismatch',
+    'mutation_error_invalid_target', 'mutation_error_invalid_department', 'mutation_error_department_mismatch',
     'mutation_error_not_eligible', 'mutation_error_denied', 'mutation_error_rate_limited', 'mutation_error_busy',
     'mutation_error_self_certification_disabled', 'mutation_error_self_grant_blocked', 'mutation_error_target_must_be_online', 'mutation_error_target_not_in_department',
     'mutation_error_target_too_far', 'mutation_error_target_not_k9_model', 'mutation_error_model_check_requires_online', 'mutation_error_target_online_use_online_action',
@@ -1474,7 +1450,7 @@ local TABLET_STRING_KEYS = {
     'help_start_high_command_intro', 'help_start_high_command_1', 'help_start_high_command_2', 'help_start_high_command_3',
     'help_start_high_command_4', 'help_tabs_heading', 'help_tabs_intro',
     'help_tab_my_record_desc', 'help_tab_console_desc',
-    'help_tab_flows_desc', 'help_tab_theme_desc',
+    'help_tab_theme_desc',
     'help_tab_runtime_control_desc',
     'help_tab_audit_desc',
     'help_tasks_heading', 'help_task_get_certified_heading',
@@ -1486,10 +1462,12 @@ local TABLET_STRING_KEYS = {
     -- ADDED (this pass): Deploy a Kennel / Use Scent Vision walkthroughs --
     -- see html/tablet.js's own DEFAULT_STRINGS comment at these same keys.
     'help_task_kennel_heading', 'help_task_kennel_1', 'help_task_kennel_2', 'help_task_kennel_3', 'help_task_kennel_4',
+    'help_task_stop_being_k9_heading', 'help_task_stop_being_k9_1', 'help_task_stop_being_k9_2',
+    'help_task_stop_being_k9_3', 'help_task_stop_being_k9_4',
     'help_task_scent_vision_heading', 'help_task_scent_vision_1', 'help_task_scent_vision_2', 'help_task_scent_vision_3',
-    'help_task_hc_certify_someone_heading', 'help_task_hc_certify_someone_1', 'help_task_hc_certify_someone_2_template', 'help_task_hc_certify_someone_3',
-    'help_task_hc_flow_steps_template', 'help_task_hc_toggle_feature_heading', 'help_task_hc_toggle_feature_1', 'help_task_hc_toggle_feature_2',
-    'help_task_hc_toggle_feature_3', 'help_task_hc_assign_k9_heading', 'help_task_hc_assign_k9_1', 'help_task_hc_assign_k9_2_template',
+    'help_task_hc_certify_someone_heading', 'help_task_hc_certify_someone_1', 'help_task_hc_certify_someone_2_template',
+    'help_task_hc_toggle_feature_heading', 'help_task_hc_toggle_feature_1', 'help_task_hc_toggle_feature_2',
+    'help_task_hc_assign_k9_heading', 'help_task_hc_assign_k9_1', 'help_task_hc_assign_k9_2_template',
     'help_task_hc_assign_k9_3_template', 'help_task_hc_check_history_heading', 'help_task_hc_check_history_1', 'help_task_hc_check_history_2',
     'help_task_hc_check_history_3', 'help_trouble_heading', 'help_trouble_intro', 'help_trouble_no_k9_access_title',
     'help_trouble_no_k9_access_body', 'help_trouble_not_certified_title', 'help_trouble_not_certified_body', 'help_trouble_feature_off_title',
@@ -2037,6 +2015,18 @@ local FEATURE_TRIGGERS = {
         if type(ToggleThermalVision) == 'function' then ToggleThermalVision(); return true end
         return false, 'not_available'
     end,
+    -- PARTNER CAMERA -- the tablet is the only place it is opened (owner's
+    -- choice: no key, no command, no menu button). Closes the tablet first
+    -- so the picture-in-picture window is not hidden behind it.
+    -- ToggleCameraFeed() does every real check itself (partnered, partner
+    -- online and in range) and says why when it cannot start; a second
+    -- press turns it off.
+    CameraFeedPiP = function()
+        if type(ToggleCameraFeed) ~= 'function' then return false, 'not_available' end
+        CloseTablet()
+        ToggleCameraFeed()
+        return true
+    end,
     NightVision = function()
         if type(ToggleNightVision) == 'function' then ToggleNightVision(); return true end
         return false, 'not_available'
@@ -2109,52 +2099,27 @@ local FEATURE_TRIGGERS = {
         if type(RequestDrag) == 'function' then RequestDrag() end
         return true
     end,
-    -- DISCLOSED SIMPLIFICATION: radial.lua exposes Partner Up and Break
-    -- Partnership as two SEPARATE always-offered items specifically to
-    -- dodge IsPartnered()'s own documented cache-staleness gap (see that
-    -- file's "KNOWN CACHE-STALENESS GAP" section). This single-button
-    -- contract cannot offer both, so this toggles off the same local cache
-    -- read anyway -- a reconnected, genuinely-partnered player who hits
-    -- staleness here gets RequestPartnerUp()'s own "already partnered"
-    -- server rejection instead of the Break option, same bounded failure
-    -- mode client/partnership.lua's own ox_target predicate already
-    -- tolerates for the identical reason.
-    --
-    -- NOT WIDENED (permission audit finding, this pass, checked and
-    -- rejected -- matches client/radial.lua's own 'k9_partner_up' item
-    -- verbatim): server/partnership.lua's CheckPartnershipEligibility
-    -- requires AT LEAST ONE party to be a real K9 by model OR the decoupled
-    -- K9 role (IsConfiguredK9Model(...) or HasK9Role(...)) BEFORE
-    -- HasK9Access is ever consulted for whichever party is cast as the K9 --
-    -- a bypass-only holder with no model and no role fails that check
-    -- regardless of what this button offers, same class as LeashMechanics
-    -- above. Left on the broader combinator on purpose. Break Partnership
-    -- (the branch immediately above) is a termination path and stays
-    -- UNGATED, matching the identical reasoning given for every other
-    -- release branch in this table.
+    -- Partner Up / Break Partnership: client/partnership.lua's
+    -- TogglePartnership(), the same one action /k9partner and the radial
+    -- use. It asks the server whether you are partnered before choosing,
+    -- so a reconnected player is offered Break, not a refused Partner Up.
+    -- The break branch is ungated; the partner-up branch keeps its checks.
     HandlerPartnership = function()
-        if type(IsPartnered) == 'function' and IsPartnered() then
-            if type(BreakPartnership) == 'function' then BreakPartnership() end
-            return true
-        end
-        if not CanShowK9UI() then DenyK9UIAccess('common.no_k9_role_or_access'); return false, 'not_available' end
-        if type(FindNearestPartnerCandidate) ~= 'function' then return false, 'not_available' end
-        local candidateServerId = FindNearestPartnerCandidate()
-        if not candidateServerId then
-            lib.notify({ title = locale('common.notify_title'), description = locale('radial.no_partner_candidate'), type = 'error' })
-            return false, 'not_available'
-        end
-        if type(RequestPartnerUp) == 'function' then RequestPartnerUp(candidateServerId) end
-        return true
+        if type(TogglePartnership) ~= 'function' then return false, 'not_available' end
+        return TogglePartnership()
     end,
-    -- DISCLOSED SIMPLIFICATION: throw/release toggle only (radial.lua's
-    -- own Throw item shape) -- Recall Fetch Ball is a separate action in
-    -- radial.lua with no feature key of its own to hang off here.
-    -- Gated on HasK9Access() ONLY, matching RequestThrowFetchBall()'s own
-    -- doc comment verbatim (a human-handler action).
+    -- Fetch: the same three-way choice as client/fetch.lua's
+    -- FetchContextual() (drop if carrying, recall if your ball is out,
+    -- otherwise throw), kept inline so the button can report ok/refused.
+    -- Only the throw branch is gated -- HasK9Access() ONLY, matching
+    -- RequestThrowFetchBall()'s own doc comment (a human-handler action).
     FetchMechanic = function()
         if type(IsFetchCarryEngaged) == 'function' and IsFetchCarryEngaged() then
             if type(ReleaseFetchBall) == 'function' then ReleaseFetchBall() end
+            return true
+        end
+        if type(IsMyFetchBallOut) == 'function' and IsMyFetchBallOut() then
+            if type(RequestRecallFetchBall) == 'function' then RequestRecallFetchBall() end
             return true
         end
         if not HasK9Access() then DenyK9UIAccess(); return false, 'not_available' end
@@ -2504,7 +2469,14 @@ RegisterNUICallback('tablet:certify', function(data, cb)
         cb({ ok = false, error = 'invalid_args' })
         return
     end
-    cb(AwaitServerCallback('qbx_k9unit:server:tabletCertify', data.targetCitizenId, data.departmentKey))
+    -- k9Model is optional: absent certifies a handler, a model name
+    -- certifies them as a K9 of that breed. Anything else is refused here
+    -- rather than silently treated as "handler".
+    if data.k9Model ~= nil and (type(data.k9Model) ~= 'string' or data.k9Model == '') then
+        cb({ ok = false, error = 'invalid_args' })
+        return
+    end
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletCertify', data.targetCitizenId, data.departmentKey, data.k9Model))
 end)
 
 RegisterNUICallback('tablet:decertify', function(data, cb)
@@ -2725,6 +2697,48 @@ RegisterNUICallback('tablet:revertK9Ped', function(data, cb)
         return
     end
     cb(AwaitServerCallback('qbx_k9unit:server:tabletRevertK9Ped', data.targetCitizenId))
+end)
+
+-- K9 roles (server/roles.lua): list for everyone, save/delete for high
+-- command (checked server-side).
+RegisterNUICallback('tablet:rolesList', function(_, cb)
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletRolesList'))
+end)
+
+RegisterNUICallback('tablet:rolesSave', function(data, cb)
+    if type(data) ~= 'table' then
+        cb({ ok = false, error = 'invalid_args' })
+        return
+    end
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletRolesSave', {
+        key = data.key, label = data.label, xpRequired = data.xpRequired, unlocks = data.unlocks,
+    }))
+end)
+
+RegisterNUICallback('tablet:rolesDelete', function(data, cb)
+    if type(data) ~= 'table' or type(data.key) ~= 'string' or data.key == '' then
+        cb({ ok = false, error = 'invalid_args' })
+        return
+    end
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletRolesDelete', data.key))
+end)
+
+-- Dog-character pin (server/tablet.lua tabletPinDogCharacter / Unpin).
+RegisterNUICallback('tablet:pinDogCharacter', function(data, cb)
+    if type(data) ~= 'table' or type(data.targetCitizenId) ~= 'string' or data.targetCitizenId == ''
+        or type(data.modelName) ~= 'string' or data.modelName == '' then
+        cb({ ok = false, error = 'invalid_args' })
+        return
+    end
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletPinDogCharacter', data.targetCitizenId, data.modelName))
+end)
+
+RegisterNUICallback('tablet:unpinDogCharacter', function(data, cb)
+    if type(data) ~= 'table' or type(data.targetCitizenId) ~= 'string' or data.targetCitizenId == '' then
+        cb({ ok = false, error = 'invalid_args' })
+        return
+    end
+    cb(AwaitServerCallback('qbx_k9unit:server:tabletUnpinDogCharacter', data.targetCitizenId))
 end)
 
 -- ----------------------------------------------------------------------

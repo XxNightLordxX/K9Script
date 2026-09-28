@@ -168,7 +168,7 @@ t.test('a late tablet:requestRoster response for a query the viewer has since ch
     findByText(h.getRoot(), 'Command Console')[0].click();
     await settle(); // initial empty-query load
 
-    const search = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') && i.getAttribute('placeholder').indexOf('Search by name') !== -1)[0];
+    const search = findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     t.isDefined(search, 'search input exists');
 
     // Directly setting rosterQuery + calling the debounced loader's own
@@ -259,7 +259,7 @@ t.test('a late tablet:k9ProfileGet response for a K9 profile the operator has si
      * response for a person the operator has navigated away from must
      * still never render over the one now open. */
     function lookupInput() {
-        return findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+        return findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
     }
 
     // Open A -- fires the request that will be held open.

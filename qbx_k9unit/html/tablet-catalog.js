@@ -73,15 +73,13 @@
         error_network: 'Could not reach the server.',
         high_command_required_notice: 'You don\'t have High Command access, so here is your own record instead.',
         retry_label: 'Retry',
-        search_placeholder: 'Search by name, citizen ID, or department...',
-        roster_search_label: 'Search people who already hold a certification',
         refresh_label: 'Refresh',
-        empty_roster: 'No results. This list only ever shows people who already hold a certification -- it will never include someone who has never been certified before (for example, a brand-new handler). If they are online right now, pick them from the Online Players list above instead; otherwise use "Open by exact citizen ID".',
+        empty_roster: "No results. This list only shows people who already hold a certification, so someone never certified before (for example, a brand-new handler) will not appear here. If they are online, they are in the Online Players list above; otherwise type their exact citizen ID in the search box and press Open.",
         column_name: 'Name',
         column_citizenid: 'Citizen ID',
         column_department: 'Department',
         column_certified: 'Certified',
-        column_xp: 'XP / Tier',
+        column_xp: "XP / Rank",
         // The HANDLER ladder, kept visibly distinct from column_xp above:
         // they are two separate ladders on two separate feature switches
         // and a person can be high on one and nowhere on the other.
@@ -92,8 +90,6 @@
         // id") -- see buildOnlinePlayersSection()'s own header for the
         // full contract.
         online_players_heading: 'Online Players',
-        online_players_search_placeholder: 'Search online players by name, server ID, or job...',
-        online_players_search_label: 'Search everyone currently connected -- certified or not',
         online_players_empty: 'Nobody matching that search is online right now.',
         online_players_opening_label: 'Opening...',
         column_server_id: 'Server ID',
@@ -104,6 +100,10 @@
         certified_yes: 'Certified',
         certified_no: 'Not certified',
         certify_label: 'Certify',
+        certify_as_label: 'Certify as',
+        certify_as_handler_option: 'Handler (looks stay the same)',
+        certify_as_k9_option_template: 'K9: {breed}',
+        certify_as_hint: 'Handler keeps their character as it is. Picking a breed certifies them as the K9 and turns them into that dog in the same step.',
         decertify_label: 'Decertify',
         confirm_label: 'Confirm?',
         grant_label: 'Grant',
@@ -201,16 +201,14 @@
         // ---- Open-by-citizen-ID (console screen) -- see this file's
         // header note on why the roster search box alone cannot reach a
         // decertified/never-certified citizenid.
-        open_by_id_placeholder: 'Open by exact citizen ID...',
         open_by_id_label: 'Open',
+        find_person_label: "Find a person",
+        find_person_placeholder: "Name, citizen ID or server ID...",
+        find_person_hint: "Type to search everyone online and everyone certified at once. For someone who is offline and has never been certified, type their exact citizen ID and press Open.",
+        find_person_hint_id_only: "Type their exact citizen ID and press Open.",
+        roster_results_heading: "Certified People",
         open_my_own_record_label: 'Open my own record',
-        open_my_own_record_hint: 'Opens your own record, without needing to know your citizen ID. This is how you certify yourself, set your own tier, or grant yourself an ability -- if the server config permits it, which it re-checks every time.',
-        // Workflow audit finding #2, 2026-08-26 -- this box previously had
-        // no text of its own explaining what makes it different from the
-        // search bar above it. Shared verbatim by buildConsoleScreen() and
-        // the Guided Flows' buildFlowPersonPicker(), the two places this
-        // box appears.
-        open_by_id_hint: 'Works for any citizen ID, even someone who has never held a certification -- for example, a brand-new person you are about to set up. If they are online right now, it is easier to pick them from the Online Players list above instead.',
+        open_my_own_record_hint: "Opens your own record, without needing to know your citizen ID. This is how you certify yourself, give yourself a role, or grant yourself an ability -- if the server config permits it, which it re-checks every time.",
         // Workflow audit finding #1, 2026-08-26 -- shown on the Console
         // screen to a viewer who reaches it holding only 'k9.certify'/
         // 'k9.givexp' (canOpenPersonRecord() true, canAccessConsole()
@@ -227,6 +225,10 @@
         role_assign_hint: 'Turns this person into the selected model. Their current appearance is preserved for a later revert.',
         role_revert_label: 'Revert to Human',
         role_revert_hint: 'Forces this person back to human immediately -- works even if they hold no certification, no access, and no grant at all.',
+        role_pin_label: "Keep as a Dog Permanently",
+        role_pin_hint: "Pins this character as the breed selected above, whatever happens to their certification -- they load in as that dog every time until you stop it.",
+        role_pinned_status_template: "Kept as a dog permanently: {breed}.",
+        role_unpin_label: "Stop Keeping as a Dog",
         role_no_peds_configured: 'No ped models are configured on this server.',
 
         // ---- Rank/department (person screen, read-only -- see
@@ -368,9 +370,9 @@
         // per its own header ("LOCALE KEYS THIS FILE NEEDS: none... never
         // player-facing prose").
         tab_shop: "K9 Supply Shop",
-        help_tab_shop_desc: "Everything about the K9 supply shop, in two sections: where its ped stands in the world for each department, and what it sells -- at what price, and which certification tier is required to buy each item. You may see only one of the two sections: they are separate permissions, so someone can be trusted with the catalog without being trusted to move the shop, or the other way round.",
+        help_tab_shop_desc: "Everything about the K9 supply shop, in two sections: where its ped stands in the world for each department, and what it sells -- at what price, and which role (if any) someone needs to buy each item. You may see only one of the two sections: they are separate permissions, so someone can be trusted with the catalog without being trusted to move the shop, or the other way round.",
         tab_catalogs: "Catalogs",
-        help_tab_catalogs_desc: "The three lists this resource lets you edit yourself, in one place: certification tiers (like Trainee, Certified, Senior, and which extra abilities each unlocks), permission keys (the named capabilities you can grant one specific person), and XP ranks (how much XP each rank needs, on both the K9 and handler ladders). Open it before certifying anyone if the default tiers do not match how your server is organised, or when a permission you want to grant does not exist yet. You may see fewer than three sections: permission keys and XP ranks each disappear when their own feature is switched off.",
+        help_tab_catalogs_desc: "The lists you edit yourself, in one place: roles (a name, the XP it switches on at, and what it unlocks -- which trails, which finds, bites and takedowns), permission keys (the named capabilities you can grant one specific person), and XP ranks (how much XP each rank needs, on both the K9 and handler ladders). Set up roles here before giving them to people. Permission keys and XP ranks each disappear when their own feature is switched off.",
         tab_runtime_control: 'Runtime Control',
         runtime_control_heading: 'Runtime Feature Control',
         runtime_control_intro: 'These settings apply server-wide, for every player. Check the Effect column before changing anything — not every switch takes effect immediately.',
@@ -560,8 +562,37 @@
         tier_label: 'Tier',
         tier_set_label: 'Set Tier',
         renew_label: 'Renew',
-        specializations_heading: 'Specializations',
-        no_specializations: 'No specializations held.',
+        specializations_heading: 'Roles',
+        no_specializations: 'No roles yet.',
+        role_option_xp_template: "needs {xp} XP",
+        role_status_active: "Active",
+        role_status_deleted: "Role deleted",
+        role_status_locked_template: "Unlocks at {xp} XP",
+        roles_heading: "Roles",
+        roles_intro: "Give people roles on their tablet page. A role switches on once that person's XP reaches its XP requirement.",
+        roles_column_name: "Role",
+        roles_column_xp: "XP needed",
+        roles_column_unlocks: "What it unlocks",
+        roles_add_label: "Add Role",
+        roles_edit_label: "Edit",
+        roles_delete_label: "Delete",
+        roles_save_label: "Save Role",
+        roles_cancel_label: "Cancel",
+        roles_name_label: "Role name",
+        roles_xp_label: "XP needed",
+        roles_unlocks_label: "Unlocks",
+        roles_no_unlocks: "Nothing yet",
+        roles_error_invalid_label: "Give the role a name (up to 60 characters).",
+        roles_error_invalid_xp: "XP needed must be a whole number, 0 or more.",
+        roles_error_invalid_unlocks: "One of the picked unlocks is not recognised. Refresh and try again.",
+        roles_error_too_many: "There are too many roles already. Delete one first.",
+        roles_error_unknown: "That role no longer exists. Refresh the list.",
+        roles_error_in_use_by_shop_template: "Shop items still need this role: {items}. Change their Required Role first, then delete it.",
+        roles_saved: "Role saved.",
+        roles_deleted: "Role deleted.",
+        roles_audit_created: "Created",
+        roles_audit_edited: "Edited",
+        roles_audit_deleted: "Deleted",
         expires_label: 'Expires',
         expired_badge: 'Expired',
         // PERMISSION-KEY CATALOG (owner-directed "add or remove permissions"
@@ -700,7 +731,7 @@
         // on a citizenid, extended, never forked") -- see
         // buildPersonK9ProfileSection()'s own header.
         k9_profile_person_section_heading: 'K9 Individual Override',
-        k9_profile_person_section_intro: "Hand-tune THIS K9's sprint speed, scent range, medkit cooldown, and stamina drain rate beyond what its rank already gives it. The same override also appears in the K9 Overrides tab.",
+        k9_profile_person_section_intro: "Hand-tune THIS K9's sprint speed, scent range, medkit cooldown, and stamina drain rate beyond what its rank already gives it. Everyone holding an override is also listed on the Command Console.",
         // K9 SUPPLY SHOP ITEM CATALOG (this pass, coder-ui,
         // server/equipmentshop.lua's own "EQUIPMENT SHOP ITEM CATALOG"
         // section) -- sits alongside the shop_location_*/tab_shop_locations
@@ -720,7 +751,7 @@
         column_price: 'Price',
         column_currency: 'Currency',
         column_required_tier: 'Required Tier',
-        column_required_specialization: 'Required Specialization',
+        column_required_specialization: "Required Role",
         shop_item_key_label: 'Item Key',
         shop_item_key_placeholder: 'e.g. k9_medkit',
         shop_item_price_label: 'Price',
@@ -728,9 +759,11 @@
         shop_item_label_placeholder: "Leave blank to use the item's own name",
         shop_item_currency_label: 'Currency Item',
         shop_item_currency_placeholder: 'Leave blank to use the shop default',
-        shop_item_required_tier_label: 'Required Certification Tier',
-        shop_item_required_specialization_label: 'Required Specialization',
+        shop_item_required_tier_label: "Old Tier Requirement",
+        shop_item_required_specialization_label: "Required Role",
         shop_item_no_requirement: 'None',
+        shop_item_legacy_tier_template: "old tier: {tier}",
+        shop_item_legacy_tier_hint: "Tiers were replaced by roles. Pick None to remove this old requirement; leave it to keep it.",
         shop_item_retired_reference_badge: '(retired)',
         shop_item_save_label: 'Save Item',
         shop_item_cancel_label: 'Cancel',
@@ -749,8 +782,8 @@
         shop_item_error_invalid_price: 'That price is invalid -- enter a whole number from 0 up to 1,000,000,000. Zero is allowed for a free item.',
         shop_item_error_invalid_label: 'That label is invalid or too long (max 60 characters, no special markup characters).',
         shop_item_error_invalid_currency: 'That currency item key is invalid -- use 1-50 lowercase letters, numbers, or underscores, starting with a letter.',
-        shop_item_error_invalid_required_tier: 'That required certification tier does not exist.',
-        shop_item_error_invalid_required_specialization: 'That required specialization does not exist.',
+        shop_item_error_invalid_required_tier: "That old tier requirement no longer exists. Pick None to remove it.",
+        shop_item_error_invalid_required_specialization: "That role no longer exists. Pick another role, or None.",
         shop_item_error_busy: 'This item is being edited elsewhere right now -- try again in a moment.',
         shop_item_error_too_many_items: 'The maximum number of shop items has been reached.',
         shop_item_error_unknown_item: 'That item no longer exists in the catalog.',
@@ -777,7 +810,7 @@
         home_open_console_hint: 'Look up and manage handlers and K9s.',
         home_high_command_heading: 'High Command Tools',
         home_high_command_hint: 'Settings that affect the whole server: how the tablet looks, certification ranks, permission keys, the supply shop, which features are turned on, XP ranks, and the audit trail.',
-        home_high_command_tabs_pointer: "You'll find all of these in the tabs at the top of the screen -- they're grouped together there, set apart from your own tabs, so they're easy to spot.",
+        home_high_command_tabs_pointer: "The whole-server settings are under the Server Settings tab at the top of the screen, one click per section. The personnel roster and the audit trail have their own tabs beside it.",
         // Workflow audit finding #3, 2026-08-26 -- a delegate holding one
         // (or more) of the four delegable capabilities below gets a
         // version of this section describing ONLY what they actually
@@ -789,12 +822,11 @@
         home_high_command_scope_shop_items: 'what the supply shop sells',
         home_high_command_scope_runtime_control: 'which features are turned on',
         home_high_command_delegate_hint_template: "You've been granted access to: {scope}.",
-        home_high_command_delegate_tabs_pointer: "You'll find these in the tabs at the top of the screen -- grouped together there, set apart from your own tabs, so they're easy to spot.",
+        home_high_command_delegate_tabs_pointer: "You'll find these under the Server Settings tab at the top of the screen.",
         list_join_and: 'and',
         home_no_certification_title: "You're not certified yet",
         home_no_certification_body: 'Ask a certifier or a High Command officer to certify you in a department. Once certified, your abilities and record will appear here.',
-        home_no_certification_next_steps: 'Not sure how to get started? The Help tab walks you through it, and the Commands tab shows everything there is to earn.',
-        home_blocked_count_template: '{count} of your abilities are currently blocked',
+        home_no_certification_next_steps: "Not sure how to get started? The Guide tab walks you through it, and lists everything there is to earn.",
 
         // ---- COMMAND REFERENCE (this pass -- "dozens of commands, no way
         // for a player to discover them in-game"). See COMMAND_REFERENCE/
@@ -806,6 +838,25 @@
         // is simply omitted from `strings` until added there, and this
         // DEFAULT_STRINGS table covers that exact gap in the meantime,
         // same resilience-net role it already plays for every other key.
+        // ---- YOUR KEYS -- html/tablet.js's buildKeysListSection(), the list at
+        // the top of the Guide. keys_name_* are the two gateway keys owned by
+        // ox_lib (radial menu) and ox_target (third eye), shown as their defaults.
+        keys_heading: "Your Keys",
+        keys_intro: "The default key for everything you can do. Change any of them in Settings > Key Bindings > FiveM -- a key you have already changed keeps your choice.",
+        keys_action_radial: "Open your K9 menu -- every action is in here",
+        keys_action_third_eye: "Look at a person, vehicle or kennel to see what you can do with it",
+        keys_action_sit: "Sit",
+        keys_action_bark: "Bark",
+        keys_action_scent_vision: "Scent vision on / off",
+        keys_action_bite_hold: "Bite & hold / let go",
+        keys_action_takedown: "Take down a fleeing suspect",
+        keys_action_drag: "Drag / let go",
+        keys_action_vault: "Jump a low obstacle",
+        keys_action_pursuit_sprint: "Pursuit sprint",
+        keys_action_toggle_camera: "First-person view on / off",
+        keys_action_vision_cycle: "Cycle vision: off, night, thermal",
+        keys_name_radial: "Z",
+        keys_name_third_eye: "Left Alt",
         cmdref_heading: 'Command Reference',
         cmdref_intro: 'Every command this resource registers, grouped by what you are trying to do. A command you cannot currently use is marked, with the reason why -- the server still decides what actually works; this list only tells you the truth about it.',
         cmdref_search_placeholder: 'Search commands...',
@@ -884,17 +935,14 @@
         cmdref_k9deploykennel_usage: '/k9deploykennel',
         cmdref_k9deploykennel_does: 'Places a portable kennel at your feet.',
         cmdref_k9deploykennel_needs: 'An active K9 certification, and you must currently be controlling your K9. This feature must be turned on for your server.',
-        cmdref_k9exitkennel_usage: '/k9exitkennel',
-        cmdref_k9exitkennel_does: 'Gets you out of a kennel you are resting in.',
-        cmdref_k9exitkennel_needs: 'Nothing -- always available while resting in a kennel, so you can never get stuck inside one.',
         // k9kennel -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #5's merged entry point.
         // does/usage text from client/commandsuggestions.lua's own
         // PENDING_LOCALE_KEYS (the exact interim text already shipped
         // client-side for this command); needs mirrors k9deploykennel's own
         // above (the START half this command's gate documents).
         cmdref_k9kennel_usage: '/k9kennel',
-        cmdref_k9kennel_does: 'Deploys, enters, or exits your kennel -- whichever one makes sense right now. Old names /k9deploykennel and /k9exitkennel still work too.',
-        cmdref_k9kennel_needs: 'An active K9 certification, and you must currently be controlling your K9, to deploy or enter. Exiting is always available. This feature must be turned on for your server.',
+        cmdref_k9kennel_does: "Deploys or enters your kennel -- whichever one makes sense right now. To leave the kennel, use the Kennel button in your K9 menu or the third eye on the kennel.",
+        cmdref_k9kennel_needs: "An active K9 certification, and you must currently be controlling your K9, to deploy or enter. This feature must be turned on for your server.",
         // k9debug -- server/diagnostics.lua. The one command whose gate is
         // NOT a Config.Features key: it is switched by Config.DebugDump
         // .enabled, which the tablet's predictive-availability logic has no
@@ -930,55 +978,22 @@
         cmdref_k9stats_does: 'Shows the server\'s K9 XP leaderboard.',
         cmdref_k9stats_needs: 'An active K9 certification. This feature must be turned on for your server.',
 
-        cmdref_k9certify_usage: '/k9certify <server id>  |  /k9certify <citizenid> <job>',
-        cmdref_k9certify_does: 'Makes a handler\'s certification current for their department -- certifies them if they are new, renews their expiry if they already hold one. Works whether they are online (first form) or offline (second form).',
-        cmdref_k9certify_needs: 'High Command, the certify permission, or your department\'s certifier rank. An ONLINE target must be in a configured department and within certifying distance (unless you are certifying yourself and self-certification is allowed). An OFFLINE target is refused if your server requires an on-model check, since that can only happen while they are online -- use the online form once they log in instead.',
-        cmdref_k9decertify_usage: '/k9decertify <server id> [reason]  |  /k9decertify <citizenid> <job> [reason]',
-        cmdref_k9decertify_does: 'Revokes a player\'s current department certification -- works whether they are online (first form) or offline (second form).',
-        cmdref_k9decertify_needs: 'Same as /k9certify. Proximity is required for an ONLINE target unless you are revoking your own.',
-        cmdref_k9settier_usage: '/k9settier <server id> <tier>  |  /k9settier <citizenid> <job> <tier>',
-        cmdref_k9settier_does: 'Changes an actively-certified handler\'s certification tier -- works whether they are online (first form) or offline (second form).',
-        cmdref_k9settier_needs: 'Same as /k9certify. The target must already hold an active certification.',
-        cmdref_k9specialize_usage: '/k9specialize <server id> <specialization>',
-        cmdref_k9specialize_does: 'Grants an online, actively-certified handler a specialization.',
-        cmdref_k9specialize_needs: 'Same as /k9certify. The target\'s certification tier must be allowed to hold specializations. There is no offline version of this command -- granting a specialization always requires the target to be online.',
-        cmdref_k9unspecialize_usage: '/k9unspecialize <server id> <specialization>  |  /k9unspecialize <citizenid> <job> <specialization>',
-        cmdref_k9unspecialize_does: 'Revokes a handler\'s specialization -- works whether they are online (first form) or offline (second form).',
-        cmdref_k9unspecialize_needs: 'Same as /k9certify.',
         // k9dog -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #2's merged entry point.
         // does/usage from client/commandsuggestions.lua's own
         // PENDING_LOCALE_KEYS; needs is new (this pass) -- gated on
         // IsHighCommand(source) alone, no Config.Features flag exists for
         // this file at all (confirmed by reading server/dogcharacter.lua
         // directly), unlike k9certify's own capability-based gate above.
-        cmdref_k9dog_usage: '/k9dog <target>',
-        cmdref_k9dog_does: 'Shows or changes whether a character is permanently pinned as a K9. One command for both: /k9setdog and /k9removedog still work too.',
-        cmdref_k9dog_needs: 'High Command only.',
 
-        cmdref_k9givexp_usage: '/k9givexp <server id> <amount>',
-        cmdref_k9givexp_does: 'Awards XP directly to an online player.',
-        cmdref_k9givexp_needs: 'High Command or the grant-XP permission. The amount is capped by this server\'s configured maximum per grant, and repeated use is rate-limited.',
 
-        cmdref_k9audit_usage: '/k9audit <cert|partner|search|xp|dept>',
-        cmdref_k9audit_does: 'Shows a K9 audit report. One command for all five: certifications, partnerships, searches, XP and department totals.',
-        cmdref_k9audit_needs: 'High Command, the audit permission, or your department\'s audit rank. The Audit Trail feature must be turned on for your server.',
         cmdref_k9track_usage: '/k9track',
-        cmdref_k9track_does: 'Starts a track. Your dog follows whichever trail it is trained to find -- you do not pick the type.',
-        cmdref_k9track_needs: 'K9 access. Which trails your dog can follow depends on its specializations.',
+        cmdref_k9track_does: "Starts a track; use it again to stop. Your dog follows whichever trail it is trained to find -- you do not pick the type.",
+        cmdref_k9track_needs: "K9 access. Which trails your dog can follow depends on its roles.",
 
         cmdref_k9bonetool_usage: '/k9bonetool <goto|next|prev|test|stop|known|help> [value]',
         cmdref_k9bonetool_does: 'Developer tool for sweeping through a test prop\'s skeleton bones, to find the right one for attaching a leash, vest, or prop.',
         cmdref_k9bonetool_needs: 'Your department\'s boss rank or High Command, AND a server operator must have explicitly turned this dev tool on -- it is off by default, and unsafe to leave on in production.',
 
-        cmdref_k9permission_usage: '/k9permission <grant|revoke> <citizenid> <permissionKey>',
-        cmdref_k9permission_does: 'Grants or revokes a named permission key (a capability like certifying others, or a specific feature/block override) directly to/from a citizen. Old names /k9grantpermission and /k9revokepermission still work too.',
-        cmdref_k9permission_needs: 'High Command only. This feature must be turned on for your server. You cannot grant a permission to yourself.',
-        cmdref_k9grantpermission_usage: '/k9grantpermission <citizenid> <permissionKey>',
-        cmdref_k9grantpermission_does: 'Old, still-working name for /k9permission grant.',
-        cmdref_k9grantpermission_needs: 'High Command only. This feature must be turned on for your server. You cannot grant a permission to yourself.',
-        cmdref_k9revokepermission_usage: '/k9revokepermission <citizenid> <permissionKey>',
-        cmdref_k9revokepermission_does: 'Old, still-working name for /k9permission revoke.',
-        cmdref_k9revokepermission_needs: 'High Command only. This feature must be turned on for your server.',
 
         // ---- Integration-sweep fix (this pass): seven REAL, working
         // keybind commands (RegisterCommand + RegisterKeyMapping, both
@@ -1002,121 +1017,27 @@
         cmdref_toggle_camera_usage: '/qbx_k9unit:toggleCamera',
         cmdref_toggle_camera_does: 'Switches your view between looking through your K9\'s own eyes (first-person) and the normal camera behind it (third-person). Press again to switch back.',
         cmdref_toggle_camera_needs: 'You must be controlling your K9. Nothing else -- no certification and no server setting can turn this off.',
-        cmdref_toggle_camera_feed_usage: '/qbx_k9unit:toggleCameraFeed',
-        cmdref_toggle_camera_feed_does: 'Opens a small picture-in-picture window showing what your partner (K9 or handler) can currently see. Press again to close it.',
-        cmdref_toggle_camera_feed_needs: 'K9 access, an online partner within range, and Partner Camera Feed enabled on this server.',
-        cmdref_toggle_thermal_vision_usage: '/qbx_k9unit:toggleThermalVision',
-        cmdref_toggle_thermal_vision_does: 'Turns on heat vision: people and animals glow so they are easier to spot, even in the dark or through smoke. Press again to turn it off. Turning this on switches Night Vision off automatically.',
-        cmdref_toggle_thermal_vision_needs: 'You must be controlling your K9, and Thermal Vision enabled on this server. No certification needed.',
-        cmdref_toggle_night_vision_usage: '/qbx_k9unit:toggleNightVision',
-        cmdref_toggle_night_vision_does: 'Turns on night vision so you can see clearly in the dark. Press again to turn it off. Turning this on switches Thermal Vision off automatically.',
-        cmdref_toggle_night_vision_needs: 'You must be controlling your K9, and Night Vision enabled on this server. No certification needed.',
         cmdref_k9vision_usage: '/k9vision',
-        cmdref_k9vision_does: 'Cycles your K9 vision: off, then Night Vision, then Thermal Vision, then back off -- skipping whichever of those two your server has turned off. Old names /qbx_k9unit:toggleThermalVision and /qbx_k9unit:toggleNightVision still jump straight to one specific mode, if that\'s what you want instead.',
+        cmdref_k9vision_does: 'Cycles your K9 vision: off, then Night Vision, then Thermal Vision, then back off -- skipping whichever of those two your server has turned off. This is the only vision key; the K9 menu\'s Senses group also has a button for each mode.',
         cmdref_k9vision_needs: 'You must be controlling your K9. No certification needed. Does nothing but notify you if both Night Vision and Thermal Vision are turned off on this server.',
 
-        // ---- GUIDED FLOWS (this pass, owner's own words: "expand the
-        // workflow paths for all the features to make them smoother,
-        // easier to understand") -- high command only. See
-        // buildFlowsHubScreen()'s own header for the full write-up. Every
-        // one of these is UI CHROME ONLY: every action a guided flow takes
-        // still calls the exact same tablet:* NUI callback, with the exact
-        // same payload, as the equivalent existing screen -- this pass adds
-        // no new callback, no new authorization path, and no new server
-        // trust boundary.
-        tab_flows: 'Guided Flows',
-        flows_heading: 'Guided Flows',
-        flows_intro: 'Walk through a complete job step by step. Every action here calls the exact same server checks as its own screen -- nothing here is a shortcut around authorization, and every step can be skipped or revisited.',
-        flow_onboard_card_label: 'Set Up a New Handler',
-        flow_onboard_card_hint: 'Certify, set a tier, grant specializations, and grant any feature access they need -- one guided pass instead of four separate mental steps.',
-        flow_offboard_card_label: 'Offboard a Handler',
-        flow_offboard_card_hint: 'Decertify, clear feature grants and capabilities, and revert their appearance.',
-        flow_problem_card_label: 'Handle a Problem Player',
-        flow_problem_card_hint: 'Review their record, check the audit trail, and act -- all for the same person, without re-entering their citizen ID.',
-        flow_tuning_card_label: 'Tune the Server',
-        flow_tuning_card_hint: 'Step through feature toggles, tunables, certification tiers, XP thresholds, and shop items, with an overview of what is currently overridden from default.',
-        flow_back_to_flows_label: '← Back to Guided Flows',
-        flow_next_label: 'Next',
-        flow_back_label: 'Back',
-        flow_skip_label: 'Skip this step',
-        flow_finish_label: 'Finish',
-        flow_select_person_prompt: 'Select a handler or K9 to continue.',
-        flow_select_label: 'Select',
-        flow_change_person_label: 'Change person',
-        flow_working_with_label: 'Working with:',
-        flow_onboard_heading: 'Set Up a New Handler',
-        flow_onboard_step_select: 'Select Person',
-        flow_onboard_step_certify: 'Certify',
-        flow_onboard_step_k9role: 'K9 Role',
-        flow_onboard_step_tier: 'Tier & Specializations',
-        flow_onboard_step_features: 'Feature Access',
-        flow_onboard_step_summary: 'Summary',
-        flow_onboard_certify_intro: 'Certify this person in a department below. Departments they already hold stay listed so you can adjust tier or specializations instead.',
-        flow_onboard_k9role_intro: 'Most people being onboarded are handlers, not K9s -- skip this step if that is the case. Assigning the K9 role below replaces this person\'s character with the chosen model, immediately if they are online right now or automatically the next time they log in if they are not. It is reversible at any time from the Offboarding flow\'s own Revert to Human step.',
-        flow_onboard_pick_department_first: 'Certify this person in a department in the previous step first, then come back here to set a tier or add specializations.',
-        flow_onboard_tier_intro: 'Set a certification tier and add any specializations this department supports.',
-        flow_onboard_features_intro: 'These abilities are switched on server-wide but need an individual grant before this person can use them. Granting none of them is fine if none apply.',
-        flow_onboard_summary_heading: 'What just happened',
-        flow_onboard_summary_certified_template: 'Certified in {department}.',
-        flow_onboard_summary_not_certified: 'Not certified in any department this pass.',
-        flow_onboard_summary_k9role_skipped: 'K9 role step skipped -- no change to this person\'s model.',
-        flow_onboard_summary_k9role_assigned_template: 'Assigned the K9 role this pass ({model}).',
-        flow_onboard_summary_k9role_not_applied: 'K9 role was not applied this pass.',
-        flow_onboard_summary_tier_template: 'Tier: {tier}.',
-        flow_onboard_summary_no_tier: 'No tier has been set for this department yet.',
-        flow_onboard_summary_specializations_template: '{count} specialization(s) held in this department.',
-        flow_onboard_summary_features_granted_template: '{count} feature(s) granted this pass.',
-        flow_onboard_summary_features_still_missing_template: '{count} grant-required feature(s) still not granted.',
-        flow_onboard_summary_features_none_required: 'No features on this server currently require a grant.',
-        flow_offboard_heading: 'Offboard a Handler',
-        flow_offboard_step_select: 'Select Person',
-        flow_offboard_step_decertify: 'Decertify',
-        flow_offboard_step_access: 'Clear Access',
-        flow_offboard_step_appearance: 'Appearance',
-        flow_offboard_step_summary: 'Summary',
-        flow_offboard_decertify_intro: 'End this person\'s active certifications below. Ending a certification automatically ends any active partnership they have too -- no separate action is needed for that.',
-        flow_offboard_no_active_certs: 'This person holds no active certifications.',
-        flow_offboard_access_intro: 'Clear any individual feature grants and admin capabilities this person still holds.',
-        flow_offboard_appearance_intro: 'Revert this person\'s appearance back to human. This works even if they hold no certification, access, or grant at all.',
-        flow_offboard_summary_heading: 'What just happened',
-        flow_offboard_summary_decertified_template: 'Decertified from {count} department(s).',
-        flow_offboard_summary_still_certified_template: 'Still certified in {count} department(s).',
-        flow_offboard_summary_features_revoked_template: '{count} feature grant(s) cleared.',
-        flow_offboard_summary_features_remaining_template: '{count} feature grant(s) still held.',
-        flow_offboard_summary_permissions_revoked_template: '{count} admin capability grant(s) cleared.',
-        flow_offboard_summary_permissions_remaining_template: '{count} admin capability grant(s) still held.',
-        flow_offboard_summary_reverted: 'Appearance reverted to human this pass.',
-        flow_offboard_summary_not_reverted: 'Appearance was not reverted this pass.',
-        flow_problem_heading: 'Handle a Problem Player',
-        flow_problem_step_select: 'Select Person',
-        flow_problem_step_review: 'Review Record',
-        flow_problem_step_audit: 'Audit Trail',
-        flow_problem_step_act: 'Take Action',
-        flow_problem_step_summary: 'Summary',
-        flow_problem_review_intro: 'Review this person\'s certifications and XP before deciding what to check next.',
-        flow_problem_audit_intro: 'Check what this person has actually done. Their citizen ID is already filled in below.',
-        flow_problem_act_intro: 'Block a feature or revoke an admin capability directly -- no need to reopen the Command Console.',
-        flow_problem_summary_heading: 'What you did this pass',
-        flow_problem_summary_audit_ran_template: 'Ran an audit query ({mode}), {count} row(s) returned.',
-        flow_problem_summary_audit_not_run: 'No audit query was run this pass.',
-        flow_problem_summary_features_blocked_template: '{count} feature(s) newly blocked.',
-        flow_problem_summary_permissions_revoked_template: '{count} admin capability grant(s) revoked.',
-        flow_problem_summary_no_actions: 'No blocks or revocations were made this pass.',
-        flow_tuning_heading: 'Tune the Server',
-        flow_tuning_step_overview: 'Overview',
-        flow_tuning_step_features: 'Feature Toggles',
-        flow_tuning_step_tunables: 'Tunables',
-        flow_tuning_step_tiers: 'Certification Tiers',
-        flow_tuning_step_xp: 'XP Thresholds',
-        flow_tuning_step_shop: 'Shop Items',
-        flow_tuning_overview_heading: 'Current configuration at a glance',
-        flow_tuning_overview_intro: 'A live summary pulled from the same five screens below -- nothing here is tracked separately, so it can never drift from what those screens actually show.',
-        flow_tuning_overview_features_template: '{overridden} of {total} feature toggle(s) overridden from their config.lua default.',
-        flow_tuning_overview_tunables_template: '{overridden} of {total} tunable(s) overridden from their config.lua default.',
-        flow_tuning_overview_tiers_template: '{count} certification tier(s) configured.',
-        flow_tuning_overview_xp_template: '{count} XP rank(s) configured.',
-        flow_tuning_overview_shop_template: '{count} shop item(s) configured.',
-        flow_tuning_overview_not_loaded: 'Not loaded yet -- open this step to load it.',
+        // ---- SERVER SETTINGS -- the one admin settings tab and its
+        // Summary section (html/tablet.js's SETTINGS_SECTIONS). UI chrome
+        // only: every section is an existing screen calling the same
+        // tablet:* callbacks it always did.
+        tab_settings: "Server Settings",
+        settings_section_overview: "Summary",
+        help_tab_settings_desc: "Every whole-server setting in one tab, picked from the row of sections at the top: Runtime Control (features and their numbers), Catalogs, the K9 Supply Shop, the Tablet Theme, and a Summary of what has been changed. You only see the sections you are allowed to change.",
+        help_task_hc_settings_sections_template: "Server Settings holds: {sections}.",
+        settings_overview_heading: 'Current configuration at a glance',
+        settings_overview_intro: "A live summary of the sections next to this one -- nothing here is tracked separately, so it always matches what those screens show.",
+        settings_overview_features_template: '{overridden} of {total} feature toggle(s) overridden from their config.lua default.',
+        settings_overview_tunables_template: '{overridden} of {total} tunable(s) overridden from their config.lua default.',
+        settings_overview_tiers_template: '{count} certification tier(s) configured.',
+        settings_overview_roles_template: "{count} role(s) set up.",
+        settings_overview_xp_template: '{count} XP rank(s) configured.',
+        settings_overview_shop_template: '{count} shop item(s) configured.',
+        settings_overview_not_loaded: "Not loaded yet -- open that section to load it.",
 
         // ---- MUTATION ERROR TEXT (this pass, state-handling/error-
         // reporting consistency sweep) -- see mutationErrorText()'s own
@@ -1132,7 +1053,6 @@
         // say what to do next wherever there is a next step (never just
         // restating the code) -- never anything the ACTING viewer could not
         // already see about their own attempt.
-        action_submitted: 'Submitted. Refreshing to confirm...',
         mutation_error_invalid_target: 'That target could not be resolved. Refresh this screen and try again.',
         mutation_error_invalid_department: 'That department is not configured on this server.',
         mutation_error_department_mismatch: 'This person\'s live job no longer matches this department. Refresh their record and try again.',
@@ -1150,11 +1070,11 @@
         mutation_error_target_online_use_online_action: 'This target is currently online. Reopen their record and use the live action instead of the offline one.',
         mutation_error_already_certified: 'This target already holds an active certification for this department.',
         mutation_error_target_not_actively_certified: 'This target does not hold an active certification for this department.',
-        mutation_error_requires_active_cert: 'This target needs an active, unexpired certification for this department before a specialization can be granted.',
+        mutation_error_requires_active_cert: "This person needs an active, unexpired certification for this department before they can be given a role.",
         mutation_error_requires_tier_capability: 'This target\'s current certification tier does not allow specializations. Assign a tier that permits them first.',
         mutation_error_already_granted: 'This is already granted to the target.',
         mutation_error_not_granted: 'This target does not currently hold this.',
-        mutation_error_invalid_specialization: 'That is not a recognized specialization.',
+        mutation_error_invalid_specialization: "That is not a recognized role.",
         mutation_error_invalid_tier: 'That is not a recognized certification tier.',
         mutation_error_tier_already_set: 'This target is already on that tier.',
         mutation_error_target_offline: 'The target disconnected mid-action. Refresh and try again.',
@@ -1173,55 +1093,54 @@
         // to use the entire tablet... super detailed but dumbed down") --
         // see buildHelpScreen()'s own header for the full design. ----
         help_heading: "How to Use This Tablet",
-        help_intro_line1: "This page walks you through using the tablet from scratch, in plain language. If you already know what you are doing and just need a quick lookup, use the Commands tab instead -- it lists every command with a live yes/no on whether you can use it right now.",
+        help_intro_line1: "This page walks you through using the tablet from scratch, in plain language. Just need a quick lookup? The command list at the bottom of this page shows every command with a live yes/no on whether you can use it right now.",
         help_role_note_k9: "You are seeing the K9 version of this guide because you are currently playing as a dog.",
         help_role_note_handler: "You are seeing the Handler version of this guide because you are not currently playing as a dog.",
         help_role_note_uncertified: "You are seeing the Getting Started version of this guide because you do not hold an active certification yet.",
         help_role_note_high_command_suffix: "Because you are also High Command, the extra admin sections below are showing too.",
         help_start_heading: "Start Here",
         help_start_k9_1: "1. You are playing as the dog. A separate player -- your handler -- plays the human half of the team.",
-        help_start_k9_2: "2. To actually use any K9 ability you need two things at once: an active K9 certification (or an access grant), and to currently be wearing a K9 model. Getting certified sometimes turns you into the model automatically. If it does not happen for you, a High Command officer can do it manually from the Console tab (open your record, then use \"Assign K9 Role\").",
-        help_start_k9_3: "3. Check the top of the Home tab. It shows \"Partnered\" or \"No Partner\" -- that tells you whether a handler is currently paired with you.",
+        help_start_k9_2: "2. High command makes you the K9 from their tablet: they certify you as a K9 and pick your breed, in one step. From then on you have the role and the dog's body together.",
+        help_start_k9_3: "3. Check the top of the My Record tab. It shows \"Partnered\" or \"No Partner\" -- that tells you whether a handler is currently paired with you.",
         help_start_k9_4: "4. If it says \"No Partner\", wait for a handler to walk up to you and choose \"Partner Up\" from their interact menu. You will get an accept-or-decline prompt -- accept it.",
-        help_start_k9_5: "5. Open the Commands tab and read \"Basic K9 Commands\" and \"Combat & Restraint\" first -- those are your everyday moves and the keys already bound to them. Whatever you have started, you can always stop it with the same key that started it -- letting go is never blocked, even if your certification lapses mid-bite.",
-        help_start_handler_1: "1. Look at the top of the Home tab. It shows your name and, right under it, whether you are certified yet.",
-        help_start_handler_2: "2. If it says you are not certified, find a supervisor -- someone with the right rank in your department, or a High Command officer -- and ask them to certify you. They do this from their own tablet's Console tab.",
-        help_start_handler_3: "3. Once certified, the Home tab's \"Ready to use right now\" list shows exactly which abilities you can use today. That list changes as your certification, tier, and server settings change -- check back after anything changes.",
-        help_start_handler_4: "4. Open the Commands tab to see the exact command and key for everything on that list.",
+        help_start_k9_5: "5. Scroll to the command list at the bottom of this page and read \"Basic K9 Commands\" and \"Combat & Restraint\" first -- those are your everyday moves and the keys already bound to them. Whatever you have started, you can always stop it with the same key that started it -- letting go is never blocked, even if your certification lapses mid-bite.",
+        help_start_handler_1: "1. Look at the top of the My Record tab. It shows your name and, right under it, whether you are certified yet.",
+        help_start_handler_2: "2. If it says you are not certified, find a supervisor -- someone with the right rank in your department, or a High Command officer -- and ask them to certify you. They do this from their own tablet's Command Console tab.",
+        help_start_handler_3: "3. Once certified, the My Record tab's \"Ready to use right now\" list shows exactly which abilities you can use today, and your roles show whether they are Active or the XP they unlock at. Check back as you earn XP.",
+        help_start_handler_4: "4. The command list at the bottom of this page shows the exact command and key for everything on that list.",
         help_start_handler_5: "5. If you want a K9 partner, find someone playing as a K9 and use \"Partner Up\" from your interact menu while standing near them. They get an accept-or-decline prompt.",
         help_start_handler_6: "6. If you want to become the K9 yourself instead of staying the handler, that is a separate role change -- see \"Turn Someone Into a K9\" further down this page.",
         help_start_high_command_heading: "Also: Because You Are High Command",
         help_start_high_command_intro: "Everything above still applies to you -- High Command is not a separate job, it is a handler or K9 who also has admin tools. Here is where to start with those tools specifically.",
-        help_start_high_command_1: "1. Open the Guided Flows tab first. It walks you through the four most common admin jobs step by step instead of making you hunt across separate screens.",
-        help_start_high_command_2: "2. When someone needs to be set up as a new handler, use \"Set Up a New Handler\" inside Guided Flows -- it covers certifying them, setting a tier, and granting feature access in one pass.",
+        help_start_high_command_1: "1. Open the Command Console tab first and type the person's name, citizen ID or server ID into the one search box -- it searches everyone online and everyone certified at once. Someone offline and never certified? Type their exact citizen ID and press Open. Their whole record opens on one screen: certifications, role, XP, access and abilities, in the order you normally work down them.",
+        help_start_high_command_2: "2. To set someone up, open them from the Command Console and press Certify under their department. Leave the choice on Handler for a handler, or pick a breed to make them the K9 -- that one press is the whole setup. Give them roles on the same screen when they need more.",
         help_start_high_command_3: "3. If you need to know what someone has actually been doing, use the Audit Trail tab -- it is read-only and shows real history, not a guess.",
-        help_start_high_command_4: "4. Every other admin screen (theme, certification tiers, permission keys, the supply shop, feature switches, XP ranks, per-K9 overrides) has its own tab -- see \"Every Tab, Explained\" below for what each one actually does.",
+        help_start_high_command_4: "4. Every whole-server setting -- feature switches and their numbers, roles, permission keys, XP ranks, the supply shop and the tablet theme -- is under one tab, Server Settings, one click per section. See \"Every Tab, Explained\" below for what each section does.",
         help_tabs_heading: "Every Tab, Explained",
         help_tabs_intro: "Only the tabs you can actually use are listed below -- if a tab is not shown here, you cannot see it on your own tablet either.",
         help_tab_my_record_desc: "Everything about you, in one place, and the first screen you land on: who you are and what to do next, then your certifications, then where you stand on both XP ladders, then every ability with its exact status -- the ones you can use now and the ones you still have to earn.",
-        help_tab_console_desc: "Open a specific handler or K9's record by their exact citizen ID -- this always works, even for someone who has never been certified. If you also hold the Audit capability or are High Command, this tab additionally lets you browse and search the full roster by name, citizen ID, or department (that search only ever shows people who already hold a certification, so it will never find someone brand new -- open them by citizen ID instead).",
-        help_tab_flows_desc: "A guided, step-by-step version of the four admin jobs you will do most often: setting up a new handler, offboarding one, handling a problem player, and tuning server-wide settings. Open it instead of the individual screens below when you want to be walked through the whole job in order.",
+        help_tab_console_desc: "One search box finds anyone: type a name, citizen ID or server ID and it searches everyone online and everyone certified at once (browsing those lists needs the Audit capability or High Command). Press Open to go straight to an exact citizen ID -- that always works, even for someone who has never been certified.",
         help_tab_theme_desc: "Change the tablet's own colors and title for every player on the server. Open it to re-brand the tablet, not to fix anything broken.",
-        help_tab_roster_desc: "Everyone currently hired, across every configured department, with their callsign, certification tier, XP, and active partner if any. Switch between K9s and Handlers at the top; both share one \"Unassigned\" section -- certified people who have not been assigned to either roster yet, which is not an error, just people still waiting to be sorted. Open a row to hire, fire, promote, demote, change someone's roster role, or set a callsign -- all from their profile, the same one the Console tab and Online Players list also open.",
+        help_tab_roster_desc: "Everyone currently hired, across every configured department, with their callsign, XP rank, and active partner if any. Switch between K9s and Handlers at the top; both share one \"Unassigned\" section -- certified people who have not been assigned to either roster yet, which is not an error, just people still waiting to be sorted. Open a row to hire, fire, promote, demote, change someone's roster role, or set a callsign -- all from their profile, the same one the Command Console opens.",
         help_tab_runtime_control_desc: "Turn individual features on or off for the whole server, and adjust the numeric settings behind them, without editing config files or restarting. Open it when a feature needs to change right now, or when you need to know whether one is currently on.",
         help_tab_audit_desc: "A read-only history of who certified whom, who partnered with whom, who searched whom, XP grants, and department-wide activity. This is privacy-sensitive -- it shows real names and real actions. Open it to investigate something that already happened.",
         help_tasks_heading: "How to Do the Common Things",
         help_task_get_certified_heading: "Get Certified",
         help_task_get_certified_1: "1. Find someone who can certify you: a supervisor at the right rank in your department, or anyone in High Command.",
-        help_task_get_certified_2: "2. Ask them in person or over the radio. If YOU are a supervisor and your server allows it, you can also certify yourself from the Console tab, or with /k9certify and your own ID.",
-        help_task_get_certified_3_template: "3. They open their own tablet's Console tab, find your name or citizen ID, open your record, and press {certifyLabel} for your department. You will see the change on your own Home tab the next time you open it.",
+        help_task_get_certified_2: "2. Ask them in person or over the radio -- there is no way to request a certification yourself from the tablet.",
+        help_task_get_certified_3_template: "3. They open their own tablet's Command Console tab, find your name or citizen ID, open your record, and press {certifyLabel} for your department. You will see the change on your own My Record tab the next time you open it.",
         help_task_partner_up_heading: "Partner Up With a Handler or K9",
         help_task_partner_up_1: "1. Stand close to the other player -- handler or K9, either side can start this.",
-        help_task_partner_up_2: "2. Open your interact menu on them and choose \"Partner Up\" -- if you are the K9, your K9 Unit radial menu has the same option.",
-        help_task_partner_up_3: "3. The other player gets an accept-or-decline prompt. Once they accept, the Home tab for both of you shows \"Partnered\" instead of \"No Partner\".",
-        help_task_partner_up_4: "4. To split up later, open your K9 Unit radial menu and choose \"Break Partnership\" -- either side can end it, any time, even if the other player is offline.",
+        help_task_partner_up_2: "2. Open your interact menu on them and choose \"Partner Up\" -- if you are the K9, the same option is in your K9 Unit radial menu under Partner & Leash.",
+        help_task_partner_up_3: "3. The other player gets an accept-or-decline prompt. Once they accept, the My Record tab for both of you shows \"Partnered\" instead of \"No Partner\".",
+        help_task_partner_up_4: "4. To split up later, choose \"Partner Up / Break Partnership\" again (K9 Unit radial menu > Partner & Leash, or type /k9partner) -- it ends the partnership if you have one. Either side can end it, any time, even if the other player is offline.",
         help_task_vehicle_heading: "Put Your K9 In the Car",
         help_task_vehicle_1: "1. As the K9, walk up to the vehicle your handler is using. Only vehicles set up to carry a K9 will show this option -- ask High Command if you think one is missing it.",
         help_task_vehicle_2: "2. Open your interact menu on the vehicle and choose \"Get in the Back Seat\".",
         help_task_vehicle_3: "3. To let your K9 back out, open the interact menu on the vehicle again and choose \"Get Out of the Vehicle\".",
         help_task_search_heading: "Search a Suspect or Vehicle",
         help_task_search_1: "1. As the K9, walk up to a person or a vehicle.",
-        help_task_search_2: "2. Open your interact menu and choose \"Search Person for Contraband\" or \"Search Vehicle for Contraband\". Your K9 plays a sniffing animation while the server checks the result.",
+        help_task_search_2: "2. Open your interact menu and choose \"Sniff Person (Contraband & Warrants)\" or \"Search Vehicle for Contraband\". Your K9 plays a sniffing animation while the server checks the result. Sniffing a person also checks the MDT and tells you and your partner if they have an active arrest or bench warrant.",
         help_task_search_3: "3. This only works while you are playing as the K9 -- a handler cannot search on the K9's behalf.",
         help_task_treat_heading: "Treat an Injured K9",
         help_task_treat_1: "1. This is not limited to handlers -- anyone whose job is set up for it (usually EMS) can do this, as long as they are carrying a K9 medkit item.",
@@ -1259,26 +1178,28 @@
         // reference left anywhere and is reported for removal by whoever
         // owns that group.
         help_task_kennel_heading: "Deploy a Kennel",
-        help_task_kennel_1: "1. As the K9, open your K9 Unit radial menu and choose \"Kennel (Deploy/Enter/Exit)\". It is placed on the ground just in front of you.",
+        help_task_kennel_1: "1. As the K9, open your K9 Unit radial menu, then Utility, and choose \"Kennel (Deploy/Enter/Exit)\". It is placed on the ground just in front of you.",
         help_task_kennel_2: "2. You can only have one active kennel at a time -- pick it back up (walk up to it and use the \"Pick Up Kennel\" option) before deploying another.",
-        help_task_kennel_3: "3. Any K9 can use a deployed kennel to rest: walk up to it and choose \"Rest in Kennel\". Choose \"Exit Kennel\" (or use its own keybind) to get back out.",
-        help_task_kennel_4: "4. This same \"Kennel (Deploy/Enter/Exit)\" option always appears in the radial menu, even when deploying is turned off -- if choosing it does nothing while you have no kennel out, this feature is disabled on this server -- ask High Command.",
+        help_task_kennel_3: "3. Any K9 can use a deployed kennel to rest: walk up to it and choose \"Rest in Kennel\". To get back out, press the same \"Kennel (Deploy/Enter/Exit)\" button in your K9 menu, or look at the kennel with the third eye (Left Alt) and choose \"Exit Kennel\".",
+        help_task_kennel_4: "4. This same \"Kennel (Deploy/Enter/Exit)\" option always appears under Utility in the radial menu, even when deploying is turned off -- if choosing it does nothing while you have no kennel out, this feature is disabled on this server.",
+        help_task_stop_being_k9_heading: "Go Back to Being Human",
+        help_task_stop_being_k9_1: "1. There is no self-service way to turn yourself back -- and that is deliberate, not a bug. Being the K9 is a role high command puts you in, so high command is who takes you back out of it.",
+        help_task_stop_being_k9_2: "2. Ask any High Command officer to open their tablet, find you on the Command Console, and press \"Revert to Human\". It takes them about ten seconds.",
+        help_task_stop_being_k9_3: "3. It always works. They can do it even if your certification has lapsed, your access was revoked, or you hold no grants at all -- there is no state you can end up in where the button stops working.",
+        help_task_stop_being_k9_4: "4. Your original appearance was saved when you were turned into the K9, so you get your own character back, not a default one. Logging out and back in does NOT revert you: you stay the K9 across sessions until someone presses that button.",
         help_task_scent_vision_heading: "Use Scent Vision",
-        help_task_scent_vision_1: "1. As the K9, press the \"K9: Toggle Scent Vision\" key (Z by default, rebindable in Settings > Key Bindings > FiveM) to show coloured dots marking where nearby people have recently walked. Press it again to turn it off.",
+        help_task_scent_vision_1: "1. As the K9, press the \"K9: Toggle Scent Vision\" key (. -- the full stop -- by default, rebindable in Settings > Key Bindings > FiveM) to show coloured dots marking where nearby people have recently walked. Press it again to turn it off.",
         help_task_scent_vision_2: "2. Only a handful of the closest people's trails are shown at once, each its own colour, and the dots fade out and disappear as they get older.",
         help_task_scent_vision_3: "3. If pressing the key does nothing, either this feature is turned off on this server, or this server has set it to run for everyone automatically instead of needing the key -- ask High Command.",
         help_task_hc_certify_someone_heading: "Certify Someone",
-        help_task_hc_certify_someone_1: "1. Go to the Console tab. If they already hold a certification somewhere, you can search for them there by name or citizen ID; if this is a brand-new person, use \"Open by exact citizen ID\" instead -- the search will never find someone who has never been certified. Most certification actions require the target to be online.",
-        help_task_hc_certify_someone_2_template: "2. Open their record and press {certifyLabel} under their department. Pick a tier and any specializations if your server uses them.",
-        help_task_hc_certify_someone_3: "3. Prefer to be walked through it instead? Open the Guided Flows tab and use \"Set Up a New Handler\" -- it is the exact same actions, in order, with nothing skipped.",
-        help_task_hc_flow_steps_template: "That flow's steps, in order: {steps}.",
+        help_task_hc_certify_someone_1: "1. Go to the Console tab and type their name, citizen ID or server ID into the search box. Someone brand new who is offline will not be in either list -- type their exact citizen ID and press Open. Most certification actions require the target to be online.",
+        help_task_hc_certify_someone_2_template: "2. Open their record. Next to {certifyLabel}, leave it on Handler or pick a K9 breed, then press it. Roles are optional, on the same screen.",
         help_task_hc_toggle_feature_heading: "Turn a Feature On or Off",
-        help_task_hc_toggle_feature_1: "1. Open the Runtime Control tab and find the feature by name.",
+        help_task_hc_toggle_feature_1: "1. Open Server Settings, pick Runtime Control, and find the feature by name.",
         help_task_hc_toggle_feature_2: "2. Flip its switch. Most features take effect immediately for every player -- but not all of them do. Read the small note under the switch: some only apply after a restart, and a few (protected or not-yet-audited features) cannot be changed from here at all.",
-        help_task_hc_toggle_feature_3: "3. Prefer to be walked through it alongside every other server-wide setting? Open the Guided Flows tab and use \"Tune the Server\".",
         help_task_hc_assign_k9_heading: "Turn Someone Into a K9",
-        help_task_hc_assign_k9_1: "1. Go to the Console tab, find the person, and open their record.",
-        help_task_hc_assign_k9_2_template: "2. In the K9 Role section, pick a model from the list and press \"{assignLabel}\". This changes their character immediately and also grants them K9 access, so they can use K9 abilities right away.",
+        help_task_hc_assign_k9_1: "1. Go to the Command Console tab, find the person, and open their record.",
+        help_task_hc_assign_k9_2_template: "2. Next to {certifyLabel} under their department, pick their breed instead of Handler and press it -- they are certified and turned into that dog at once. Already certified? Use \"{assignLabel}\" in the K9 Role section to pick or change their breed.",
         help_task_hc_assign_k9_3_template: "3. To undo it, press \"{revertLabel}\" -- this works even if they hold no certification or access at all, so it is always available as an emergency undo.",
         help_task_hc_check_history_heading: "Check What Someone Did",
         help_task_hc_check_history_1: "1. Open the Audit Trail tab.",
@@ -1287,13 +1208,13 @@
         help_trouble_heading: "When Something Doesn't Work",
         help_trouble_intro: "Every refusal on this tablet tells you the real reason -- here is what the most common ones actually mean and what to do about them.",
         help_trouble_no_k9_access_title: "\"You cannot use K9 features right now.\" (a red notification in the game, not on the tablet)",
-        help_trouble_no_k9_access_body: "This means one of two things: you are not currently wearing a K9 model, or you do not hold an active K9 certification (or access grant). Check the Home tab -- if it does not show you as certified, see \"Get Certified\" above. If it does, ask a High Command officer to check whether you are actually set as a K9 (\"Assign K9 Role\", Console tab).",
+        help_trouble_no_k9_access_body: "This means one of two things: you are not currently wearing a K9 model, or you do not hold an active K9 certification (or access grant). Check the My Record tab -- if it does not show you as certified, see \"Get Certified\" above. If it does, ask a High Command officer to check whether you are actually set as a K9 (\"Assign K9 Role\" on your record in their Command Console).",
         help_trouble_not_certified_title: "\"Not certified\"",
         help_trouble_not_certified_body: "You do not hold an active certification for whatever this needs. See \"Get Certified\" above -- ask a supervisor or High Command.",
         help_trouble_feature_off_title: "\"Disabled server-wide\" or \"This feature is turned off on this server\"",
-        help_trouble_feature_off_body: "A High Command officer switched this off for the whole server, from the Runtime Control tab. It can usually be turned back on the same way -- ask them. A small number of features are marked protected or not-yet-audited and genuinely cannot be turned on from the tablet at all; the Runtime Control tab says so directly when that is the case.",
+        help_trouble_feature_off_body: "A High Command officer switched this off for the whole server, from Server Settings (Runtime Control). It can usually be turned back on the same way -- ask them. A small number of features are marked protected or not-yet-audited and genuinely cannot be turned on from the tablet at all; Runtime Control says so directly when that is the case.",
         help_trouble_needs_grant_title: "\"Requires a grant (not granted)\" or \"Requires higher authorization\"",
-        help_trouble_needs_grant_body: "The feature itself is on, and you are certified, but this specific extra permission has not been given to you personally. Only High Command can grant it, from the Console tab's Person screen (or the Permission Keys tab, if the permission itself does not exist yet).",
+        help_trouble_needs_grant_body: "The feature itself is on, and you are certified, but this specific extra permission has not been given to you personally. Only High Command can grant it, from your record in their Command Console (or Server Settings > Catalogs, if the permission itself does not exist yet).",
         help_trouble_rate_limited_title: "\"You're doing that too quickly\"",
         help_trouble_rate_limited_body: "Wait a few seconds and try again. This is a safety limit, not a permission problem -- nobody needs to grant you anything to fix it.",
         help_trouble_self_cert_disabled_title: "\"Self-certification is turned off on this server\"",
@@ -1381,7 +1302,7 @@
         roster_hire_role_handler: 'Handler',
         roster_fire_label: 'Fire',
         roster_fire_confirm_prompt: "Firing ends this person's working status immediately -- click twice to confirm.",
-        roster_fire_self_warning: 'You are about to fire yourself. If self-certification changes are disabled on this server, this will be refused exactly like a self-typed /k9decertify.',
+        roster_fire_self_warning: "You are about to fire yourself. If self-certification changes are disabled on this server, this will be refused, just like decertifying yourself.",
         roster_role_change_label: 'Roster Role',
         roster_role_change_confirm_prompt: "Changing this person's roster role clears their current callsign -- a K9 callsign and a Handler callsign mean different things, so it is never carried over automatically. You will need to set a new one afterward.",
         roster_sort_label: 'Sort by',
@@ -1538,15 +1459,15 @@
         // load-bearing caveat (cmdref_keybind_caveat, shown once in this
         // screen's own intro) that a default only applies to a player who
         // has never rebound that key, and never moves an existing one. ----
-        { command: 'k9sit', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9sit_usage', doesKey: 'cmdref_k9sit_does', needsKey: 'cmdref_k9sit_needs', gate: { kind: 'access' }, defaultKeybind: 'V' },
-        { command: 'k9bark', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9bark_usage', doesKey: 'cmdref_k9bark_does', needsKey: 'cmdref_k9bark_needs', gate: { kind: 'access', featureKey: 'BasicBarkSounds' }, defaultKeybind: 'C' },
-        { command: 'k9scentvision', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9scentvision_usage', doesKey: 'cmdref_k9scentvision_does', needsKey: 'cmdref_k9scentvision_needs', gate: { kind: 'access', featureKey: 'ScentVision' }, defaultKeybind: 'Z' },
+        { command: 'k9sit', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9sit_usage', doesKey: 'cmdref_k9sit_does', needsKey: 'cmdref_k9sit_needs', gate: { kind: 'access' }, defaultKeybind: 'G', keyLabelKey: 'keys_action_sit' },
+        { command: 'k9bark', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9bark_usage', doesKey: 'cmdref_k9bark_does', needsKey: 'cmdref_k9bark_needs', gate: { kind: 'access', featureKey: 'BasicBarkSounds' }, defaultKeybind: 'U', keyLabelKey: 'keys_action_bark' },
+        { command: 'k9scentvision', category: 'basic_commands', adminOnly: false, usageKey: 'cmdref_k9scentvision_usage', doesKey: 'cmdref_k9scentvision_does', needsKey: 'cmdref_k9scentvision_needs', gate: { kind: 'access', featureKey: 'ScentVision' }, defaultKeybind: '.', keyLabelKey: 'keys_action_scent_vision' },
 
         // ---- Combat & Restraint (client/keybinds.lua) -- same
         // `defaultKeybind` provenance note as Basic K9 Commands above.
-        { command: 'k9bitehold', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9bitehold_usage', doesKey: 'cmdref_k9bitehold_does', needsKey: 'cmdref_k9bitehold_needs', gate: { kind: 'access', featureKey: 'BiteAndHold' }, defaultKeybind: 'B' },
-        { command: 'k9takedown', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9takedown_usage', doesKey: 'cmdref_k9takedown_does', needsKey: 'cmdref_k9takedown_needs', gate: { kind: 'access', featureKey: 'NonLethalTakedown' }, defaultKeybind: 'T' },
-        { command: 'k9dragtoggle', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9dragtoggle_usage', doesKey: 'cmdref_k9dragtoggle_does', needsKey: 'cmdref_k9dragtoggle_needs', gate: { kind: 'access', featureKey: 'PropDragging' }, defaultKeybind: 'Y' },
+        { command: 'k9bitehold', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9bitehold_usage', doesKey: 'cmdref_k9bitehold_does', needsKey: 'cmdref_k9bitehold_needs', gate: { kind: 'access', featureKey: 'BiteAndHold' }, defaultKeybind: 'B', keyLabelKey: 'keys_action_bite_hold' },
+        { command: 'k9takedown', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9takedown_usage', doesKey: 'cmdref_k9takedown_does', needsKey: 'cmdref_k9takedown_needs', gate: { kind: 'access', featureKey: 'NonLethalTakedown' }, defaultKeybind: '[', keyLabelKey: 'keys_action_takedown' },
+        { command: 'k9dragtoggle', category: 'combat', adminOnly: false, usageKey: 'cmdref_k9dragtoggle_usage', doesKey: 'cmdref_k9dragtoggle_does', needsKey: 'cmdref_k9dragtoggle_needs', gate: { kind: 'access', featureKey: 'PropDragging' }, defaultKeybind: 'Y', keyLabelKey: 'keys_action_drag' },
         // qbx_k9unit:vault/qbx_k9unit:pursuitsprint (integration-sweep
         // fix): two REAL, working keybind commands that had ZERO
         // COMMAND_REFERENCE entry before that pass -- see
@@ -1562,10 +1483,9 @@
         // client/pursuitsprint.lua pair a RegisterKeyMapping, whose own id
         // must be globally unique across every resource a server loads,
         // unlike a chat-only command.
-        { command: 'qbx_k9unit:vault', category: 'combat', adminOnly: false, usageKey: 'cmdref_vault_usage', doesKey: 'cmdref_vault_does', needsKey: 'cmdref_vault_needs', gate: { kind: 'access', featureKey: 'AgilityAdvanced' }, defaultKeybind: 'X' },
-        { command: 'qbx_k9unit:pursuitsprint', category: 'combat', adminOnly: false, usageKey: 'cmdref_pursuitsprint_usage', doesKey: 'cmdref_pursuitsprint_does', needsKey: 'cmdref_pursuitsprint_needs', gate: { kind: 'access', featureKey: 'PursuitSprint' }, defaultKeybind: 'N' },
-        { command: 'qbx_k9unit:toggleCamera', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_camera_usage', doesKey: 'cmdref_toggle_camera_does', needsKey: 'cmdref_toggle_camera_needs', gate: { kind: 'open' }, defaultKeybind: 'L' },
-        { command: 'qbx_k9unit:toggleCameraFeed', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_camera_feed_usage', doesKey: 'cmdref_toggle_camera_feed_does', needsKey: 'cmdref_toggle_camera_feed_needs', gate: { kind: 'access', featureKey: 'CameraFeedPiP' }, defaultKeybind: 'H', defaultKeybindConfigurable: true },
+        { command: 'qbx_k9unit:vault', category: 'combat', adminOnly: false, usageKey: 'cmdref_vault_usage', doesKey: 'cmdref_vault_does', needsKey: 'cmdref_vault_needs', gate: { kind: 'access', featureKey: 'AgilityAdvanced' }, defaultKeybind: 'X', keyLabelKey: 'keys_action_vault' },
+        { command: 'qbx_k9unit:pursuitsprint', category: 'combat', adminOnly: false, usageKey: 'cmdref_pursuitsprint_usage', doesKey: 'cmdref_pursuitsprint_does', needsKey: 'cmdref_pursuitsprint_needs', gate: { kind: 'access', featureKey: 'PursuitSprint' }, defaultKeybind: 'N', keyLabelKey: 'keys_action_pursuit_sprint' },
+        { command: 'qbx_k9unit:toggleCamera', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_camera_usage', doesKey: 'cmdref_toggle_camera_does', needsKey: 'cmdref_toggle_camera_needs', gate: { kind: 'open' }, defaultKeybind: 'L', keyLabelKey: 'keys_action_toggle_camera' },
         // qbx_k9unit:toggleThermalVision / qbx_k9unit:toggleNightVision --
         // OWNER REVERSAL (coder-architect, this pass): an earlier pass had
         // folded these two into a single 'k9vision' cycle entry and removed
@@ -1579,14 +1499,12 @@
         // tests/commandreferenceregistry_spec.lua's HIDDEN_ALIAS_COMMANDS
         // ('vision' family, now empty) / COMMANDS_TAB_CLEANUP_COMPLETE
         // (vision reverted to not-complete).
-        { command: 'qbx_k9unit:toggleThermalVision', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_thermal_vision_usage', doesKey: 'cmdref_toggle_thermal_vision_does', needsKey: 'cmdref_toggle_thermal_vision_needs', gate: { kind: 'open', featureKey: 'ThermalVision' }, defaultKeybind: 'K', defaultKeybindConfigurable: true },
-        { command: 'qbx_k9unit:toggleNightVision', category: 'vision', adminOnly: false, usageKey: 'cmdref_toggle_night_vision_usage', doesKey: 'cmdref_toggle_night_vision_does', needsKey: 'cmdref_toggle_night_vision_needs', gate: { kind: 'open', featureKey: 'NightVision' }, defaultKeybind: 'J', defaultKeybindConfigurable: true },
         // 'k9vision' (Off -> Night -> Thermal -> Off) is KEPT as an extra,
         // optional convenience alongside the two explicit toggles above --
         // owner's own steer ("keep it as an extra... someone may prefer
         // it"), same additive shape as 'k9kennel' alongside
         // k9deploykennel/k9exitkennel (docs/history/COMMAND_CONSOLIDATION_SPEC.md #5).
-        { command: 'k9vision', category: 'vision', adminOnly: false, usageKey: 'cmdref_k9vision_usage', doesKey: 'cmdref_k9vision_does', needsKey: 'cmdref_k9vision_needs', gate: { kind: 'open' }, defaultKeybind: 'I' },
+        { command: 'k9vision', category: 'vision', adminOnly: false, usageKey: 'cmdref_k9vision_usage', doesKey: 'cmdref_k9vision_does', needsKey: 'cmdref_k9vision_needs', gate: { kind: 'open' }, defaultKeybind: 'I', keyLabelKey: 'keys_action_vision_cycle' },
 
         // ---- Field Gear & Equipment ----
         // k9leash/k9vehicle/k9partner/k9gear/k9treat -- menu-parity pass
@@ -1611,14 +1529,7 @@
         // non-K9 EMS officer with the right job would read "Not certified").
         { command: 'k9treat', category: 'field_gear', adminOnly: false, usageKey: 'cmdref_k9treat_usage', doesKey: 'cmdref_k9treat_does', needsKey: 'cmdref_k9treat_needs', gate: { kind: 'open', featureKey: 'K9Medkit' } },
         { command: 'k9deploykennel', category: 'field_gear', adminOnly: false, usageKey: 'cmdref_k9deploykennel_usage', doesKey: 'cmdref_k9deploykennel_does', needsKey: 'cmdref_k9deploykennel_needs', gate: { kind: 'access', featureKey: 'DeployableKennel' } },
-        // k9exitkennel -- trap-hunt fix. UNCONDITIONAL (gate: 'open', no
-        // featureKey at all) on purpose, matching k9dropfetchball/
-        // k9recallfetchball above: client/keybinds.lua registers this
-        // command with NO Config.Features wrapper, and client/kennel.lua's
-        // ExitKennelRest() never gates on DeployableKennel, HasK9Access, or
-        // certification -- this is a confining-mechanic escape hatch, never
-        // gated on the way out.
-        { command: 'k9exitkennel', category: 'field_gear', adminOnly: false, usageKey: 'cmdref_k9exitkennel_usage', doesKey: 'cmdref_k9exitkennel_does', needsKey: 'cmdref_k9exitkennel_needs', gate: { kind: 'open' }, defaultKeybind: 'O' },
+        // (k9exitkennel removed: leave the kennel from the third eye or the K9 menu.)
         // k9kennel -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #5's merged, ADDITIVE
         // entry point (client/kennel.lua) -- reported as
         // PENDING_NEW_CANONICAL_COMMANDS while html/tablet.js was a hot
@@ -1653,11 +1564,6 @@
         { command: 'k9stats', category: 'records', adminOnly: false, usageKey: 'cmdref_k9stats_usage', doesKey: 'cmdref_k9stats_does', needsKey: 'cmdref_k9stats_needs', gate: { kind: 'access', featureKey: 'K9Leaderboard' } },
 
         // ---- Certification Management (admin) ----
-        { command: 'k9certify', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9certify_usage', doesKey: 'cmdref_k9certify_does', needsKey: 'cmdref_k9certify_needs', gate: { kind: 'capability', capability: 'k9.certify' } },
-        { command: 'k9decertify', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9decertify_usage', doesKey: 'cmdref_k9decertify_does', needsKey: 'cmdref_k9decertify_needs', gate: { kind: 'capability', capability: 'k9.certify' } },
-        { command: 'k9settier', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9settier_usage', doesKey: 'cmdref_k9settier_does', needsKey: 'cmdref_k9settier_needs', gate: { kind: 'capability', capability: 'k9.certify' } },
-        { command: 'k9specialize', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9specialize_usage', doesKey: 'cmdref_k9specialize_does', needsKey: 'cmdref_k9specialize_needs', gate: { kind: 'capability', capability: 'k9.certify' } },
-        { command: 'k9unspecialize', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9unspecialize_usage', doesKey: 'cmdref_k9unspecialize_does', needsKey: 'cmdref_k9unspecialize_needs', gate: { kind: 'capability', capability: 'k9.certify' } },
         // k9dog -- docs/history/COMMAND_CONSOLIDATION_SPEC.md #2's merged entry point
         // (server/dogcharacter.lua) -- reported as
         // PENDING_NEW_CANONICAL_COMMANDS while html/tablet.js was a hot
@@ -1675,13 +1581,10 @@
         // auto-inferred -- see that file's own header on why this specific
         // family keeps the destructive-action carve-out); the bare
         // '/k9dog <target>' form is read-only.
-        { command: 'k9dog', category: 'certification', adminOnly: true, usageKey: 'cmdref_k9dog_usage', doesKey: 'cmdref_k9dog_does', needsKey: 'cmdref_k9dog_needs', gate: { kind: 'highCommandOnly' } },
 
         // ---- XP Management (admin) ----
-        { command: 'k9givexp', category: 'xp', adminOnly: true, usageKey: 'cmdref_k9givexp_usage', doesKey: 'cmdref_k9givexp_does', needsKey: 'cmdref_k9givexp_needs', gate: { kind: 'capability', capability: 'k9.givexp' } },
 
         // ---- Audit & Oversight (admin) ----
-        { command: 'k9audit', category: 'audit', adminOnly: true, usageKey: 'cmdref_k9audit_usage', doesKey: 'cmdref_k9audit_does', needsKey: 'cmdref_k9audit_needs', gate: { kind: 'capability', capability: 'k9.audit', featureKey: 'AdminAuditCommands' } },
 
         // ---- Developer Tools (admin) ----
         { command: 'k9bonetool', category: 'devtools', adminOnly: true, usageKey: 'cmdref_k9bonetool_usage', doesKey: 'cmdref_k9bonetool_does', needsKey: 'cmdref_k9bonetool_needs', gate: { kind: 'highCommandOnly', featureKey: 'BoneSweepDevTool' } },
@@ -1692,7 +1595,6 @@
         // already require (IsHighCommand ONLY -- no rank/permission-grant
         // bypass, unlike certification's IsEligibleCertifier), reachable
         // without the tablet too.
-        { command: 'k9permission', category: 'permissions', adminOnly: true, usageKey: 'cmdref_k9permission_usage', doesKey: 'cmdref_k9permission_does', needsKey: 'cmdref_k9permission_needs', gate: { kind: 'highCommandOnly', featureKey: 'PermissionGrants' } },
     ];
     window.K9TabletCatalog = {
         DEFAULT_STRINGS: DEFAULT_STRINGS,

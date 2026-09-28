@@ -1108,6 +1108,19 @@ function HasK9Access(source)
         return true
     end
 
+    -- A HANDLER PARTNERED WITH A K9 has handler access for as long as the
+    -- partnership lasts. Partnering already needs a certified dog to accept
+    -- this officer and the officer to be in a K9 department (checked just
+    -- above too), so certifying the handler separately was a second step
+    -- that only got in the way: an uncertified partner could leash the dog
+    -- but not throw its ball, treat it or watch its camera. Only the human
+    -- side qualifies (isK9 == false) -- a dog still needs its own
+    -- certification, and dog-only moves still check the dog's model.
+    if type(GetActivePartnerCitizenId) == 'function' then
+        local partnerCid, isK9 = GetActivePartnerCitizenId(Player.PlayerData.citizenid)
+        if partnerCid and isK9 == false then return true end
+    end
+
     -- Opt-in bypass, defaults to nil/disabled per shipped config — do not
     -- change the default.
     --
@@ -2287,9 +2300,6 @@ end
 --- @param citizenid string
 --- @param jobName string
 local function SendGrantSuccessNextSteps(granterSrc, citizenid, jobName)
-    local cached = Certifications[citizenid]
-    local tierKey = (cached and cached.job == jobName and cached.tier) or DEFAULT_TIER
-
     local specCount = 0
     local specsForJob = Specializations[citizenid] and Specializations[citizenid][jobName]
     if type(specsForJob) == 'table' then
@@ -2303,9 +2313,66 @@ local function SendGrantSuccessNextSteps(granterSrc, citizenid, jobName)
 
     local requireGrantCount = CountFeaturesRequiringGrant()
     if requireGrantCount > 0 then
-        NotifyPlayer(granterSrc, locale('certifications.grant_success_next_steps', tierKey, requireGrantCount), 'inform')
+        NotifyPlayer(granterSrc, locale('certifications.grant_success_next_steps', requireGrantCount), 'inform')
     else
-        NotifyPlayer(granterSrc, locale('certifications.grant_success_next_steps_no_grants', tierKey), 'inform')
+        NotifyPlayer(granterSrc, locale('certifications.grant_success_next_steps_no_grants'), 'inform')
+    end
+end
+
+-- ======================================================================
+-- CERTIFY AS HANDLER OR AS K9 -- one step either way.
+--
+-- A certification is the credential BOTH halves of a team hold: the human
+-- handler (fetch, gear, the tablet's own abilities) and the player who
+-- plays the dog. Certifying used to ALWAYS turn the person into
+-- Config.Peds[1] as a side effect -- so certifying a human handler, which
+-- the Guide told every new handler to get, turned them into a German
+-- shepherd, and making a K9 of a specific breed took a certify AND a
+-- separate "Assign K9 Role".
+--
+-- Now the certifier says which they mean. `k9Model` nil = a handler: the
+-- certification is granted and nothing about how they look changes.
+-- `k9Model` = one of Config.Peds' models = a K9: certified AND turned into
+-- that breed, in the same action. The look change still only happens
+-- while Config.K9Appearance.applyPedModelOnCertify is on.
+--
+-- Who may do this is unchanged: a certifier could already turn someone
+-- into a dog by certifying them; this only lets them choose not to, or
+-- choose the breed.
+-- ======================================================================
+
+--- @param k9Model any
+--- @return boolean -- true for nil (a handler) or a model listed in Config.Peds
+local function IsValidK9ModelChoice(k9Model)
+    if k9Model == nil then return true end
+    if type(k9Model) ~= 'string' or k9Model == '' then return false end
+    for _, pedEntry in ipairs(Config.Peds or {}) do
+        if pedEntry.model == k9Model then return true end
+    end
+    return false
+end
+
+--- Applies the chosen breed after a successful certification, if one was
+--- chosen. A no-op for a handler.
+--- @param targetCitizenid string
+--- @param granterCitizenid string?
+--- @param k9Model string?
+--- True when this certify will itself turn the person into the chosen
+--- breed. Config.K9Appearance.requireK9ModelForRole ("only someone already
+--- on a K9 model may be certified") must not refuse a Certify-as-K9 for
+--- not being a dog YET -- becoming one is what this certify does.
+--- @param k9Model string?
+--- @return boolean
+local function WillApplyChosenK9Look(k9Model)
+    return k9Model ~= nil and Config.K9Appearance ~= nil and Config.K9Appearance.applyPedModelOnCertify == true
+        and type(ApplyK9AppearanceOnGrant) == 'function'
+end
+
+local function ApplyChosenK9Look(targetCitizenid, granterCitizenid, k9Model)
+    if k9Model == nil then return end
+    if Config.K9Appearance and Config.K9Appearance.applyPedModelOnCertify
+        and type(ApplyK9AppearanceOnGrant) == 'function' then
+        ApplyK9AppearanceOnGrant(targetCitizenid, granterCitizenid, k9Model)
     end
 end
 
@@ -2328,12 +2395,17 @@ end
 --- actually needs a real result instead of only a fire-and-forget toast.
 --- @param granterSrc number
 --- @param targetServerId number
+--- @param k9Model string? -- see CERTIFY AS HANDLER OR AS K9, above
 --- @return boolean ok
---- @return string outcome -- 'invalid_target' | 'not_eligible' | 'rate_limited' | 'self_certification_disabled' | 'target_must_be_online' | 'target_not_in_department' | 'target_too_far' | 'target_not_k9_model' | 'already_certified' | 'invalid_granter' | 'db_error' | 'ok'
-local function GrantCertification(granterSrc, targetServerId)
+--- @return string outcome -- 'invalid_target' | 'invalid_model' | 'not_eligible' | 'rate_limited' | 'self_certification_disabled' | 'target_must_be_online' | 'target_not_in_department' | 'target_too_far' | 'target_not_k9_model' | 'already_certified' | 'invalid_granter' | 'db_error' | 'ok'
+local function GrantCertification(granterSrc, targetServerId, k9Model)
     if type(targetServerId) ~= 'number' then
         NotifyPlayer(granterSrc, locale('certifications.invalid_target_id'), 'error')
         return false, 'invalid_target'
+    end
+    if not IsValidK9ModelChoice(k9Model) then
+        NotifyPlayer(granterSrc, locale('dogcharacter.invalid_model'), 'error')
+        return false, 'invalid_model'
     end
 
     if not IsEligibleCertifier(granterSrc) then
@@ -2412,7 +2484,7 @@ local function GrantCertification(granterSrc, targetServerId)
     -- does, at ITS OWN load time), so a config predating this feature or a
     -- config.lua edited out from under this table would otherwise throw
     -- here instead of falling back to the pre-decoupling behavior.
-    if Config.K9Appearance and Config.K9Appearance.requireK9ModelForRole == true then
+    if Config.K9Appearance and Config.K9Appearance.requireK9ModelForRole == true and not WillApplyChosenK9Look(k9Model) then
         local targetModel = GetEntityModel(GetPlayerPed(targetServerId))
         if not IsConfiguredK9Model(targetModel) then
             NotifyPlayer(granterSrc, locale('certifications.target_not_k9_model_hint'), 'error')
@@ -2611,12 +2683,9 @@ local function GrantCertification(granterSrc, targetServerId)
         -- model choice of its own, so ApplyK9AppearanceOnGrant's own
         -- documented default (Config.Peds[1].model) applies, exactly as it
         -- already does for a plain 'k9.access' grant.
-        if Config.K9Appearance and Config.K9Appearance.applyPedModelOnCertify
-            and type(ApplyK9AppearanceOnGrant) == 'function' then
-            ApplyK9AppearanceOnGrant(targetCitizenid, granterCitizenid)
-        end
+        ApplyChosenK9Look(targetCitizenid, granterCitizenid, k9Model)
 
-        NotifyPlayer(granterSrc, locale('certifications.grant_success_granter'), 'success')
+        NotifyPlayer(granterSrc, locale(k9Model and 'certifications.grant_success_granter_k9' or 'certifications.grant_success_granter'), 'success')
         NotifyPlayer(targetServerId, locale('certifications.grant_success_target'), 'success')
 
         -- WORKFLOW CLARITY (this pass, item 1 — "a certifier is never told
@@ -2664,9 +2733,15 @@ end
 --- @param granterSrc number
 --- @param citizenid string
 --- @param jobName string
+--- @param k9Model string? -- see CERTIFY AS HANDLER OR AS K9
 --- @return boolean ok
---- @return string outcome -- 'not_eligible' | 'on_cooldown' | 'invalid_target' | 'invalid_department' | 'model_check_requires_online' | 'target_online_use_online_action' | 'invalid_granter' | 'already_certified' | 'db_error' | 'ok'
-local function GrantCertificationOffline(granterSrc, citizenid, jobName)
+--- @return string outcome -- 'invalid_model' | 'not_eligible' | 'on_cooldown' | 'invalid_target' | 'invalid_department' | 'model_check_requires_online' | 'target_online_use_online_action' | 'invalid_granter' | 'already_certified' | 'db_error' | 'ok'
+local function GrantCertificationOffline(granterSrc, citizenid, jobName, k9Model)
+    if not IsValidK9ModelChoice(k9Model) then
+        NotifyPlayer(granterSrc, locale('dogcharacter.invalid_model'), 'error')
+        return false, 'invalid_model'
+    end
+
     if not IsEligibleCertifier(granterSrc) then
         NotifyPlayer(granterSrc, locale('certifications.not_authorized_to_certify_hint'), 'error')
         return false, 'not_eligible'
@@ -2690,7 +2765,7 @@ local function GrantCertificationOffline(granterSrc, citizenid, jobName)
     -- GrantCertificationForTablet's own header (immediately below) for the
     -- full "why this is the ONE deliberate refusal, never a silent
     -- no-model-check exception" writeup.
-    if Config.K9Appearance and Config.K9Appearance.requireK9ModelForRole == true then
+    if Config.K9Appearance and Config.K9Appearance.requireK9ModelForRole == true and not WillApplyChosenK9Look(k9Model) then
         NotifyPlayer(granterSrc, locale('certifications.certify_offline_requires_online_model_check'), 'error')
         return false, 'model_check_requires_online'
     end
@@ -2799,12 +2874,9 @@ local function GrantCertificationOffline(granterSrc, citizenid, jobName)
         -- SendSwapRequest already handle that case -- persisting the
         -- assignment and applying it for real the first time PlayerLoaded
         -- fires for them, per server/appearance.lua's own header).
-        if Config.K9Appearance and Config.K9Appearance.applyPedModelOnCertify
-            and type(ApplyK9AppearanceOnGrant) == 'function' then
-            ApplyK9AppearanceOnGrant(citizenid, granterCitizenid)
-        end
+        ApplyChosenK9Look(citizenid, granterCitizenid, k9Model)
 
-        NotifyPlayer(granterSrc, locale('certifications.grant_success_granter'), 'success')
+        NotifyPlayer(granterSrc, locale(k9Model and 'certifications.grant_success_granter_k9' or 'certifications.grant_success_granter'), 'success')
         -- WORKFLOW CLARITY (this pass, item 1) -- see GrantCertification's
         -- own identical call for the full writeup; computed from the same
         -- just-refreshed real state, only reached via the offline path here.
@@ -2898,8 +2970,9 @@ end
 --- surface as an error the UI can react to, never a silent substitution of
 --- what the operator actually clicked.
 --- @return boolean ok
+--- @param k9Model string? -- nil = handler; a Config.Peds model = certify as a K9 of that breed
 --- @return string outcome -- every GrantCertification/GrantCertificationOffline outcome, plus 'invalid_target' (shape) | 'invalid_department' | 'department_mismatch'
-local function GrantCertificationForTablet(granterSrc, citizenid, departmentKey)
+local function GrantCertificationForTablet(granterSrc, citizenid, departmentKey, k9Model)
     if type(citizenid) ~= 'string' or citizenid == '' or type(departmentKey) ~= 'string' or departmentKey == '' then
         return false, 'invalid_target'
     end
@@ -2909,15 +2982,30 @@ local function GrantCertificationForTablet(granterSrc, citizenid, departmentKey)
 
     local onlineTarget = exports.qbx_core:GetPlayerByCitizenId(citizenid)
     local onlineTargetSrc = onlineTarget and onlineTarget.PlayerData and onlineTarget.PlayerData.source
+    local ok, outcome
     if onlineTargetSrc then
         local liveJob = onlineTarget.PlayerData.job
         if not liveJob or liveJob.name ~= departmentKey then
             return false, 'department_mismatch'
         end
-        return GrantCertification(granterSrc, onlineTargetSrc)
+        ok, outcome = GrantCertification(granterSrc, onlineTargetSrc, k9Model)
+    else
+        ok, outcome = GrantCertificationOffline(granterSrc, citizenid, departmentKey, k9Model)
     end
 
-    return GrantCertificationOffline(granterSrc, citizenid, departmentKey)
+    -- The roster follows the certify choice: a breed puts them on the K9
+    -- roster, Handler on the Handler roster -- one press, not a second
+    -- "Hire as K9 / Handler" step for something the chief just chose.
+    -- server/roster.lua's RosterAssignPersonnelRole is the hook its own
+    -- header set aside for exactly this; it refuses harmlessly (e.g. an
+    -- offline target whose job cannot be confirmed) and never undoes the
+    -- certification.
+    if ok and type(RosterAssignPersonnelRole) == 'function' then
+        local granter = exports.qbx_core:GetPlayer(granterSrc)
+        local granterCid = granter and granter.PlayerData and granter.PlayerData.citizenid or 'unknown'
+        pcall(RosterAssignPersonnelRole, citizenid, departmentKey, k9Model and 'k9' or 'handler', granterCid)
+    end
+    return ok, outcome
 end
 
 --- DEVELOPER_REFERENCE.md §4.2/§4.3 revoke flow (manual). Called by both event 3 and

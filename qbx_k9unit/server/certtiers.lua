@@ -58,7 +58,7 @@
     GetCertificationTier/MeetsTierRequirement/HasSpecialization/
     QueryCertificationRecord/QueryActiveSpecializations): this file adds
     IsKnownCertificationTierKey/GetCertificationTierOrdinal/
-    ListCertificationTiers/GetCertificationTierCapabilities/
+    ListCertificationTiers/
     TierHasCapability. server/certifications/'s own five accessors are
     UNCHANGED in name and signature; only their internal ordinal/
     known-key lookups now defer to this file's live catalog instead of a
@@ -799,17 +799,6 @@ function ListCertificationTiers()
         list[#list + 1] = { key = key, label = entry.label, ordinal = entry.ordinal, capabilities = capsCopy }
     end
     return list
-end
-
---- @param key any
---- @return table<string, true> -- a COPY; {} for an unknown key, never nil
-function GetCertificationTierCapabilities(key)
-    local entry = type(key) == 'string' and TierByKey[key]
-    local copy = {}
-    if entry then
-        for capKey in pairs(entry.capabilities) do copy[capKey] = true end
-    end
-    return copy
 end
 
 --- @param key any

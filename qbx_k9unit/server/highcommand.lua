@@ -320,6 +320,18 @@
     its own call with `type(IsHighCommand) == 'function'`.
 ]]
 
+-- ADMIN CHAT COMMANDS ARE OFF BY DEFAULT (owner: "k9certify should only
+-- be done through the tablet", and all other admin work with it). They are
+-- only registered when Config.CommandTablet.adminChatCommands is true --
+-- the tablet does every one of these. The handlers below are kept (and
+-- tested) so an owner who wants console access can switch them back on.
+local function RegisterAdminCommand(name, handler, restricted)
+    if type(Config.CommandTablet) == 'table' and Config.CommandTablet.adminChatCommands == true then
+        RegisterCommand(name, handler, restricted)
+    end
+end
+
+
 -- ======================================================================
 -- CONFIG-SAFETY GUARD -- deferred into onResourceStart (NOT run at this
 -- file's own load time): IsHighCommand below is a resource-global that
@@ -732,7 +744,7 @@ AddEventHandler('onResourceStart', function(resourceName)
 
     --- '/k9givexp [server id] [amount]' -- see this file's header for the
     --- full design writeup.
-    RegisterCommand('k9givexp', function(source, args)
+    RegisterAdminCommand('k9givexp', function(source, args)
         -- Authorization checked BEFORE argument shape, mirroring
         -- server/admin.lua's own k9audit* ordering ("an unauthorized
         -- caller learns nothing about argument validity") -- appropriate
@@ -807,7 +819,7 @@ AddEventHandler('onResourceStart', function(resourceName)
             return
         end
 
-        NotifyPlayer(source, locale('highcommand.grant_success_granter', amount, recipientCitizenid, newTotal or amount), 'success')
+        NotifyPlayer(source, locale('highcommand.grant_success_granter', amount, (type(CharacterNameForCitizenId) == 'function' and CharacterNameForCitizenId(recipientCitizenid) or recipientCitizenid), newTotal or amount), 'success')
 
         if redirectedToPartner then
             -- directCitizenid (the handler actually targeted) is the one
@@ -879,7 +891,7 @@ AddEventHandler('onResourceStart', function(resourceName)
                 return { ok = false, error = outcome }
             end
 
-            return { ok = true, message = locale('highcommand.grant_success_granter', amount, recipientCitizenid, newTotal or amount) }
+            return { ok = true, message = locale('highcommand.grant_success_granter', amount, (type(CharacterNameForCitizenId) == 'function' and CharacterNameForCitizenId(recipientCitizenid) or recipientCitizenid), newTotal or amount) }
         end)
     end
 

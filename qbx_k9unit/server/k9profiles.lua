@@ -855,7 +855,7 @@ end
 --- (never existed, or tombstoned). A COPY, not the live table, so a caller
 --- cannot mutate this file's own authoritative cache by editing the
 --- returned value -- same discipline server/certtiers.lua's
---- ListCertificationTiers/GetCertificationTierCapabilities already apply.
+--- ListCertificationTiers already apply.
 --- @param citizenid any
 --- @return table? override
 local function GetK9IndividualOverride(citizenid)

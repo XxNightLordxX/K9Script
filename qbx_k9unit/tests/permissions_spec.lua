@@ -344,7 +344,7 @@ local function newFixture(opts)
         -- passes `opts.featureControl`/`opts.commandTabletConfig` continues
         -- to load a Config with neither field, unaffected by this addition.
         FeatureControl = opts.featureControl,
-        CommandTablet = opts.commandTabletConfig,
+        CommandTablet = opts.commandTabletConfig or { adminChatCommands = true }, -- admin chat commands are off by default; these tests drive them
     }
 
     -- COULD-NOT-DETERMINE RESYNC SWEEP (lifecycle QA pass, this pass):
@@ -617,6 +617,7 @@ local function newIntegrationFixture()
     local libStub = { callback = { register = function(_name, _fn) end } }
 
     local Config = {
+        CommandTablet = { adminChatCommands = true }, -- admin chat commands are off by default; these tests drive them
         -- BiteAndHold, this pass: a real Config.Features key with no other
         -- meaning to this fixture, purely so 'feature.BiteAndHold'/
         -- 'block.BiteAndHold' validate against IsValidPermissionKey's own

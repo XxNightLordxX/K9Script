@@ -40,7 +40,7 @@
 
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findByText, findAll } = require('./tablet-dom-stub');
+const { findByText, findAll, openSettingsSection } = require('./tablet-dom-stub');
 
 function routeFetch(handlers) {
     return function (url, init) {
@@ -72,7 +72,7 @@ function baseHandlers(overrides) {
         // successfully and empty: this file is about the XP ladder, and a
         // failure in a neighbouring section would put a second Retry button
         // on screen and make the error assertions below ambiguous.
-        'tablet:certTiersList': () => ({ ok: true, tiers: [] }),
+        'tablet:rolesList': () => ({ ok: true, roles: [], unlockOptions: [], canManage: true }),
         'tablet:permKeysList': () => ({ ok: true, keys: [] }),
     }, overrides || {});
 }
@@ -83,7 +83,7 @@ async function openTablet(h) {
 }
 
 function openXpTiersTab(h) {
-    return findByText(h.getRoot(), 'Catalogs')[0].click();
+    return openSettingsSection(h.getRoot(), 'Catalogs');
 }
 
 /** The real four-rank shape server/xptiers.lua's own ListXPTiersSnapshot
@@ -119,7 +119,8 @@ t.test('high command sees the Catalogs tab, and XP Ranks is a section inside it 
         })),
     });
     await openTablet(h);
-    t.equals(findByText(h.getRoot(), 'Catalogs').length, 1, 'one tab, not three');
+    openSettingsSection(h.getRoot(), 'Catalogs');
+    t.equals(findByText(h.getRoot(), 'Catalogs').length, 1, 'one Catalogs section, not three separate screens');
 });
 
 // ======================================================================

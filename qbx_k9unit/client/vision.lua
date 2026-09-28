@@ -1,8 +1,9 @@
 --[[
     qbx_k9unit/client/vision.lua
 
-    Phase 2. fxmanifest.lua lists this file under
-    client_scripts, config.lua's Config.Vision (§11.2) has landed.
+    Phase 2. fxmanifest.lua lists this file under client_scripts. Its old
+    per-mode key settings were removed with the thermal/night keys; the one
+    vision key is k9vision (I).
 
     CORRECTED (owner's standing "reachable from chat, 3rd eye, and radial"
     audit, this pass) — THIS PARAGRAPH USED TO CLAIM "client/radial.lua
@@ -825,10 +826,9 @@ RegisterKeyMapping('k9vision', locale('vision.cycle_keybind_label'), 'keyboard',
 -- exactly that) -- this table is consulted everywhere below instead of
 -- reading `Config.CameraFeed` directly. Real values from config.lua (now
 -- shipped, matching these exactly) win the moment that table exists;
--- these three constants are the fallback defaults, used only if config.lua
+-- these constants are the fallback defaults, used only if config.lua
 -- is ever missing this table.
 local CAMERA_FEED_DEFAULTS = {
-    toggleKey = 'H',
     fov = 50.0,
     k9EyeHeightOffset = 0.65,
     handlerEyeHeightOffset = 1.6,
@@ -1137,67 +1137,16 @@ function ToggleCameraFeed()
     cameraFeedStartInProgress = false
 end
 
-if Config.Features.CameraFeedPiP then
-    RegisterCommand('qbx_k9unit:toggleCameraFeed', function()
-        -- KEYBIND SILENCE GATE (live-bug fix) -- a keypress carries no
-        -- evidence that a K9 action was intended, so a player who is not a K9
-        -- gets nothing at all instead of a refusal toast. See
-        -- IsK9KeybindAudience() in client/main.lua for the full writeup of the
-        -- city-wide toast spam this closes.
-        if not IsK9KeybindAudience() then return end
+-- The partner camera has no key or command: it is opened from the tablet
+-- only (owner's choice) -- client/tablet.lua's FEATURE_TRIGGERS.CameraFeedPiP
+-- calls ToggleCameraFeed() above.
 
-        ToggleCameraFeed()
-    end, false)
-    RegisterKeyMapping('qbx_k9unit:toggleCameraFeed', locale('cameraFeed.toggle_keybind_label'), 'keyboard', GetCameraFeedConfig().toggleKey)
-end
-
--- Config-gated command + keybind registration for BOTH toggles — DEVELOPER_REFERENCE.md
--- §11.2's Config.Vision schema,
--- DEVELOPER_REFERENCE.md#vision §1's "Config-gated registration,
--- not just config-gated behavior" requirement. THIS IS THE ONE PLACE
--- this file DELIBERATELY diverges from ToggleK9Camera()'s exact
--- precedent, not just mirrors it: client/movement.lua's
--- RegisterCommand/RegisterKeyMapping for the camera toggle is
--- UNCONDITIONAL (camera has no Config.Features entry to gate on at all).
--- Thermal/night vision DO have Config.Features.ThermalVision /
--- .NightVision entries (already present in config.lua today), so per
--- DEVELOPER_REFERENCE.md §3's hard requirement ("read at the point where that feature
--- would activate... command registration... not read once at resource
--- start and then ignored"), each registration below must be wrapped in
--- its OWN independent `if Config.Features.X then ... end` at file-load
--- time — mirrors client/radial.lua's existing convention of only pushing
--- a flagged item into its array at file-load time, applied here to
--- RegisterCommand/RegisterKeyMapping instead of a radial item array
--- entry. The two flags are fully independent (§11.2's config comment: "a
--- server can enable exactly one of the two... in which case only that
--- one keybind/command gets registered at all") — do not couple their
--- registration together.
-if Config.Features.ThermalVision then
-    RegisterCommand('qbx_k9unit:toggleThermalVision', function()
-        -- KEYBIND SILENCE GATE (live-bug fix) -- a keypress carries no
-        -- evidence that a K9 action was intended, so a player who is not a K9
-        -- gets nothing at all instead of a refusal toast. See
-        -- IsK9KeybindAudience() in client/main.lua for the full writeup of the
-        -- city-wide toast spam this closes.
-        if not IsK9KeybindAudience() then return end
-
-        ToggleThermalVision()
-    end, false)
-    RegisterKeyMapping('qbx_k9unit:toggleThermalVision', locale('vision.thermal_keybind_label'), 'keyboard', Config.Vision.Thermal.toggleKey)
-end
-if Config.Features.NightVision then
-    RegisterCommand('qbx_k9unit:toggleNightVision', function()
-        -- KEYBIND SILENCE GATE (live-bug fix) -- a keypress carries no
-        -- evidence that a K9 action was intended, so a player who is not a K9
-        -- gets nothing at all instead of a refusal toast. See
-        -- IsK9KeybindAudience() in client/main.lua for the full writeup of the
-        -- city-wide toast spam this closes.
-        if not IsK9KeybindAudience() then return end
-
-        ToggleNightVision()
-    end, false)
-    RegisterKeyMapping('qbx_k9unit:toggleNightVision', locale('vision.night_keybind_label'), 'keyboard', Config.Vision.Night.toggleKey)
-end
+-- NO SEPARATE THERMAL / NIGHT VISION KEYS (owner: "the thermal and night
+-- vision keybinds are completely removed, only keep the cycle vision"). The
+-- K and J keys and their commands are gone; k9vision (I) above cycles off ->
+-- night -> thermal, and the K9 menu's Senses group still has a button for
+-- each mode. ToggleThermalVision()/ToggleNightVision() stay -- the cycle and
+-- the menu call them.
 -- These two OLD per-mode toggles are still deliberately NOT added to
 -- client/radial.lua individually — per §11.3's original file-plan row,
 -- "Vision toggles and door interaction are not added to the radial...

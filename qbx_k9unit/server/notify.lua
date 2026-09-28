@@ -179,3 +179,39 @@ function NotifyPlayer(target, description, notifyType, title)
         type = notifyType or 'info',
     })
 end
+
+--- A person's character name ("Sam Test") for a message, from their
+--- server id. Falls back to their FiveM name, then "player <id>", so a
+--- message is never blank.
+--- @param src number
+--- @return string
+function CharacterNameForSource(src)
+    local ok, player = pcall(function() return exports.qbx_core:GetPlayer(src) end)
+    local info = ok and player and player.PlayerData and player.PlayerData.charinfo
+    if type(info) == 'table' and type(info.firstname) == 'string' and info.firstname ~= '' then
+        return (info.firstname .. ' ' .. (type(info.lastname) == 'string' and info.lastname or '')):match('^%s*(.-)%s*$')
+    end
+    local okName, name = pcall(GetPlayerName, src)
+    if okName and type(name) == 'string' and name ~= '' then return name end
+    return ('player %s'):format(tostring(src))
+end
+
+--- Same as CharacterNameForSource, from a citizen id; falls back to the
+--- citizen id itself when that person is offline.
+--- @param citizenid string
+--- @return string
+function CharacterNameForCitizenId(citizenid)
+    local ok, player = pcall(function() return exports.qbx_core:GetPlayerByCitizenId(citizenid) end)
+    local src = ok and player and player.PlayerData and player.PlayerData.source
+    if type(src) == 'number' then return CharacterNameForSource(src) end
+    return tostring(citizenid)
+end
+
+--- A role's display name ("Tactical K9") from its key, for messages.
+--- @param roleKey string
+--- @return string
+function RoleDisplayName(roleKey)
+    local def = type(Config.K9Specializations) == 'table' and Config.K9Specializations[roleKey] or nil
+    if type(def) == 'table' and type(def.label) == 'string' and def.label ~= '' then return def.label end
+    return tostring(roleKey)
+end

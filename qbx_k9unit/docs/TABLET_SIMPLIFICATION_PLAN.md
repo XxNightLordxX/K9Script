@@ -396,3 +396,69 @@ person-shaped flows would remove the last two duplicate search boxes, one
 tab and roughly 90 strings, and would cost a walkthrough that a
 never-certified-anyone operator might still want. Keeping the Tuning flow
 alone is a coherent middle: it is the one that still crosses screens.
+
+## 9. Item I, decided and done
+
+The owner's answer, in full: *"continue i trust your decision."*
+
+**Decision: retire the three person-shaped flows, keep Tune the Server.**
+Reasoning is §8's re-measure, unchanged — Set Up a New Handler, Offboard and
+Problem Player had each become the Person screen's own sections, in that same
+order, reached through a second person-search box. Tuning is the one that
+still sequences work no single screen holds.
+
+Two things followed from having one flow left, neither of which §4 anticipated:
+
+- **The hub went too.** It existed to choose between four cards. A hub holding
+  one card is a click that asks no question, so the tab now opens the flow
+  directly.
+- **The tab was renamed** from "Guided Flows" to **Server Tuning**. A tab named
+  after a plural category, holding exactly one thing, misdescribes itself.
+
+### Measured, before and after, the same way both times
+
+| | Before (`e978ae3`) | After |
+|---|---|---|
+| `build*Screen()` functions | 21 | **17** |
+| `mk('input'` call sites | 42 | **40** |
+| Tabs (High Command) | 11 | 11 |
+| Keys in the `tablet` locale group | 1,085 | **1,011** |
+| Lines in `html/tablet.js` | 13,895 | **12,916** |
+
+Note the tab count did **not** move: §8 guessed "one tab" would go, which was
+only ever true if all four flows went. Keeping Tuning keeps the tab. What did
+move is **979 lines** and **74 strings**, and the last two duplicate person
+search boxes on the tablet are gone — which was item C's actual goal all along.
+
+### What the retirement surfaced
+
+Three player-facing help strings still described the retired flows, and were
+rewritten rather than deleted:
+
+- `help_start_high_command_1` told a new administrator to *"Open the Guided
+  Flows tab first"* — the first instruction a new owner reads. It now points at
+  the Command Console.
+- `help_start_high_command_2` told them to use *"Set Up a New Handler"*. It now
+  describes working down the Person screen.
+- `help_task_hc_toggle_feature_3` named the old tab. It now names Server Tuning.
+
+This is the same defect class as the README's stale "Help tab" references, and
+it is worth naming as a pattern: **retiring a screen is never just deleting the
+screen.** The instructions pointing at it are the part players actually read.
+
+### What was deliberately *not* lost
+
+`tablet_guided_flows_spec.js` had two escaping proofs that went through the
+retired flows (a malicious person name / department / feature label, and a
+malicious ped label). Those vectors are still covered — `tablet_xss_spec.js`
+exercises them directly against the Person screen, which is where those strings
+are actually rendered now. The flow-shaped copies were duplicates of that
+coverage, not the coverage itself. **Confirmed before deleting them, not
+assumed.**
+
+One test guard needed moving: `citationintegrity_spec.lua` asserted the tablet
+carried `> 900` string keys as a "did the scan silently break" floor. Removing
+74 keys landed it on exactly 900. The floor is now 800, with a comment saying
+what it is for — a floor set just under the current total turns every honest
+removal into a red build. The real contract it sits next to (same size, same
+keys, both directions, across all three files) is untouched and still passing.

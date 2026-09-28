@@ -333,6 +333,27 @@ body {
     margin-top: -4px;
 }
 
+/* Find a person: the label is a caption on its own line (see
+   .k9tablet-feature-filter-label), so this row must wrap -- without it the
+   full-width label pushed the search box and its Open button off the
+   right-hand edge of the tablet. */
+.k9tablet-find-person-toolbar {
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.k9tablet-find-person-toolbar .k9tablet-search {
+    flex: 1 1 260px;
+    max-width: 420px;
+}
+
+/* The two "how this works" sentences under Find a person / Open my own
+   record read as hints, like every other hint on the tablet. */
+.k9tablet-open-by-id-hint {
+    color: #9aa0ab;
+    font-size: 13px;
+}
+
 .k9tablet-warning-note {
     margin: 0 0 12px 0;
     padding: 8px 12px;
@@ -854,8 +875,7 @@ body {
     font-size: 12px;
 }
 
-.k9tablet-feature-state,
-.k9tablet-capability-state {
+.k9tablet-feature-state {
     font-size: 12px;
     color: #9aa0ab;
     white-space: nowrap;
@@ -1032,7 +1052,8 @@ body {
     flex-wrap: wrap;
 }
 
-.k9tablet-role-select {
+.k9tablet-role-select,
+.k9tablet-certify-as-select {
     background: #1c1f26;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
@@ -1101,7 +1122,9 @@ body {
 
 .k9tablet-theme-density-select,
 .k9tablet-cert-tier-key-input,
-.k9tablet-cert-tier-label-input {
+.k9tablet-cert-tier-label-input,
+.k9tablet-role-name-input,
+.k9tablet-role-xp-input {
     background: #14161a;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
@@ -1504,43 +1527,99 @@ body {
 }
 
 /*
-    GUIDED FLOWS (this pass) -- html/tablet.js's own buildFlowStepNav()/
-    buildFlowNavRow()/buildFlowPersonContext()/buildFlowPersonPicker()/
-    buildFlowsHubScreen(). SAME "reuse, don't reinvent" posture as Runtime
-    Control/Audit Trail above: the hub screen's four cards are literally
-    .k9tablet-home-actions/.k9tablet-home-action-card (buildHomeActionCard(),
-    unchanged), the step nav is .k9tablet-tab/.k9tablet-tab--active
-    (unchanged), and every button is a plain .k9tablet-btn/.k9tablet-link-btn.
-    These few rules are LAYOUT ONLY -- no new colour, no new custom
-    property -- just spacing for the wrapper elements those reused pieces
-    sit inside.
+    PERSON SCREEN FOLDOUTS -- html/tablet.js's buildPersonFoldout(): the
+    rarely used sections fold away behind their heading. The summary keeps
+    the section-heading look plus a turning arrow so it reads as clickable.
 */
-.k9tablet-flow-steps {
-    margin-bottom: 12px;
+.k9tablet-person-foldout {
+    margin-top: 12px;
+    border-top: 1px solid rgba(127, 127, 127, 0.25);
+    padding-top: 4px;
 }
 
-.k9tablet-flow-nav {
-    display: flex;
-    gap: 8px;
-    margin-top: 16px;
+.k9tablet-person-foldout-summary {
+    cursor: pointer;
+    list-style: none;
 }
 
-.k9tablet-flow-person-context {
+.k9tablet-person-foldout-summary::-webkit-details-marker {
+    display: none;
+}
+
+.k9tablet-person-foldout-summary::before {
+    content: '\25B8';
+    display: inline-block;
+    margin-right: 8px;
+    transition: transform 0.15s ease;
+}
+
+.k9tablet-person-foldout[open] > .k9tablet-person-foldout-summary::before {
+    transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .k9tablet-person-foldout-summary::before { transition: none; }
+}
+
+/*
+    YOUR KEYS -- html/tablet.js's own buildKeysListSection(): a key cap and
+    what it does, one per row, two columns where there is room. Uses the
+    theme's own colours; layout only otherwise.
+*/
+.k9tablet-keys-list {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 6px 16px;
+}
+
+.k9tablet-keys-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.k9tablet-key {
+    display: inline-block;
+    min-width: 2.2em;
+    padding: 2px 8px;
+    text-align: center;
+    font-family: inherit;
+    font-weight: 700;
+    border: 1px solid rgba(127, 127, 127, 0.45);
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    background: rgba(127, 127, 127, 0.12);
+    white-space: nowrap;
+}
+
+/*
+    SERVER SETTINGS section picker -- html/tablet.js's own
+    buildSettingsSectionNav(). The buttons are plain .k9tablet-tab /
+    .k9tablet-tab--active (the same nested-tab look as the Audit Trail's
+    mode switch); this only spaces the row from the screen below it.
+*/
+.k9tablet-settings-sections {
     margin-bottom: 12px;
 }
 
-.k9tablet-flow-picker {
+/*
+    CERTIFY AS HANDLER OR AS K9 -- html/tablet.js's own
+    buildCertifyAsControl(): the picker and the Certify button on one line,
+    the hint under them. Layout only.
+*/
+.k9tablet-certify-as {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
-.k9tablet-flow-step-body {
-    margin-top: 8px;
+.k9tablet-certify-as .k9tablet-hint {
+    flex-basis: 100%;
+    margin: 0;
 }
 
 /*
@@ -1583,4 +1662,33 @@ body {
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 16px;
+}
+
+/*
+    Buttons inside the person page's column layouts (Renew under a
+    certification; Keep as a Dog / Revert to Human under K9 Role) size to
+    their label instead of stretching across the whole tablet, matching
+    every other button on the page.
+*/
+.k9tablet-cert-detail > .k9tablet-btn,
+.k9tablet-role-control > .k9tablet-btn {
+    align-self: flex-start;
+}
+
+/* Roster Role's K9 / Handler buttons sat touching each other. */
+.k9tablet-roster-role-section .k9tablet-btn + .k9tablet-btn {
+    margin-left: 8px;
+}
+
+/* Roles editor: the "Unlocks" caption sits in a column, where the shared
+   label's fixed 140px basis turned into 140px of empty height. */
+.k9tablet-cert-tier-capabilities > .k9tablet-theme-field-label {
+    flex: 0 0 auto;
+    margin: 0 0 2px 0;
+}
+
+.k9tablet-role-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }

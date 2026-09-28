@@ -243,6 +243,18 @@
     edit surface.
 ]]
 
+-- ADMIN CHAT COMMANDS ARE OFF BY DEFAULT (owner: "k9certify should only
+-- be done through the tablet", and all other admin work with it). They are
+-- only registered when Config.CommandTablet.adminChatCommands is true --
+-- the tablet does every one of these. The handlers below are kept (and
+-- tested) so an owner who wants console access can switch them back on.
+local function RegisterAdminCommand(name, handler, restricted)
+    if type(Config.CommandTablet) == 'table' and Config.CommandTablet.adminChatCommands == true then
+        RegisterCommand(name, handler, restricted)
+    end
+end
+
+
 -- ======================================================================
 -- CONFIG-SAFETY -- CLAMP AND WARN, NEVER ASSERT (this resource's own
 -- established rule -- see server/appearance.lua's own header for the full
@@ -650,7 +662,7 @@ if Config.Features and Config.Features.HighCommand == true then
         end
     end
 
-    RegisterCommand('k9setdog', function(source, args)
+    RegisterAdminCommand('k9setdog', function(source, args)
         HandleSetDog(source, args)
     end, false)
 
@@ -688,7 +700,7 @@ if Config.Features and Config.Features.HighCommand == true then
         end
     end
 
-    RegisterCommand('k9removedog', function(source, args)
+    RegisterAdminCommand('k9removedog', function(source, args)
         HandleRemoveDog(source, args)
     end, false)
 
@@ -722,7 +734,7 @@ if Config.Features and Config.Features.HighCommand == true then
         return shifted
     end
 
-    RegisterCommand('k9dog', function(source, args)
+    RegisterAdminCommand('k9dog', function(source, args)
         local subcommand = args[1]
         local handler = subcommand and DOG_SUBCOMMAND_HANDLERS[subcommand]
 

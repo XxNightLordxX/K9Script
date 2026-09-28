@@ -458,7 +458,16 @@
      */
     function applyStat(stat, rawValue) {
         var els = statEls[stat];
-        if (!els) return; // TODO: should not happen once markup/JS agree; defensive no-op if it does
+        // UNREACHABLE IN THE SHIPPED PAIRING, kept anyway. This carried a
+        // TODO ("should not happen once markup/JS agree") until the two
+        // were checked against each other: statEls is built from exactly
+        // three keys -- health, stamina, fatigue -- and index.html carries
+        // all nine matching data-stat-row/data-fill/data-value attributes
+        // for them, so every real call resolves. The guard stays because a
+        // fork that edits the markup, or a call before index.html has
+        // parsed, would otherwise throw inside a render path; a silent
+        // no-op there is better than a dead HUD.
+        if (!els) return;
 
         var pct = clampPercent(rawValue);
         els.fill.style.width = pct + '%';
@@ -474,7 +483,15 @@
      * merely left at a stale/zeroed value. Only touches the fill/value DOM
      * when actually visible, mirroring handleUpdateVitals' own
      * "don't bother touching bar DOM while hidden" posture for the
-     * original four stats.
+     * ungated stats (health and stamina).
+     *
+     * FATIGUE IS THE ONLY CALLER LEFT. This used to gate several rows --
+     * hunger and thirst among them -- and the sentence above used to say
+     * "the original four stats". Those rows went with the wellbeing
+     * subsystems removed on 2026-09-02; fatigue is the one that survived,
+     * and it is still gated because Config.Features.FatigueSystem can be
+     * off, in which case Lua omits the key and this row must be genuinely
+     * absent rather than showing a stale zero.
      * @param {'fatigue'} stat
      * @param {*} rawValue -- typeof 'number' means present; anything else (undefined, since Lua omits the key entirely) means absent
      */

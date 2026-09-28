@@ -98,7 +98,8 @@
       waste.
     - 'qbx_k9unit:client:leashAttachRequest' (fromServerId: number)
       [client/movement.lua] — shown to the target as an accept/decline
-      prompt.
+      prompt. Never sent between two active partners: their leash goes on
+      directly (see AreLeashPartiesPartnered).
     - 'qbx_k9unit:client:leashAttached' (partnerServerId: number, isConstrained: boolean)
       [client/movement.lua] — sent individually to BOTH parties once
       accepted, each with their OWN role flag. `isConstrained = true`
@@ -1221,9 +1222,46 @@ local function CheckLeashEligibility(initiatorSrc, targetSrc)
     return true, k9Src, officerSrc
 end
 
+--- Forms the pair and tells both clients. The ONE place a leash pairing
+--- is created -- reached from the accept branch of respondLeashAttach, and
+--- directly from requestLeashAttach for a bonded partner (below). Both
+--- callers have already run CheckLeashEligibility immediately before.
+--- @param k9Src number
+--- @param officerSrc number
+local function FormLeashPair(k9Src, officerSrc)
+    LeashPairs[k9Src] = { partner = officerSrc, isK9 = true }
+    LeashPairs[officerSrc] = { partner = k9Src, isK9 = false }
+
+    TriggerClientEvent('qbx_k9unit:client:leashAttached', k9Src, officerSrc, true)  -- isConstrained = true
+    TriggerClientEvent('qbx_k9unit:client:leashAttached', officerSrc, k9Src, false) -- isConstrained = false
+end
+
+--- PARTNERS SKIP THE PROMPT. A handler and K9 who are partnered already
+--- said yes to working together -- the partnership itself was a two-sided
+--- accept (server/partnership.lua). Asking them to accept again every time
+--- the leash goes on, in the middle of a pursuit, was the most repeated
+--- prompt in the resource. Everyone else still gets asked.
+---
+--- Read from server/partnership.lua's live cache, behind the same runtime
+--- existence guard every other cross-file call here uses. Partnership off,
+--- or that file absent, simply means "not partners": the prompt stays.
+--- @param k9Src number
+--- @param officerSrc number
+--- @return boolean
+local function AreLeashPartiesPartnered(k9Src, officerSrc)
+    if type(IsActivePartnerOf) ~= 'function' then return false end
+    if not (Config.Features and Config.Features.HandlerPartnership == true) then return false end
+    local k9Player = exports.qbx_core:GetPlayer(k9Src)
+    local officerPlayer = exports.qbx_core:GetPlayer(officerSrc)
+    local k9Cid = k9Player and k9Player.PlayerData and k9Player.PlayerData.citizenid
+    local officerCid = officerPlayer and officerPlayer.PlayerData and officerPlayer.PlayerData.citizenid
+    if type(k9Cid) ~= 'string' or type(officerCid) ~= 'string' then return false end
+    return IsActivePartnerOf(k9Cid, officerCid) == true
+end
+
 --- Step 1 of the consent handshake: initiator asks to attach to target.
---- Does NOT form the pair — only relays a prompt to the target if the
---- request itself is currently valid.
+--- For two partners the pair forms right here (see AreLeashPartiesPartnered);
+--- otherwise this only relays a prompt to the target.
 --- @param targetServerId number
 RegisterNetEvent('qbx_k9unit:server:requestLeashAttach', function(targetServerId)
     local src = source
@@ -1233,9 +1271,17 @@ RegisterNetEvent('qbx_k9unit:server:requestLeashAttach', function(targetServerId
         return
     end
 
-    local ok, _, _, reason = CheckLeashEligibility(src, targetServerId)
+    local ok, eligibleK9Src, eligibleOfficerSrc, reason = CheckLeashEligibility(src, targetServerId)
     if not ok then
         NotifyPlayer(src, LeashRejectReasonMessage(reason), 'error')
+        return
+    end
+
+    if AreLeashPartiesPartnered(eligibleK9Src, eligibleOfficerSrc) then
+        -- Same rate limit as a prompted request, so attach/detach cannot be
+        -- spammed just because no prompt is involved.
+        if not LeashRequestCooldown.Consume(src) then return end
+        FormLeashPair(eligibleK9Src, eligibleOfficerSrc)
         return
     end
 
@@ -1365,11 +1411,7 @@ RegisterNetEvent('qbx_k9unit:server:respondLeashAttach', function(fromServerId, 
         return
     end
 
-    LeashPairs[k9Src] = { partner = officerSrc, isK9 = true }
-    LeashPairs[officerSrc] = { partner = k9Src, isK9 = false }
-
-    TriggerClientEvent('qbx_k9unit:client:leashAttached', k9Src, officerSrc, true)  -- isConstrained = true
-    TriggerClientEvent('qbx_k9unit:client:leashAttached', officerSrc, k9Src, false) -- isConstrained = false
+    FormLeashPair(k9Src, officerSrc)
 end)
 
 --- Internal detach helper — clears both halves of a pairing (if one exists)

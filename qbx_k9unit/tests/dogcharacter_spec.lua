@@ -157,6 +157,7 @@ local function newFixture(opts)
     end
 
     local Config = {
+        CommandTablet = { adminChatCommands = true }, -- admin chat commands are off by default; these tests drive them
         Features = { HighCommand = true },
         Departments = {
             police = { label = 'Police', highCommandGrade = opts.highCommandGrade or 6 },

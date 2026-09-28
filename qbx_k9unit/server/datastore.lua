@@ -2615,6 +2615,128 @@ function K9Store.TierAudit_Append(action, tierKey, detail, changedBy)
     return true
 end
 
+-- ======================================================================
+-- k9_roles -- the K9 role catalog (server/roles.lua): each role's label,
+-- the XP it switches on at and what it unlocks, overlaid on the roles
+-- config.lua ships (Config.K9Specializations). Current-state table, one
+-- row per role_key, tombstoned (deleted = 1) rather than DELETEd so a
+-- config-shipped role can be removed too -- the same shape as
+-- k9_certification_tiers above. Same never-throws SafeQuery/SafeWrite
+-- contract as every accessor in this file.
+-- ======================================================================
+local RoleRows = {} -- role_key -> { role_key, label, xp_required, unlocks, deleted, updated_by, updated_at }
+
+--- Every role row ever written, tombstones included (server/roles.lua
+--- filters on `deleted`).
+--- @return table rows
+function K9Store.Role_GetAllRows()
+    if DatabaseEnabled('k9_roles') then
+        local ok, rowsOrErr = pcall(MySQL.query.await, 'SELECT role_key, label, xp_required, unlocks, deleted FROM k9_roles', {})
+        if not ok then
+            print(('[qbx_k9unit] datastore: Role_GetAllRows query failed: %s'):format(tostring(rowsOrErr)))
+            return {}
+        end
+        return rowsOrErr or {}
+    end
+    local out = {}
+    for roleKey, row in pairs(RoleRows) do
+        out[#out + 1] = { role_key = roleKey, label = row.label, xp_required = row.xp_required, unlocks = row.unlocks, deleted = row.deleted }
+    end
+    return out
+end
+
+--- Creates or updates a role (always un-tombstones it).
+--- @return boolean ok
+function K9Store.Role_Upsert(roleKey, label, xpRequired, unlocks, updatedBy)
+    if DatabaseEnabled('k9_roles') then
+        local ok, err = pcall(MySQL.query.await,
+            'INSERT INTO k9_roles (role_key, label, xp_required, unlocks, deleted, updated_by) VALUES (?, ?, ?, ?, 0, ?) ' ..
+            'ON DUPLICATE KEY UPDATE label = VALUES(label), xp_required = VALUES(xp_required), unlocks = VALUES(unlocks), ' ..
+            'deleted = 0, updated_by = VALUES(updated_by), updated_at = CURRENT_TIMESTAMP',
+            { roleKey, label, xpRequired, unlocks, updatedBy })
+        if not ok then
+            print(('[qbx_k9unit] datastore: Role_Upsert write failed for %s: %s'):format(tostring(roleKey), tostring(err)))
+            return false
+        end
+        return true
+    end
+    RoleRows[roleKey] = { role_key = roleKey, label = label, xp_required = xpRequired, unlocks = unlocks, deleted = 0,
+        updated_by = updatedBy, updated_at = FormatDateTime(NowUnix()) }
+    return true
+end
+
+--- Removes a role (a tombstone row, so a config-shipped role stays gone).
+--- @return boolean ok
+function K9Store.Role_Tombstone(roleKey, label, updatedBy)
+    if DatabaseEnabled('k9_roles') then
+        local ok, err = pcall(MySQL.query.await,
+            'INSERT INTO k9_roles (role_key, label, xp_required, unlocks, deleted, updated_by) VALUES (?, ?, 0, \'\', 1, ?) ' ..
+            'ON DUPLICATE KEY UPDATE deleted = 1, updated_by = VALUES(updated_by), updated_at = CURRENT_TIMESTAMP',
+            { roleKey, label, updatedBy })
+        if not ok then
+            print(('[qbx_k9unit] datastore: Role_Tombstone write failed for %s: %s'):format(tostring(roleKey), tostring(err)))
+            return false
+        end
+        return true
+    end
+    local existing = RoleRows[roleKey] or {}
+    RoleRows[roleKey] = { role_key = roleKey, label = existing.label or label, xp_required = existing.xp_required or 0,
+        unlocks = existing.unlocks or '', deleted = 1, updated_by = updatedBy, updated_at = FormatDateTime(NowUnix()) }
+    return true
+end
+
+-- k9_role_audit -- append-only history of role edits (server/roles.lua),
+-- read by the tablet's Audit Trail (Catalog Changes). Same shape and
+-- never-throws contract as k9_xp_tier_audit below; a bounded in-memory
+-- ring when the table is unavailable.
+local ROLE_AUDIT_MEMORY_CAP = 200
+local RoleAuditRows = {}
+
+--- @param action string -- 'role_create' | 'role_update' | 'role_delete'
+--- @param roleKey string
+--- @param detail string
+--- @param changedBy string
+--- @return boolean ok
+function K9Store.RoleAudit_Append(action, roleKey, detail, changedBy)
+    if DatabaseEnabled('k9_role_audit') then
+        local ok, err = pcall(MySQL.query.await,
+            'INSERT INTO k9_role_audit (action, role_key, detail, changed_by) VALUES (?, ?, ?, ?)',
+            { action, roleKey, detail, changedBy })
+        if not ok then
+            print(('[qbx_k9unit] datastore: RoleAudit_Append write failed: %s'):format(tostring(err)))
+            return false
+        end
+        return true
+    end
+    RoleAuditRows[#RoleAuditRows + 1] = { action = action, role_key = roleKey, detail = detail, changed_by = changedBy, changed_at = FormatDateTime(NowUnix()) }
+    while #RoleAuditRows > ROLE_AUDIT_MEMORY_CAP do
+        table.remove(RoleAuditRows, 1)
+    end
+    return true
+end
+
+--- @param limit any
+--- @return table rows -- { { action, role_key, detail, changed_by, changed_at }, ... }, most recent first
+function K9Store.RoleAudit_GetRecent(limit)
+    limit = SanitizeLimit(limit)
+    if DatabaseEnabled('k9_role_audit') then
+        local sql = ('SELECT action, role_key, detail, changed_by, changed_at FROM k9_role_audit ORDER BY id DESC LIMIT %d'):format(limit)
+        local ok, rowsOrErr = pcall(MySQL.query.await, sql, {})
+        if not ok then
+            print(('[qbx_k9unit] datastore: RoleAudit_GetRecent query failed: %s'):format(tostring(rowsOrErr)))
+            return {}
+        end
+        return rowsOrErr or {}
+    end
+    local out = {}
+    for i = #RoleAuditRows, 1, -1 do
+        local row = RoleAuditRows[i]
+        out[#out + 1] = { action = row.action, role_key = row.role_key, detail = row.detail, changed_by = row.changed_by, changed_at = row.changed_at }
+        if #out >= limit then break end
+    end
+    return out
+end
+
 --- GAP 2 CLOSURE -- see K9Store.OverrideAudit_GetRecent's own doc comment
 --- (k9_runtime_override_audit section, near the top of this file) for the
 --- full contract this mirrors exactly.
@@ -3798,6 +3920,8 @@ local EXPECTED_TABLE_COLUMNS = {
     -- these two tables exactly (both fixed in the same change) -- keep both
     -- in sync if either changes.
     k9_permission_keys                 = { 'permission_key', 'label', 'description', 'deleted', 'created_at', 'updated_by', 'updated_at' },
+    k9_roles                           = { 'role_key', 'label', 'xp_required', 'unlocks', 'deleted', 'created_at', 'updated_by', 'updated_at' },
+    k9_role_audit                      = { 'id', 'action', 'role_key', 'detail', 'changed_by', 'changed_at' },
     k9_permission_key_audit            = { 'id', 'action', 'permission_key', 'detail', 'changed_by', 'changed_at' },
     -- SCHEMA-SAFETY AUDIT FIX (db-schema pass, 2026-08-27): migration 0019
     -- (mana_policedogs feature-parity pass, the admin-pinned "this
@@ -3839,7 +3963,7 @@ local EXPECTED_TABLE_COLUMNS = {
     -- function's own header and DatabaseEnabled's own "SCHEMA COLLISION
     -- SAFETY NET" comment above for why a single wrong entry here is a
     -- resource-wide fail-closed event, not a small one.
-    k9_wellbeing                       = { 'citizenid', 'fatigue', 'mood', 'fear_stress', 'injury', 'hunger', 'thirst', 'updated_at' },
+    k9_wellbeing                       = { 'citizenid', 'fatigue', 'updated_at' },
 }
 
 --- Short, operator-facing phrase for each table in EXPECTED_TABLE_COLUMNS
@@ -3876,10 +4000,12 @@ local MISSING_TABLE_FEATURE_DESCRIPTIONS = {
     k9_equipment_shop_items            = 'the K9 Supply shop item catalog',
     k9_equipment_shop_item_audit       = 'the shop-item audit log',
     k9_permission_keys                 = 'the permission-key catalog',
+    k9_roles                           = 'the K9 role catalog (tablet edits to role names, XP requirements and unlocks are kept in memory for this session only while it is missing)',
     k9_permission_key_audit            = 'the permission-key audit log',
+    k9_role_audit                      = 'the role edit history (kept in memory for this session only while it is missing)',
     k9_dog_characters                  = 'admin-pinned "this citizenid is permanently a dog" records (/k9setdog, /k9removedog -- mana_policedogs feature parity) -- NOTE: while this table is missing, every currently-pinned dog character falls back to memory only for the rest of this session (nobody\'s actual K9 role/certification is affected either way -- this table has never decided whether a citizenid may act as a K9, only whether their dog form is pinned in place; see server/dogcharacter.lua\'s own header)',
     k9_personnel                       = 'the K9/Handler roster assignments and callsigns -- NOTE: while this table is missing, every currently-assigned K9/handler falls back to the "Unassigned" bucket on the roster screens the moment this resource restarts (nobody\'s actual certification/permission/feature access is affected either way -- see docs/history/ROSTER_SPEC.md §8)',
-    k9_wellbeing                       = 'K9 fatigue/mood/fear-stress/injury/hunger/thirst -- NOTE: while this table is missing, every online K9\'s condition resets to fresh-and-uninjured on the next restart (nobody\'s actual certification/permission/feature access is affected either way -- see server/wellbeing.lua\'s own header "DATABASE PERSISTENCE")',
+    k9_wellbeing                       = 'K9 fatigue -- NOTE: while this table is missing, every online K9\'s fatigue resets to fully-rested on the next restart (nobody\'s actual certification/permission/feature access is affected either way -- see server/wellbeing.lua\'s own header "DATABASE PERSISTENCE")',
 }
 
 --- A table this resource treats as MISSING when the table it is listed

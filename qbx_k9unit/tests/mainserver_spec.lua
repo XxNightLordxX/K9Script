@@ -451,6 +451,7 @@ local function newMainFixture(opts)
     Sandbox.loadInto('../server/main.lua', env)
 
     return {
+        env = env,
         config = config,
         clientEvents = clientEvents,
         notifyCalls = notifyCalls,
@@ -1455,6 +1456,96 @@ end)
 -- CheckPartnershipEligibility fix and tests/partnership_spec.lua's mirror
 -- of these same four cases.
 -- ========================================================================
+
+-- ========================================================================
+-- PARTNERS LEASH WITHOUT A PROMPT. Two players who are partnered already
+-- agreed to work together, so the leash goes on at once. Everyone else is
+-- still asked.
+-- ========================================================================
+
+--- @param f table
+--- @param pairs table -- { {cidA, cidB}, ... } treated as partnered (either order)
+local function setPartners(f, pairsList)
+    f.env.IsActivePartnerOf = function(a, b)
+        for _, p in ipairs(pairsList) do
+            if (p[1] == a and p[2] == b) or (p[1] == b and p[2] == a) then return true end
+        end
+        return false
+    end
+end
+
+t.test('partners: the officer asks, and the leash goes on at once for both -- no accept prompt', function()
+    local f = newMainFixture({ features = { HandlerPartnership = true } })
+    setupEligiblePair(f, 1, 2)
+    setPartners(f, { { f.citizenidFor(1), f.citizenidFor(2) } })
+
+    f.dispatchNetEvent('qbx_k9unit:server:requestLeashAttach', 2, 1)
+
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttachRequest'), 0, 'no prompt between partners')
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttached', 1), 1, 'the K9 is leashed')
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttached', 2), 1, 'the officer holds the leash')
+end)
+
+t.test('partners: works the same when the K9 is the one who asks', function()
+    local f = newMainFixture({ features = { HandlerPartnership = true } })
+    setupEligiblePair(f, 1, 2)
+    setPartners(f, { { f.citizenidFor(1), f.citizenidFor(2) } })
+
+    f.dispatchNetEvent('qbx_k9unit:server:requestLeashAttach', 1, 2)
+
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttachRequest'), 0)
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttached'), 2)
+end)
+
+t.test('not partners: the other player is still asked first, and nothing attaches until they accept', function()
+    local f = newMainFixture({ features = { HandlerPartnership = true } })
+    setupEligiblePair(f, 1, 2)
+    setPartners(f, { { f.citizenidFor(1), 'SOMEONE-ELSE' } })
+
+    f.dispatchNetEvent('qbx_k9unit:server:requestLeashAttach', 2, 1)
+
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttachRequest', 1), 1, 'the K9 gets the accept/decline prompt')
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttached'), 0)
+end)
+
+t.test('partners, but partnership turned off on this server: back to asking', function()
+    local f = newMainFixture({ features = { HandlerPartnership = false } })
+    setupEligiblePair(f, 1, 2)
+    setPartners(f, { { f.citizenidFor(1), f.citizenidFor(2) } })
+
+    f.dispatchNetEvent('qbx_k9unit:server:requestLeashAttach', 2, 1)
+
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttachRequest', 1), 1)
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttached'), 0)
+end)
+
+t.test('partners: every normal leash rule still applies -- too far apart is refused, nothing attaches', function()
+    local f = newMainFixture({ features = { HandlerPartnership = true } })
+    setupEligiblePair(f, 1, 2)
+    setPartners(f, { { f.citizenidFor(1), f.citizenidFor(2) } })
+    f.moveEntity(20, vec3(ORIGIN.x + LEASH_MAX_DISTANCE * 10, ORIGIN.y, ORIGIN.z))
+
+    f.dispatchNetEvent('qbx_k9unit:server:requestLeashAttach', 2, 1)
+
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttached'), 0)
+    t.equals(lastNotifyTo(f, 2).notifyType, 'error')
+end)
+
+t.test('partners: the normal request cooldown still applies, so attach cannot be spammed', function()
+    local f = newMainFixture({ features = { HandlerPartnership = true } })
+    setupEligiblePair(f, 1, 2)
+    setPartners(f, { { f.citizenidFor(1), f.citizenidFor(2) } })
+
+    f.dispatchNetEvent('qbx_k9unit:server:requestLeashAttach', 2, 1)
+    f.dispatchNetEvent('qbx_k9unit:server:detachLeash', 2)
+    f.clearCaptures()
+    f.dispatchNetEvent('qbx_k9unit:server:requestLeashAttach', 2, 1) -- same instant
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttached'), 0, 'refused inside the cooldown')
+
+    f.advance(1000)
+    f.dispatchNetEvent('qbx_k9unit:server:requestLeashAttach', 2, 1)
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:leashAttached'), 2, 'allowed once it has passed')
+end)
 
 t.test('requestLeashAttach: both parties genuinely holding the K9 role (HasK9Role) is rejected as both_k9, not silently assigning one of them the officer/handler role', function()
     local f = newMainFixture()

@@ -408,6 +408,15 @@ local function newCombatFixture(opts)
     if opts.withTierCapabilityPermits then
         envOverrides.TierCapabilityPermits = defaultTierCapabilityPermits
     end
+    -- server/roles.lua's RoleUnlockPermits -- omitted unless a test opts
+    -- in, so every other test runs the absent-dependency (allow) path.
+    local roleUnlockCalls = {}
+    if type(opts.roleUnlockPermitsFn) == 'function' then
+        envOverrides.RoleUnlockPermits = function(citizenid, jobName, unlockKey)
+            roleUnlockCalls[#roleUnlockCalls + 1] = { citizenid = citizenid, jobName = jobName, unlockKey = unlockKey }
+            return opts.roleUnlockPermitsFn(citizenid, jobName, unlockKey)
+        end
+    end
     -- server/search.lua's own accessor, for the MUTUAL GUARD tests below.
     -- OMITTED from envOverrides entirely (not merely nil) unless a test
     -- supplies it, so the production file's own `type(fn) == 'function'`
@@ -421,6 +430,7 @@ local function newCombatFixture(opts)
 
     Sandbox.loadInto('../server/cooldowns.lua', env)
     Sandbox.loadInto('../server/entities.lua', env)
+    Sandbox.loadWantedCheckInto(env)
     -- EXCLUSIVE BODY-CLAIM REGISTRY (kennel-vs-vehicle-seat race fix pass)
     -- -- ValidateCombatRequest and the three grant handlers
     -- (requestBiteHold/HandleTakedownRequest/requestDrag) now call
@@ -479,6 +489,7 @@ local function newCombatFixture(opts)
         printedLines = printedLines,
         awardCalls = awardCalls,
         tierCapabilityCalls = tierCapabilityCalls,
+        roleUnlockCalls = roleUnlockCalls,
         ambulanceIsDownedCalls = ambulanceIsDownedCalls,
         netEventNames = netEvents,
         advance = function(deltaMs) fakeNow = fakeNow + deltaMs end,
@@ -2760,123 +2771,88 @@ t.test('requestDrag: BLOCK ALWAYS WINS, same as BiteAndHold/NonLethalTakedown', 
 end)
 
 -- ========================================================================
--- CERTIFICATION TIER CAPABILITY -- server/certtiers.lua's
--- TierCapabilityPermits, wired into ValidateCombatRequest's BiteAndHold/
--- NonLethalTakedown branch this pass -- the owner's own worked example
--- (ticking bite-and-hold off for the trainee tier must actually stop a
--- trainee from biting). TierCapabilityPermits' OWN resolution logic (tier
--- lookup, dormant-capability default-allow, unresolvable-tier
--- default-allow) is fully covered by that file's own spec -- these tests
--- only prove server/combat.lua calls it at the right place, with the
--- right arguments, honors both answers, excludes PropDragging (no
--- capability names it), and never lets a release/termination path
--- re-consult it (NO UNBOUNDED TRAP). TierCapabilityPermits is OMITTED FROM
--- THE SANDBOX BY DEFAULT (see newCombatFixture's own comment on
--- defaultTierCapabilityPermits) -- every test in this section opts in via
--- opts.withTierCapabilityPermits explicitly.
+-- BITE / TAKEDOWN PERMISSION -- server/roles.lua's RoleUnlockPermits
+-- ('bite_takedown'). The old certification-tier capability
+-- (bite_hold_and_takedown) is RETIRED: the tier editor is gone from the
+-- tablet, so a box ticked there could never be unticked. These tests pin
+-- that it is no longer consulted, that the role gate is, with the right
+-- arguments, and that a release path never re-checks (NO UNBOUNDED TRAP).
 -- ========================================================================
 
-t.test('requestBiteHold: TierCapabilityPermits denies -- refused even though HasK9Access/FeatureControl both allow, and called with the right arguments', function()
+t.test('requestBiteHold: a tier that would deny bites is no longer consulted -- the bite goes ahead', function()
     local f = newCombatFixture({ withTierCapabilityPermits = true, tierCapabilityPermitsFn = function() return false end })
-    wireK9(f, K9_SRC, { job = { name = 'police' } })
-    wireNpcTarget(f, 500)
-    f.dispatchNetEvent('qbx_k9unit:server:requestBiteHold', K9_SRC, 500)
-    t.equals(#f.clientEvents, 0)
-    t.equals(f.notifyCalls[#f.notifyCalls].notifyType, 'error')
-    t.equals(#f.tierCapabilityCalls, 1)
-    t.equals(f.tierCapabilityCalls[1].citizenid, 'K9-CID-' .. K9_SRC)
-    t.equals(f.tierCapabilityCalls[1].jobName, 'police')
-    t.equals(f.tierCapabilityCalls[1].capabilityKey, 'bite_hold_and_takedown')
-end)
-
-t.test('requestBiteHold: TierCapabilityPermits allows -- request proceeds normally', function()
-    local f = newCombatFixture({ withTierCapabilityPermits = true, tierCapabilityPermitsFn = function() return true end })
     wireK9(f, K9_SRC, { job = { name = 'police' } })
     wireNpcTarget(f, 500)
     f.dispatchNetEvent('qbx_k9unit:server:requestBiteHold', K9_SRC, 500)
     t.equals(countClientEvents(f, 'qbx_k9unit:client:applyNpcBiteHold'), 1)
-    t.equals(#f.tierCapabilityCalls, 1)
+    t.equals(#f.tierCapabilityCalls, 0, 'TierCapabilityPermits is retired from the bite path')
 end)
 
-t.test('requestBiteHold: unresolvable tier at this call site (K9 has no job on record) -- allowed, TierCapabilityPermits never even called', function()
-    local f = newCombatFixture({ withTierCapabilityPermits = true, tierCapabilityPermitsFn = function() return false end })
-    wireK9(f, K9_SRC) -- deliberately no job -- see wireK9's own comment
+t.test('requestBiteHold: no role allows bites -- refused with the role message, and asked with the right arguments', function()
+    local f = newCombatFixture({ roleUnlockPermitsFn = function() return false end })
+    wireK9(f, K9_SRC, { job = { name = 'police' } })
     wireNpcTarget(f, 500)
     f.dispatchNetEvent('qbx_k9unit:server:requestBiteHold', K9_SRC, 500)
-    t.equals(countClientEvents(f, 'qbx_k9unit:client:applyNpcBiteHold'), 1, 'an unresolvable jobName must never be treated as a denial')
-    t.equals(#f.tierCapabilityCalls, 0, 'TierCapabilityPermits must not be called at all without a resolvable jobName')
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:applyNpcBiteHold'), 0)
+    t.equals(f.notifyCalls[#f.notifyCalls].notifyType, 'error')
+    t.equals(#f.roleUnlockCalls, 1)
+    t.equals(f.roleUnlockCalls[1].citizenid, 'K9-CID-' .. K9_SRC)
+    t.equals(f.roleUnlockCalls[1].jobName, 'police')
+    t.equals(f.roleUnlockCalls[1].unlockKey, 'bite_takedown')
 end)
 
-t.test('requestBiteHold: server/certtiers.lua entirely absent (TierCapabilityPermits not even defined) -- allowed, same fail-permissive posture as every other soft dependency in this file', function()
-    local f = newCombatFixture() -- withTierCapabilityPermits omitted -- TierCapabilityPermits undefined in this sandbox
+t.test('requestBiteHold: a role allows bites -- request proceeds normally', function()
+    local f = newCombatFixture({ roleUnlockPermitsFn = function() return true end })
+    wireK9(f, K9_SRC, { job = { name = 'police' } })
+    wireNpcTarget(f, 500)
+    f.dispatchNetEvent('qbx_k9unit:server:requestBiteHold', K9_SRC, 500)
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:applyNpcBiteHold'), 1)
+end)
+
+t.test('requestBiteHold: server/roles.lua absent (RoleUnlockPermits not defined) -- allowed, no error', function()
+    local f = newCombatFixture()
     wireK9(f, K9_SRC, { job = { name = 'police' } })
     wireNpcTarget(f, 500)
     local ok = pcall(f.dispatchNetEvent, 'qbx_k9unit:server:requestBiteHold', K9_SRC, 500)
-    t.isTrue(ok, 'a missing TierCapabilityPermits must never error the request handler')
+    t.isTrue(ok)
     t.equals(countClientEvents(f, 'qbx_k9unit:client:applyNpcBiteHold'), 1)
 end)
 
-t.test('requestTakedown: TierCapabilityPermits denies -- refused (checked at the PRE-yield ValidateCombatRequest call, before the speed-sample Wait())', function()
-    local f = newCombatFixture({ withTierCapabilityPermits = true, tierCapabilityPermitsFn = function() return false end })
+t.test('requestTakedown: no role allows takedowns -- refused', function()
+    local f = newCombatFixture({ roleUnlockPermitsFn = function() return false end })
     wireK9(f, K9_SRC, { job = { name = 'police' } })
     wireNpcTarget(f, 500)
     f.dispatchNetEvent('qbx_k9unit:server:requestTakedown', K9_SRC, 500)
     t.equals(#f.clientEvents, 0)
 end)
 
-t.test('requestTakedown: TierCapabilityPermits allows -- request proceeds normally', function()
-    local f = newCombatFixture({ withTierCapabilityPermits = true, tierCapabilityPermitsFn = function() return true end })
-    wireK9(f, K9_SRC, { job = { name = 'police' }, x = 0, y = 0, z = 0 })
-    wireNpcTarget(f, 500, { x = 1, y = 0, z = 0 })
-    -- Drive a genuine fleeing-target speed sample during the mid-handler
-    -- Wait() -- same proven displacement technique this file's own
-    -- passing requestTakedown tests already use (see e.g. the
-    -- Config.Combat.NonLethalTakedown.cooldownMs = 0 regression test's own
-    -- attemptTakedown helper above) -- required because the POST-yield
-    -- ValidateCombatRequest call (and the speed gate in between) must ALSO
-    -- pass for this request to actually reach the TierCapabilityPermits
-    -- gate's allow path and fire a client event.
-    f.dispatchStepped('qbx_k9unit:server:requestTakedown', K9_SRC, { 500 }, function()
-        f.setCoords(500 + 100000, 0, 1.2, 0)
-    end)
-    t.equals(countClientEvents(f, 'qbx_k9unit:client:applyNpcTakedown'), 1)
-end)
-
-t.test('requestDrag: PropDragging is NOT gated by bite_hold_and_takedown -- no capability names it, so TierCapabilityPermits is never even consulted', function()
-    local f = newCombatFixture({ propDragging = true, withTierCapabilityPermits = true, tierCapabilityPermitsFn = function() return false end })
+t.test('requestDrag: dragging is not a bite -- the role gate is never asked', function()
+    local f = newCombatFixture({ propDragging = true, roleUnlockPermitsFn = function() return false end })
     wireK9(f, K9_SRC, { job = { name = 'police' } })
     wireNpcTarget(f, 500, { health = 50 }) -- downed (<= PED_DEAD_HEALTH_THRESHOLD)
     f.dispatchNetEvent('qbx_k9unit:server:requestDrag', K9_SRC, 500)
-    t.equals(countClientEvents(f, 'qbx_k9unit:client:dragStarted'), 1, 'PropDragging must be unaffected by bite_hold_and_takedown')
-    t.equals(#f.tierCapabilityCalls, 0, 'TierCapabilityPermits must never be consulted for PropDragging')
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:dragStarted'), 1)
+    t.equals(#f.roleUnlockCalls, 0)
 end)
 
-t.test('requestBiteHold: a tier capability revoked AFTER an already-open hold does NOT terminate it, and the release path never re-consults TierCapabilityPermits -- NO UNBOUNDED TRAP', function()
+t.test('requestBiteHold: losing the role mid-hold never strands the hold -- release never re-checks (NO UNBOUNDED TRAP)', function()
     local allowed = true
-    local f = newCombatFixture({ withTierCapabilityPermits = true, tierCapabilityPermitsFn = function() return allowed end })
+    local f = newCombatFixture({ roleUnlockPermitsFn = function() return allowed end })
     wireK9(f, K9_SRC, { job = { name = 'police' } })
     wireNpcTarget(f, 500)
     f.dispatchNetEvent('qbx_k9unit:server:requestBiteHold', K9_SRC, 500)
     t.equals(countClientEvents(f, 'qbx_k9unit:client:applyNpcBiteHold'), 1)
 
-    -- High command unticks the capability for this handler's tier, mid-hold.
     allowed = false
-
-    -- The ALREADY-OPEN hold must still be releasable -- EndHold/releaseBiteHold
-    -- never call ValidateCombatRequest (and so never call
-    -- TierCapabilityPermits) at all.
-    local callsBeforeRelease = #f.tierCapabilityCalls
+    local callsBeforeRelease = #f.roleUnlockCalls
     f.dispatchNetEvent('qbx_k9unit:server:releaseBiteHold', K9_SRC)
-    t.equals(countClientEvents(f, 'qbx_k9unit:client:biteHoldEnded'), 1, 'a mid-hold capability revoke must never strand an already-open hold')
-    t.equals(#f.tierCapabilityCalls, callsBeforeRelease, 'releaseBiteHold must never consult TierCapabilityPermits')
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:biteHoldEnded'), 1, 'the open hold still ends')
+    t.equals(#f.roleUnlockCalls, callsBeforeRelease, 'release never consults the role gate')
 
-    -- The revoke DOES correctly stop a brand-new request from the same K9.
     wireNpcTarget(f, 501)
     f.dispatchNetEvent('qbx_k9unit:server:requestBiteHold', K9_SRC, 501)
-    t.equals(countClientEvents(f, 'qbx_k9unit:client:applyNpcBiteHold'), 1, 'still exactly 1 -- the new request against 501 must be denied')
+    t.equals(countClientEvents(f, 'qbx_k9unit:client:applyNpcBiteHold'), 1, 'a NEW bite is refused')
 end)
-
-
 
 t.test('non-compliance alerts: HIGH COMMAND is told even when their own grade is below the threshold, and an ordinary officer below it still is not', function()
     -- The gap this closes, found by a permission audit: this was the ONE

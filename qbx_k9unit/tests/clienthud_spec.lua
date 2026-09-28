@@ -155,6 +155,10 @@ local function newHudFixture(opts)
 
     local env = Sandbox.newEnv({
         CanShowK9UI = CanShowK9UI,
+        -- The first-time tip is worded for who you are playing; the fixture
+        -- plays the dog unless a test passes playingDog = false.
+        IsOwnModelK9 = function() return opts.playingDog ~= false end,
+        IsPartnered = function() return opts.isPartnered == true end,
         GetGameTimer = GetGameTimer,
         PlayerPedId = PlayerPedId,
         GetEntityHealth = GetEntityHealth,
@@ -664,17 +668,28 @@ t.test('ONBOARDING HINT: appears for a newly-granted player (real citizenid, Can
     local msg = f.lastMessageWithAction('hud:onboardingHint')
     t.isNotNil(msg)
     t.isTrue(msg.data.visible)
-    t.equals(msg.data.strings.title, 'K9 Command Tablet')
+    t.equals(msg.data.strings.title, Sandbox.locale('hud.onboarding_title'))
+    t.isTrue(msg.data.strings.body:find('Press Z', 1, true) ~= nil, 'the tip starts with the one thing to press: the K9 menu')
     -- Ease-of-use audit finding: this persistent nudge exists as the SECOND
     -- chance for someone who missed the one-shot chat line
     -- (locales/en.json's appearance.apply_success_target), which explicitly
-    -- names the Help tab, not just "the tablet" -- a body that only says
+    -- names the Guide tab, not just "the tablet" -- a body that only says
     -- "open your tablet" leaves that second chance less specific than the
     -- first one it is meant to back up. Pinned against the REAL
     -- locales/en.json text (Sandbox.locale reads the real file, see its own
     -- header) so a future edit cannot quietly drop the pointer again.
-    t.isTrue(msg.data.strings.body:find('Help tab', 1, true) ~= nil,
-        'the onboarding hint must point at the Help tab specifically, not just "the tablet" -- that is where every key and command is actually listed')
+    t.isTrue(msg.data.strings.body:find('/k9tablet', 1, true) ~= nil,
+        'the tip still points at the tablet, where every key is listed')
+end)
+
+t.test('ONBOARDING HINT: a handler who has just partnered up gets the handler\'s version -- Leash, Partner Up, camera -- not the dog\'s', function()
+    local f = newHudFixture({ citizenid = 'CIT_HANDLER', canShowK9UI = false, playingDog = false, isPartnered = true })
+    f.step()
+    local msg = f.lastMessageWithAction('hud:onboardingHint')
+    t.isNotNil(msg)
+    t.isTrue(msg.data.visible)
+    t.equals(msg.data.strings.body, Sandbox.locale('hud.onboarding_body_handler'))
+    t.isTrue(msg.data.strings.body:find('Leash', 1, true) ~= nil)
 end)
 
 t.test('ONBOARDING HINT: does NOT appear for someone who has already opened the tablet (pre-seeded KVP)', function()

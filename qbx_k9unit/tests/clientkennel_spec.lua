@@ -1795,7 +1795,7 @@ t.test('CONTEXTUAL DISPATCH: bare /k9kennel PUTS DOWN when this client is curren
     t.equals(f.lastNotify().description, locale('kennel.contextual_putting_down'))
 end)
 
-t.test('CONTEXTUAL DISPATCH: bare /k9kennel EXITS when this client is currently resting -- highest priority, overrides everything else', function()
+t.test('LEAVING: bare /k9kennel while resting only says where the exit is; the K9 menu\'s Kennel button (same RequestKennelContextual) gets you out', function()
     local f = newKennelFixture()
     local k9kennel = findK9Kennel(f)
 
@@ -1806,11 +1806,15 @@ t.test('CONTEXTUAL DISPATCH: bare /k9kennel EXITS when this client is currently 
 
     k9kennel(nil, {})
 
-    t.isFalse(f.env.IsRestingInKennel())
+    t.isTrue(f.env.IsRestingInKennel(), 'the command never gets you out -- only the third eye and the K9 menu do')
+    t.equals(f.lastNotify().description, locale('kennel.exit_use_third_eye'))
+
+    f.env.RequestKennelContextual()
+    t.isFalse(f.env.IsRestingInKennel(), 'the K9 menu\'s Kennel button (RequestKennelContextual) does get you out')
     t.equals(f.lastServerEvent().event, 'qbx_k9unit:server:requestExitKennel')
 end)
 
-t.test('EXPLICIT OVERRIDE: /k9kennel deploy|enter|exit force that exact action', function()
+t.test('EXPLICIT OVERRIDE: /k9kennel deploy|enter force that exact action; there is no exit word any more', function()
     local f = newKennelFixture()
     local k9kennel = findK9Kennel(f)
 
@@ -1829,7 +1833,7 @@ t.test('EXPLICIT OVERRIDE: /k9kennel deploy|enter|exit force that exact action',
     f.registerForeignEntity(netId, 56, GetHashKey(PRIMARY_MODEL))
     f.dispatchNetEvent('qbx_k9unit:client:enterKennelConfirmed', 65535, netId)
     k9kennel(nil, { 'exit' })
-    t.isFalse(f.env.IsRestingInKennel())
+    t.isTrue(f.env.IsRestingInKennel(), '/k9kennel exit no longer exists -- leaving is the third eye or the K9 menu')
 end)
 
 -- ========================================================================
@@ -2140,15 +2144,14 @@ t.test('GATE WIDENED, REACHABLE THROUGH THE MERGE TOO: bare /k9kennel (deploy br
     t.equals(f.lastServerEvent().event, 'qbx_k9unit:server:requestDeployKennel')
 end)
 
-t.test('GATE NEVER WIDENED: exiting via bare /k9kennel while resting stays UNGATED even with CanShowK9UI false (never gate the stop)', function()
+t.test('GATE NEVER WIDENED: exiting via the K9 menu\'s Kennel button while resting stays UNGATED even with CanShowK9UI false (never gate the stop)', function()
     local f = newKennelFixture()
-    local k9kennel = findK9Kennel(f)
     local netId = 902
     f.registerForeignEntity(netId, 57, GetHashKey(PRIMARY_MODEL))
     f.dispatchNetEvent('qbx_k9unit:client:enterKennelConfirmed', 65535, netId)
     f.setCanShowK9UI(false)
 
-    k9kennel(nil, {})
+    f.env.RequestKennelContextual()
 
     t.isFalse(f.env.IsRestingInKennel())
     t.equals(f.denyCallCount(), 0, 'exiting must never be denied, even with CanShowK9UI false')

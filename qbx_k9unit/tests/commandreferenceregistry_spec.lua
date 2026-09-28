@@ -184,8 +184,6 @@ local HIDDEN_ALIAS_COMMANDS = {
     -- project-lead separately). COMMANDS_TAB_CLEANUP_COMPLETE.dog_record can
     -- be set true as soon as that's confirmed -- it costs nothing either way
     -- since these two names were never documented to begin with.
-    k9setdog = 'dog_record',
-    k9removedog = 'dog_record',
     -- family #3: fetch (3 -> 1, 'k9fetch') -- client/fetch.lua. Same
     -- "never had a COMMAND_REFERENCE entry to begin with" shape as
     -- k9throwfetchball/k9dropfetchball/k9recallfetchball actually DO have
@@ -206,15 +204,12 @@ local HIDDEN_ALIAS_COMMANDS = {
     -- matching comment) -- only their COMMAND_REFERENCE visibility is
     -- targeted for removal here, once batched with the rest.
     k9deploykennel = 'kennel',
-    k9exitkennel = 'kennel',
     -- family #7: permissions (2 -> 1, 'k9permission') -- server/permissions.lua.
     -- Unlike audit/fetch/training's "interim" state, this family's
     -- COMMAND_REFERENCE removal landed in the SAME change as the merge
     -- itself (no hot-file blocker for this family) -- see
     -- COMMANDS_TAB_CLEANUP_COMPLETE.permissions below, flipped true here,
     -- not left as a follow-up.
-    k9grantpermission = 'permissions',
-    k9revokepermission = 'permissions',
     -- family #8: online/offline certification pairs (10 -> 5) --
     -- server/certifications/. k9certify/k9decertify/k9settier/
     -- k9recertify/k9unspecialize keep their own existing canonical names
@@ -641,8 +636,8 @@ t.test('LOAD-BEARING DRIFT GUARD: every real RegisterCommand(...) name across se
     -- time a command is added.
     local _, realCount = SortedKeys(real)
     local _, documentedCount = SortedKeys(documented)
-    t.isTrue(realCount >= 30, ('sanity: only found %d real RegisterCommand name(s) across server/*.lua + client/*.lua -- expected at least 30; an extraction pattern or file list may be out of date'):format(realCount))
-    t.isTrue(documentedCount >= 30, ('sanity: only found %d documented command(s) in html/tablet.js\'s COMMAND_REFERENCE -- expected at least 30'):format(documentedCount))
+    t.isTrue(realCount >= 20, ('sanity: only found %d real RegisterCommand name(s) across server/*.lua + client/*.lua -- expected at least 20; an extraction pattern or file list may be out of date'):format(realCount))
+    t.isTrue(documentedCount >= 20, ('sanity: only found %d documented command(s) in html/tablet.js\'s COMMAND_REFERENCE -- expected at least 20'):format(documentedCount))
 end)
 
 t.test('HIDDEN_ALIAS_COMMANDS GUARD: every allowlisted name is still a real, live RegisterCommand(...) call somewhere in server/*.lua or client/*.lua', function()

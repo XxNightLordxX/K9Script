@@ -58,7 +58,7 @@ local locale = Sandbox.locale
 -- task walkthrough) -- every one of them must stay in sync, not just one.
 local QUOTED_LABEL_CHECKS = {
     { helpKeys = { 'help_start_k9_4', 'help_task_partner_up_2' }, namespace = 'partnership', key = 'partner_up_target_label' },
-    { helpKeys = { 'help_task_partner_up_4' }, namespace = 'radial', key = 'break_partnership_label' },
+    { helpKeys = { 'help_task_partner_up_4' }, namespace = 'radial', key = 'partner_toggle_label' },
     { helpKeys = { 'help_task_vehicle_2' }, namespace = 'vehicle', key = 'target_enter_label' },
     { helpKeys = { 'help_task_vehicle_3' }, namespace = 'vehicle', key = 'target_exit_label' },
     { helpKeys = { 'help_task_search_2' }, namespace = 'search', key = 'person_target_label' },

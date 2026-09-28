@@ -160,9 +160,10 @@
             occupant's own ALWAYS-AVAILABLE exit entry point, exposed
             globally for the identical reason client/vehicle.lua's own
             ExitK9Vehicle() and client/movement.lua's own DetachLeash() are
-            resource-globals: client/keybinds.lua's new k9exitkennel
-            RegisterCommand/RegisterKeyMapping pair and client/radial.lua's
-            new "Exit Kennel" item both call THIS SAME function -- never a
+            resource-globals. Its player-facing callers are the third-eye
+            "Exit Kennel" option and the K9 menu's Kennel button (owner's
+            choice -- the O key and the exit commands were removed); the
+            server's forced exit reaches it too -- never a
             second, forked copy of the release logic (this resource's own
             "SAME FUNCTION, NEVER A FORKED ENTRY POINT" doctrine,
             client/keybinds.lua's own header cites the historical
@@ -820,6 +821,8 @@ function RequestKennelContextual()
     -- CONFIRMATION NAMES THE DECISION (project-owner's own requirement):
     -- notified BEFORE the resolved action runs.
     if IsRestingInKennel() then
+        -- The K9 menu's Kennel button is one of the two ways out (the
+        -- other is the third eye on the kennel) -- owner's choice.
         lib.notify({ title = locale('common.notify_title'), description = locale('kennel.contextual_exiting'), type = 'inform' })
         ExitKennelRest()
     elseif IsCarryingKennel() then
@@ -841,7 +844,6 @@ end
 local KENNEL_EXPLICIT_ACTIONS = {
     deploy = function() RequestDeployKennel() end,
     enter = function() RequestEnterOwnKennel() end,
-    exit = function() ExitKennelRest() end,
     -- CLOSEABLE KENNEL (this pass) -- explicit words, reachable by BOTH the
     -- owner standing outside (myKennelNetId) and the occupant resting
     -- inside (restState) -- see ResolveKennelNetIdForDoorAction()'s own
@@ -862,7 +864,12 @@ RegisterCommand('k9kennel', function(_source, args)
         return
     end
 
-    -- Bare '/k9kennel' -- contextual dispatch, see RequestKennelContextual() above.
+    -- Bare '/k9kennel' -- contextual dispatch, see RequestKennelContextual()
+    -- above -- except leaving: that is the third eye or the K9 menu only.
+    if IsRestingInKennel() then
+        lib.notify({ title = locale('common.notify_title'), description = locale('kennel.exit_use_third_eye'), type = 'inform' })
+        return
+    end
     RequestKennelContextual()
 end, false)
 

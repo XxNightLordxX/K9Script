@@ -505,6 +505,18 @@
     real, final schema, not a placeholder guess.
 ]]
 
+-- ADMIN CHAT COMMANDS ARE OFF BY DEFAULT (owner: "k9certify should only
+-- be done through the tablet", and all other admin work with it). They are
+-- only registered when Config.CommandTablet.adminChatCommands is true --
+-- the tablet does every one of these. The handlers below are kept (and
+-- tested) so an owner who wants console access can switch them back on.
+local function RegisterAdminCommand(name, handler, restricted)
+    if type(Config.CommandTablet) == 'table' and Config.CommandTablet.adminChatCommands == true then
+        RegisterCommand(name, handler, restricted)
+    end
+end
+
+
 -- ======================================================================
 -- CONFIG-SAFETY GUARD -- run UNCONDITIONALLY, at this file's own LOAD
 -- time, same reasoning as server/certifications/'s own guard for
@@ -2471,7 +2483,7 @@ if type(RegisterCommand) == 'function' then
     -- k9audit search/k9audit xp convention verbatim (`if source == 0 then
     -- print(...) else NotifyPlayer(...) end`) rather than inventing a new
     -- one.
-    RegisterCommand('k9permission', function(source, args)
+    RegisterAdminCommand('k9permission', function(source, args)
         local sub = args[1]
         if sub == 'grant' then
             HandleGrantPermissionCommand(source, { args[2], args[3] })
@@ -2490,11 +2502,11 @@ if type(RegisterCommand) == 'function' then
     -- client/commandsuggestions.lua's/tests' own HIDDEN_ALIAS_COMMANDS
     -- allowlist) -- `/k9permission grant|revoke` is what a user now
     -- discovers instead.
-    RegisterCommand('k9grantpermission', function(source, args)
+    RegisterAdminCommand('k9grantpermission', function(source, args)
         HandleGrantPermissionCommand(source, args)
     end, false)
 
-    RegisterCommand('k9revokepermission', function(source, args)
+    RegisterAdminCommand('k9revokepermission', function(source, args)
         HandleRevokePermissionCommand(source, args)
     end, false)
 end

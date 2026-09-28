@@ -44,7 +44,7 @@
 
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findByText, findAll } = require('./tablet-dom-stub');
+const { findByText, findAll, openSettingsSection, findByClass } = require('./tablet-dom-stub');
 
 function routeFetch(handlers) {
     return function (url, init) {
@@ -152,14 +152,19 @@ t.test('HIGH COMMAND: Home shows role badge "High Command" and the High Command 
     // F), and 'K9 Overrides' is no longer a tab at all (plan item D).
     // 'Catalogs' is ONE tab covering certification tiers, permission keys and
     // XP ranks (plan item G).
-    for (const label of ['Tablet Theme', 'Catalogs', 'K9 Supply Shop', 'Runtime Control', 'Audit Trail']) {
+    // SERVER SETTINGS (the rework pass): Theme, Catalogs, the Shop and
+    // Runtime Control are sections of ONE tab now, not four tabs -- and the
+    // Server Tuning flow that duplicated three of them is gone.
+    for (const label of ['Server Settings', 'Personnel Roster', 'Audit Trail']) {
         t.equals(findByText(h.getRoot(), label).length, 1, `"${label}" tab appears exactly once -- no competing Home shortcut`);
     }
+    for (const label of ['Tablet Theme', 'Catalogs', 'K9 Supply Shop', 'Runtime Control', 'Server Tuning']) {
+        t.equals(findByText(h.getRoot(), label).length, 0, `"${label}" is a Server Settings section now, not a tab of its own`);
+    }
 
-    // The signpost's own plain-language pointer at the grouped tab row --
-    // proves the section explains where to go instead of re-listing every
-    // destination itself.
-    t.isTrue(findByText(h.getRoot(), "You'll find all of these in the tabs at the top of the screen -- they're grouped together there, set apart from your own tabs, so they're easy to spot.").length >= 1);
+    // The signpost's own plain-language pointer -- proves the section
+    // explains where to go instead of re-listing every destination itself.
+    t.isTrue(findByText(h.getRoot(), 'The whole-server settings are under the Server Settings tab at the top of the screen, one click per section. The personnel roster and the audit trail have their own tabs beside it.').length >= 1);
 
     // The admin tab cluster is a real, labelled group in the DOM (not just
     // a visual illusion) -- a screen reader announces it as one.
@@ -176,7 +181,7 @@ t.test('HIGH COMMAND: the real Certification Tiers tab (now grouped into the Hig
         'tablet:getTheme': () => ({ ok: true, theme: { primaryColor: '#2563eb', accentColor: '#f59e0b', backgroundColor: '#111827', textColor: '#f9fafb', density: 'comfortable', headerTitle: 'K9 Command Tablet' } }),
     });
 
-    findByText(h.getRoot(), 'Tablet Theme')[0].click();
+    openSettingsSection(h.getRoot(), 'Tablet Theme');
     await settle();
 
     t.isTrue(findByText(h.getRoot(), 'Tablet Appearance').length >= 1, 'the grouped tab opened the real Tablet Theme screen');
@@ -197,7 +202,7 @@ t.test('DELEGATED NON-HIGH-COMMAND (holds only k9.runtimecontrol): High Command 
     t.equals(findByText(h.getRoot(), 'Certified Handler').length, 1, 'not high command, so the ordinary role badge shows');
     t.equals(findByText(h.getRoot(), 'High Command').length, 0);
     t.equals(findByText(h.getRoot(), 'High Command Tools').length, 1, 'signpost still built for a delegated non-high-command viewer too');
-    t.equals(findByText(h.getRoot(), 'Runtime Control').length, 1, 'the ONE capability this viewer actually holds still has its own tab');
+    t.equals(findByText(h.getRoot(), 'Server Settings').length, 1, 'the ONE capability this viewer actually holds is reachable, under Server Settings');
 
     // Every high-command-only tab (no delegation exists for any of these)
     // and every OTHER delegable one this viewer does NOT hold stays
@@ -207,9 +212,10 @@ t.test('DELEGATED NON-HIGH-COMMAND (holds only k9.runtimecontrol): High Command 
         t.equals(findByText(h.getRoot(), label).length, 0, `"${label}" tab must NOT appear for this viewer`);
     }
 
-    findByText(h.getRoot(), 'Runtime Control')[0].click();
+    openSettingsSection(h.getRoot(), 'Runtime Control');
     await settle();
-    t.isTrue(findByText(h.getRoot(), 'Runtime Feature Control').length >= 1, 'the tab opens the real screen, not a dead end');
+    t.isTrue(findByText(h.getRoot(), 'Runtime Feature Control').length >= 1, 'the section opens the real screen, not a dead end');
+    t.equals(findByClass(h.getRoot(), 'k9tablet-settings-sections')[0].children.length, 1, 'Server Settings holds only the one section this viewer may change');
 });
 
 // ============================================================================
@@ -234,8 +240,8 @@ t.test('WORKFLOW AUDIT #3: a delegate holding ONLY k9.runtimecontrol sees a sign
     t.equals(findByText(h.getRoot(), 'High Command Tools').length, 1, 'the heading is unchanged for every viewer who sees this section at all');
     t.equals(findByText(h.getRoot(), "You've been granted access to: which features are turned on.").length, 1, 'the body names ONLY the one capability this viewer actually holds');
     t.equals(findByText(h.getRoot(), 'Settings that affect the whole server: how the tablet looks, certification ranks, permission keys, the supply shop, which features are turned on, XP ranks, and the audit trail.').length, 0, 'the full high-command-only promise text is absent for this delegate');
-    t.equals(findByText(h.getRoot(), "You'll find all of these in the tabs at the top of the screen -- they're grouped together there, set apart from your own tabs, so they're easy to spot.").length, 0, 'the high-command-only tabs pointer sentence is absent too');
-    t.equals(findByText(h.getRoot(), "You'll find these in the tabs at the top of the screen -- grouped together there, set apart from your own tabs, so they're easy to spot.").length, 1, 'a delegate-specific tabs pointer is shown instead');
+    t.equals(findByText(h.getRoot(), 'The whole-server settings are under the Server Settings tab at the top of the screen, one click per section. The personnel roster and the audit trail have their own tabs beside it.').length, 0, 'the high-command-only pointer sentence is absent too');
+    t.equals(findByText(h.getRoot(), "You'll find these under the Server Settings tab at the top of the screen.").length, 1, 'a delegate-specific pointer is shown instead');
 });
 
 t.test('WORKFLOW AUDIT #3: a delegate holding TWO of the four capabilities gets both named in the signpost body, joined in plain English', async () => {
@@ -363,7 +369,7 @@ t.test('a viewer with ZERO active certifications and no console access sees real
     // THE "PRE-FACE" STATE (this pass) -- a concrete next step, not just an
     // explanation of the current state, naming the two tabs this resource
     // already has for exactly this question.
-    t.isTrue(findByText(h.getRoot(), 'Not sure how to get started? The Help tab walks you through it, and the Commands tab shows everything there is to earn.').length >= 1);
+    t.isTrue(findByText(h.getRoot(), 'Not sure how to get started? The Guide tab walks you through it, and lists everything there is to earn.').length >= 1);
     t.equals(findByText(h.getRoot(), 'Open Command Console').length, 0, 'no console access for this viewer -- the quick action is correctly absent, never a dead-click');
     t.equals(findByText(h.getRoot(), 'Command Console').length, 0, 'the Console TAB is also absent for the same reason');
 
@@ -425,7 +431,7 @@ t.test('the certified-department count badge reflects the real numbers, and turn
     t.equals(findAll(oneActive.getRoot(), (n) => n._textContent === 'Certified in 1 of 2 departments' && n.classList && n.classList.contains('k9tablet-feature-state--available')).length, 1, 'at-least-one-active state uses the SAME positive colour class every other screen uses for this meaning');
 });
 
-t.test('the blocked-ability count badge shows the real count and the correct colour, and is entirely ABSENT when nothing is blocked', async () => {
+t.test('no blocked-ability badge: your own screens only show what you can use, so nothing points at hidden abilities', async () => {
     const blocked = await openTablet({
         ok: true,
         viewer: { citizenid: 'C3', name: 'A', isHighCommand: false, effectivePermissions: [], allowSelfGrant: false },
@@ -433,38 +439,13 @@ t.test('the blocked-ability count badge shows the real count and the correct col
         xp: null, tierLabel: null,
         myFeatures: [
             { key: 'X', label: 'X', category: null, actionable: true, state: 'blocked' },
-            { key: 'Y', label: 'Y', category: null, actionable: false, state: 'blocked' },
             { key: 'Z', label: 'Z', category: null, actionable: true, state: 'available' },
         ],
     });
-    t.equals(findByText(blocked.getRoot(), '2 of your abilities are currently blocked').length, 1);
-    t.equals(findAll(blocked.getRoot(), (n) => n._textContent === '2 of your abilities are currently blocked' && n.classList && n.classList.contains('k9tablet-feature-state--blocked')).length, 1);
-
-    const notBlocked = await openTablet({
-        ok: true,
-        viewer: { citizenid: 'C4', name: 'B', isHighCommand: false, effectivePermissions: [], allowSelfGrant: false },
-        certifications: [], xp: null, tierLabel: null,
-        myFeatures: [{ key: 'Z', label: 'Z', category: null, actionable: true, state: 'available' }],
-    });
-    t.equals(findAll(notBlocked.getRoot(), (n) => typeof n._textContent === 'string' && n._textContent.indexOf('currently blocked') !== -1).length, 0, 'no blocked-count badge at all when the count is zero -- never a "0 blocked" badge nobody needs');
+    t.equals(findAll(blocked.getRoot(), (n) => typeof n._textContent === 'string' && n._textContent.indexOf('currently blocked') !== -1).length, 0);
 });
 
-t.test('the abilities list on the landing screen shows EVERY ability with its own state -- not only the ready ones', async () => {
-    // WAS: "the ready to use right now list shows ONLY actionable+available
-    // abilities... and always offers a way to see the full list".
-    //
-    // That list was a filtered preview of the full one, with a link to the
-    // screen carrying the full one. Plan item A merged those screens, so
-    // keeping both would have shown every ready ability twice on a single
-    // screen, and the link would have pointed at the screen the viewer is
-    // already on. The preview is gone; the full list answers the same
-    // question plus "what do I still have to earn", which is the more
-    // useful half for a landing view.
-    //
-    // What must NOT be lost, and is asserted here: a not-yet-usable ability
-    // is still visible AND still says why. Hiding it would answer "why
-    // can't I do this" with silence -- the rule this plan's own
-    // "deliberately left alone" section keeps.
+t.test('the abilities list on the landing screen shows only the abilities you can use right now (owner: show what they are certified in)', async () => {
     const h = await openTablet({
         ok: true,
         viewer: { citizenid: 'C5', name: 'A', isHighCommand: false, effectivePermissions: [], allowSelfGrant: false },
@@ -475,10 +456,10 @@ t.test('the abilities list on the landing screen shows EVERY ability with its ow
             { key: 'Blocked1', label: 'Blocked Ability', category: null, actionable: true, state: 'blocked' },
         ],
     });
-    t.equals(findByText(h.getRoot(), 'Ready Ability').length, 1, 'a ready ability appears exactly once -- never twice, which a preview plus the full list would have caused');
-    t.equals(findByText(h.getRoot(), 'Status Only Ability').length, 1, 'a status-only ability is listed too, with its own state');
-    t.equals(findByText(h.getRoot(), 'Blocked Ability').length, 1, 'and so is a blocked one -- hiding it would answer "why can I not do this" with silence');
-    t.equals(findByText(h.getRoot(), 'View all abilities').length, 0, 'no link to a separate full list: this IS the full list');
+    t.equals(findByText(h.getRoot(), 'Ready Ability').length, 1, 'a ready ability appears exactly once');
+    t.equals(findByText(h.getRoot(), 'Status Only Ability').length, 1, 'a status-only ability you have is listed');
+    t.equals(findByText(h.getRoot(), 'Blocked Ability').length, 0, 'a blocked one is left out');
+    t.equals(findByText(h.getRoot(), 'View all abilities').length, 0, 'no link to a separate full list');
 });
 
 t.test('the landing screen carries the whole record -- certifications, both XP ladders, and abilities -- with no second tab to visit', async () => {

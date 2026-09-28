@@ -193,6 +193,7 @@ local LibStub = {
 }
 
 local Config = {
+    CommandTablet = { adminChatCommands = true }, -- admin chat commands are off by default; these tests drive them
     Features = { AdminAuditCommands = true },
     AdminAudit = {
         AcePermission = 'k9unit.admin',
@@ -2054,6 +2055,7 @@ t.test('CONFIG-ABORT REGRESSION: a MISSING Config.AdminAudit.MaxResults.CatalogA
 
     local Config2 = {
         Features = { AdminAuditCommands = true },
+        CommandTablet = { adminChatCommands = true }, -- admin chat commands are off by default; these tests drive them
         AdminAudit = {
             CommandCooldownMs = 300,
             TrustConsole = false,
@@ -2174,6 +2176,7 @@ t.test('CONFIG-ABORT REGRESSION: malformed auditGrade (one department), CommandC
 
     local Config3 = {
         Features = { AdminAuditCommands = true },
+        CommandTablet = { adminChatCommands = true }, -- admin chat commands are off by default; these tests drive them
         AdminAudit = {
             -- MALFORMED: a string instead of a number.
             CommandCooldownMs = 'oops',

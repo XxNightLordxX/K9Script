@@ -234,7 +234,36 @@ jobs:
                               continue
                           for m in TABLE_REF_RE.finditer(unescaped):
                               table = m.group(1)
-                              if table.upper() in ("DUAL",):
+                              # DUAL is MySQL's pseudo-table. The four
+                              # schemas after it are MySQL's own built-in
+                              # system schemas: the server provides them,
+                              # sql/install.sql must NEVER create them, and
+                              # a `FROM INFORMATION_SCHEMA.COLUMNS` is a
+                              # schema-qualified reference whose captured
+                              # name is the SCHEMA, not a table.
+                              #
+                              # Concretely: server/datastore.lua's
+                              # VerifyTableShapesAgainstKnownSchema reads
+                              # INFORMATION_SCHEMA.COLUMNS at startup to
+                              # check this resource's OWN tables have the
+                              # columns it expects -- correct code doing
+                              # exactly what this check wants done. Acting
+                              # on the report (its message says "add a
+                              # CREATE TABLE") would have meant writing a
+                              # CREATE TABLE for INFORMATION_SCHEMA.
+                              if table.upper() in (
+                                  "DUAL",
+                                  "INFORMATION_SCHEMA", "PERFORMANCE_SCHEMA", "MYSQL", "SYS",
+                              ):
+                                  continue
+                              # Tables owned by ANOTHER resource that this
+                              # one reads (never writes), each named with
+                              # its owner. sql/install.sql must never create
+                              # these -- the other resource does.
+                              #   mdt_warrants -- sc-dispatch's MDT warrants,
+                              #   read by server/suspects.lua so a K9 can act
+                              #   on anyone with an approved arrest warrant.
+                              if table in ("mdt_warrants",):
                                   continue
                               if table not in declared:
                                   findings.append((str(fpath), srcline, table, unescaped.strip()))
@@ -588,7 +617,24 @@ jobs:
                   sys.exit(2)
               names = extract_globals_list(LUACHECKRC.read_text())
 
-              lua_files = [RESOURCE / "config.lua"] + sorted((RESOURCE / "client").glob("*.lua")) + sorted((RESOURCE / "server").glob("*.lua"))
+              # rglob, not glob, and shared/ as well as client//server/.
+              # This USED TO be a flat glob over client/ and server/ only,
+              # which made the check report a false positive for every
+              # global defined in a SUBDIRECTORY -- server/certifications/
+              # (K9Cert, GetCertificationTier, QueryCertificationRecord and
+              # five more, after that file was split along its four seams)
+              # and shared/compat/ (K9Compat). Those are real, live,
+              # correctly-allowlisted definitions the checker simply could
+              # not see. The failure mode that makes this worth a comment:
+              # the check's own error message tells you to delete the
+              # allowlist entry, so acting on a false positive here REMOVES
+              # a live global from the allowlist and turns luacheck red on
+              # the next run -- the check would have caused the defect it
+              # exists to prevent.
+              lua_files = ([RESOURCE / "config.lua"]
+                           + sorted((RESOURCE / "client").rglob("*.lua"))
+                           + sorted((RESOURCE / "server").rglob("*.lua"))
+                           + sorted((RESOURCE / "shared").rglob("*.lua")))
               combined = ""
               for f in lua_files:
                   if f.is_file():

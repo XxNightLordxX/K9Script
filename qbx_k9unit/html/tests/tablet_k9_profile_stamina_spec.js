@@ -80,7 +80,7 @@ const ORDINARY_VIEWER = { citizenid: 'OFFICER1', name: 'Officer', isHighCommand:
  * this tablet keeps, and the route to the override editor now that the K9
  * Overrides tab and its duplicate lookup are gone. */
 function lookupInput(h) {
-    return findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Open by exact citizen ID...')[0];
+    return findByTag(h.getRoot(), 'input').filter((i) => i.getAttribute('placeholder') === 'Name, citizen ID or server ID...')[0];
 }
 
 /**

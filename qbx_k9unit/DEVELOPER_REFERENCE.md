@@ -417,22 +417,29 @@ High-level anchor only; superseded in detail by §11.5 (vision) and §7/§15
 High-level anchor only; superseded in full detail by §13.
 
 ### 6.6 Status, Vitality & Vulnerabilities — Phase 4
-- [ ] NUI HUD shows health/stamina/hunger/thirst for the active K9, gated on
-      `Config.Features.HealthStaminaHUD`.
-- [ ] Fatigue: sustained sprint decays a value that reduces max speed when
-      depleted; recovers faster near a configured rest source.
-- [ ] Mood: drops on damage, restored by pet/feed interactions; sustained
-      low mood applies a minor performance penalty.
-- [ ] Fear/Stress: rises under sustained nearby gunfire, imposes a
-      hesitation state above threshold until a "calm down" command or decay.
-- [ ] Distraction: K9 immune to flashbang stun (integration-dependent, see
-      §13.4.3.4); a thrown "meat bait" or "ultrasonic whistle" item triggers
-      a configurable distraction state.
-- [ ] Injury/limping: a "leg health" value below threshold blocks
-      sprint/high-jump and reduces base speed via `SetPedMoveRateOverride`
-      (no dedicated quadruped limp clipset assumed to exist).
-- [ ] K9 medkit restores health/leg-health, gated the same way human medkit
-      revives already are.
+
+> **Most of this section describes features that were REMOVED on
+> 2026-09-02 at the owner's request.** The unchecked boxes below are NOT
+> outstanding work — do not pick them up. Only the HUD, Fatigue and the K9
+> medkit still exist; the rest are recorded here because §13.4's detailed
+> specs are cited by section number from code comments and must stay
+> resolvable. See §13.4.3's own removal notes.
+
+- [x] NUI HUD shows health/stamina for the active K9, gated on
+      `Config.Features.HealthStaminaHUD`. (Hunger/thirst were part of the
+      removed wellbeing set and no longer appear on it.)
+- [x] Fatigue: sustained sprint decays a value that reduces max speed when
+      depleted; recovers faster near a configured rest source. **The only
+      wellbeing system still shipped.**
+- [x] K9 medkit restores health, gated the same way human medkit revives
+      already are.
+- ~~Mood: drops on damage, restored by pet/feed interactions.~~ **REMOVED.**
+- ~~Fear/Stress: rises under sustained nearby gunfire, imposes a hesitation
+      state.~~ **REMOVED.**
+- ~~Distraction: flashbang immunity; "meat bait"/"ultrasonic whistle"
+      items.~~ **REMOVED.**
+- ~~Injury/limping: a "leg health" value gating sprint and base speed.~~
+      **REMOVED.**
 - [ ] Contraband screen effect uses `SetTimecycleModifier` with an existing
       GTA effect — no custom asset.
 
@@ -457,7 +464,7 @@ feature-group phase is being reviewed.
 |---|---|---|
 | K9 camera feed PiP | A full-screen camera *takeover* toggle (`CreateCam`/`RenderScriptCams`) — not a true inset PiP. | A real inset PiP of live 3D world video needs a render-target/texture-capture path FiveM does not expose to plain Lua for a moving in-game camera. Concluded infeasible for a true feed; Phase 5 shipped only a feasibility spike, not a working PiP. |
 | Thermal / night vision | `SetSeethrough(true)` for thermal (GTA's built-in heat-vision, highlights peds as heat sources), `SetNightvision(true)` for night — both confirmed, toggle-and-forget natives. | Nothing extra needed. |
-| Bite-and-hold "locks onto arm/leg" | Task/animation + a control-disable flag on the target, released on Recall/timeout. | A literal physics-attached bite with correct IK needs custom animation work; not attempted. |
+| Bite-and-hold "locks onto arm/leg" | Task/animation + a control-disable flag on the target, released on an explicit release or timeout. | A literal physics-attached bite with correct IK needs custom animation work; not attempted. |
 | Agility mode (climb fences/windows) | Native jump task + a scripted vault (capsule-sweep obstacle detection, §12.0 item 3) reposition over a detected low obstacle. | A real climbing animation blended to arbitrary fence heights needs a custom clip set. |
 | Limping/injury gait | Reduced move-speed via `SetPedMoveRateOverride`, no distinct visual gait. | A visually distinct limping quadruped animation needs a custom clip set (none assumed to exist). |
 | Permanent scar overlays | Not attempted. | Custom ped texture/decoration asset + pipeline; out of scope. |
@@ -3134,7 +3141,11 @@ once. That trade was the point of the request.
 
 ### Keybind defaults, and the collision that shipped
 
-`Config.Tracking.ScentVision.keybind` defaults to `'Z'`, not `'B'`. A first
+`Config.Tracking.ScentVision.keybind` defaults to `'PERIOD'` (the full stop).
+It was `'Z'` until the rework pass found that ox_lib's own radial menu -- the
+menu every K9 action lives in -- defaults to Z, so opening the menu toggled
+scent vision; tests/keybindcollisions_spec.lua now also checks defaults against
+keys ox_lib and ox_target own. Before that it was briefly `'B'`. A first
 pass shipped `'B'` without noticing that the bite-and-hold toggle further down
 the same file also defaults to `'B'` -- a real, ship-blocking collision found
 while wiring the tablet's Commands page.

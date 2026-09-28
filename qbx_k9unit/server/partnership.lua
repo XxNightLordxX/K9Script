@@ -639,15 +639,10 @@ end
 --- Read-only accessor over the `local` `Partnerships` cache, expressing
 --- exactly the boolean check DEVELOPER_REFERENCE.md §12.0 item 7 specifies for
 --- See "HOW TO CONSUME THIS REGISTRY" in this file's
---- header for the originally-intended caller. STILL not called that way:
---- every other caller (confirmed by direct read) never takes an
---- "alleged partner" from anywhere to validate against this function --
---- it derives the K9 to recall directly from `GetActivePartnerCitizenId(callerCitizenid)`
---- instead, which is strictly narrower (a caller can only ever recall their
---- own registered partner, never anyone else's) and needs no separate
---- alleged-partner comparison. This function has no internal caller today;
---- it remains reachable only via server/exports.lua's `IsActivePartnerOf`
---- export for other resources.
+--- header for the originally-intended caller. Called by server/main.lua's
+--- requestLeashAttach, which lets two partners leash without a prompt, and
+--- reachable by other resources via server/exports.lua's `IsActivePartnerOf`
+--- export.
 --- @param citizenid string
 --- @param allegedPartnerCitizenid string
 --- @return boolean
@@ -1568,11 +1563,31 @@ end)
 --- the same triggers -- either one invalidates the partnership).
 --- @param citizenid string
 --- @param reason string -- plain reason (e.g. 'certification_revoked', 'department_changed') -- this function prefixes it with 'system:' for the DB's ended_by column, and passes it unprefixed to partnershipEnded
+--- @param actorCitizenid string|nil -- WHO ended it, when a person did. See below.
 --- @return boolean ended
-function ForceBreakPartnershipForCitizenId(citizenid, reason)
+---
+--- `actorCitizenid` IS FOR A PERSON'S DECISION, NOT A SYSTEM'S. When high
+--- command force-ends a partnership from the tablet, that is an officer's
+--- choice about two other players, and the partnership history must say
+--- which officer made it. Before this parameter existed every such row was
+--- written as `system:admin_forced_from_tablet` -- so the history showed
+--- "ended by the system" and there was no way to tell who had done it.
+---
+--- When present it is written as ended_by verbatim -- the SAME shape a
+--- player-initiated break already writes (the ending party's own
+--- citizenid), so server/tablet.lua's BuildPartnershipRowsForCitizenId
+--- resolves it to a display name with no change on the reading side.
+---
+--- Omitted by every automatic caller (a revoked certification, a
+--- department change), which keep the `system:<reason>` sentinel: nobody
+--- chose those, so naming a person would be false.
+function ForceBreakPartnershipForCitizenId(citizenid, reason, actorCitizenid)
     if type(citizenid) ~= 'string' or citizenid == '' then return false end
 
-    local ok, result = pcall(DoBreakPartnership, citizenid, ('system:%s'):format(reason or 'unknown'), reason or 'ended')
+    local endedBy = (type(actorCitizenid) == 'string' and actorCitizenid ~= '')
+        and actorCitizenid
+        or ('system:%s'):format(reason or 'unknown')
+    local ok, result = pcall(DoBreakPartnership, citizenid, endedBy, reason or 'ended')
     if not ok then
         print(('[qbx_k9unit] ForceBreakPartnershipForCitizenId failed for %s: %s'):format(citizenid, tostring(result)))
         return false

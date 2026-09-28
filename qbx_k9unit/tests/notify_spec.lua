@@ -296,6 +296,7 @@ local adminExportsStub = {
 }
 
 local AdminConfig = {
+    CommandTablet = { adminChatCommands = true }, -- admin chat commands are off by default; these tests drive them
     Features = { AdminAuditCommands = true },
     AdminAudit = {
         CommandCooldownMs = 300,

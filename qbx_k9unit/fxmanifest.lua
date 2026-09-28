@@ -391,6 +391,7 @@ server_scripts {
     -- database holds one of them. No hard load-order requirement -- every
     -- function here is called at event time, never at file load.
     'server/certtiers.lua',
+    'server/roles.lua',     -- K9 roles: tiers and specializations merged into one catalog high command edits on the tablet (label, XP needed, unlocks), overlaid on Config.K9Specializations and saved in k9_roles. NewCooldown at file-load time (after server/cooldowns.lua); K9Store/HasSpecialization/GetXP at run time only.
     -- K9 COMMAND TABLET, server half. This is high command's actual control
     -- surface: the roster read side, plus tabletAssignK9Role and
     -- tabletRevertK9Ped -- assigning someone the K9 role and stripping it
@@ -441,6 +442,7 @@ server_scripts {
     -- can actually FIRE (a real player action), every server_scripts file
     -- below has already finished loading regardless of manifest order.
     'server/partnership.lua',
+    'server/warrants.lua',  -- The K9's sniff checks sc-dispatch's MDT for arrest/bench warrants and tells the dog and its partner (information only), plus the one optional wanted gate (IsPlayerK9Wanted, off by default) server/combat.lua and server/pursuitsprint.lua call. No file-load-time dependencies.
     'server/tracking.lua',
     'server/pursuitsprint.lua', -- PROJECT_HISTORY.md §5 (PursuitSprint), server half. HARD load-order dependency on server/cooldowns.lua (NewCooldown at file-load time). Also holds the only correct implementation of the four-step per-person FeatureControl resolution -- read it before writing a second one anywhere else.
     'server/search.lua',

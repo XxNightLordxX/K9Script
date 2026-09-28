@@ -186,7 +186,7 @@
     ever prompting a re-add. The entire "K9 Unit" radial menu -- submenu,
     every nested submenu, and the root opener -- would silently vanish the
     moment ox_lib restarts, no error, no log line; and if the (now
-    unregistered) 'k9unit'/'k9unit_bark'/'k9unit_fetch' ids
+    unregistered) 'k9unit'/'k9unit_bark' ids
     were ever still referenced via a stale `menu` field somewhere,
     ox_lib's `showRadial` does `return error('No radial menu with such id
     found.')` -- an UNCAUGHT hard Lua error, not a no-op.
@@ -207,6 +207,38 @@
     see RegisterK9RadialMenu()'s own comment for the full verification).
 ]]
 
+
+--- Nearest other player within `range`, PREFERRING the other kind: a
+--- human handler gets the nearest dog, the dog gets the nearest human. So
+--- "stand next to your dog and press Leash / Partner Up" works even with a
+--- bystander standing closer. Falls back to the nearest player of either
+--- kind (the server then explains why that pairing is not possible).
+--- @param range number
+--- @return number? candidateServerId
+local function FindNearestPairCandidate(range)
+    local myCoords = GetEntityCoords(PlayerPedId())
+    local iAmDog = type(IsOwnModelK9) == 'function' and IsOwnModelK9() or false
+    local bestOther, bestOtherDist, bestAny, bestAnyDist
+
+    for _, playerId in ipairs(GetActivePlayers()) do
+        if playerId ~= PlayerId() then
+            local targetPed = GetPlayerPed(playerId)
+            if targetPed ~= 0 and DoesEntityExist(targetPed) then
+                local dist = #(myCoords - GetEntityCoords(targetPed))
+                if dist <= range then
+                    if not bestAnyDist or dist < bestAnyDist then bestAny, bestAnyDist = playerId, dist end
+                    local isDog = type(IsEntityModelK9) == 'function' and IsEntityModelK9(targetPed) or false
+                    if isDog ~= iAmDog and (not bestOtherDist or dist < bestOtherDist) then
+                        bestOther, bestOtherDist = playerId, dist
+                    end
+                end
+            end
+        end
+    end
+
+    local pick = bestOther or bestAny
+    return pick and GetPlayerServerId(pick) or nil
+end
 
 -- OPEN STRUCTURAL QUESTION resolution: option (b) was chosen — the "K9
 -- Unit" submenu and its sub-items are registered ONCE, unconditionally
@@ -234,8 +266,9 @@
 --- a derived factor — see config.lua's comment on that field and
 --- server/main.lua's header for the initiate-range check this mirrors),
 --- for the Attach/Detach Leash radial item's self-initiated entry point.
---- Model plausibility isn't filtered here — the server independently
---- re-validates via CheckLeashEligibility (server/main.lua) regardless.
+--- Prefers the other kind (FindNearestPairCandidate above: your dog if
+--- you are the handler); the server re-validates via CheckLeashEligibility
+--- (server/main.lua) regardless.
 --- @return number? candidateServerId
 --- SEAM OPENED 2026-08-25: was `local`. client/tablet.lua calls this so the
 --- tablet's own action routes through the SAME candidate-resolution logic the
@@ -245,38 +278,18 @@
 --- type(fn) == 'function' since client/radial.lua returns early when its own
 --- feature flag is off, in which case this is never defined.
 function FindNearestLeashCandidate()
-    local myPed = PlayerPedId()
-    local myCoords = GetEntityCoords(myPed)
-    local nearestPlayer, nearestDist
-
-    for _, playerId in ipairs(GetActivePlayers()) do
-        if playerId ~= PlayerId() then
-            local targetPed = GetPlayerPed(playerId)
-            if targetPed ~= 0 and DoesEntityExist(targetPed) then
-                local dist = #(myCoords - GetEntityCoords(targetPed))
-                if dist <= Config.LeashMaxDistance and (not nearestDist or dist < nearestDist) then
-                    nearestPlayer, nearestDist = playerId, dist
-                end
-            end
-        end
-    end
-
-    if not nearestPlayer then return nil end
-    return GetPlayerServerId(nearestPlayer)
+    return FindNearestPairCandidate(Config.LeashMaxDistance)
 end
-
 --- Same shape as FindNearestLeashCandidate() above, for the Partner Up
 --- radial item's self-initiated entry point: nearest OTHER player within
 --- Config.Partnership.ProximityMeters — that field is the REAL server-side
 --- range client/partnership.lua's CheckPartnershipEligibility checks a
 --- request against (both at request time and again at accept time), reused
 --- directly here as the search radius for the identical reason
---- FindNearestLeashCandidate() reuses Config.LeashMaxDistance. No client-side
---- model plausibility filter (unlike client/partnership.lua's own ox_target
---- "Partner Up" predicate, which additionally requires at least one side to
---- plausibly be a K9) — this is a display-adjacent candidate pick, not a
---- security boundary, and CheckPartnershipEligibility re-derives the real
---- model server-side regardless.
+--- FindNearestLeashCandidate() reuses Config.LeashMaxDistance. Prefers the
+--- other kind the same way -- a display-adjacent candidate pick, not a
+--- security boundary; CheckPartnershipEligibility re-derives the real model
+--- server-side regardless.
 --- @return number? candidateServerId
 --- SEAM OPENED 2026-08-25: was `local`. client/tablet.lua calls this so the
 --- tablet's own action routes through the SAME candidate-resolution logic the
@@ -286,26 +299,8 @@ end
 --- type(fn) == 'function' since client/radial.lua returns early when its own
 --- feature flag is off, in which case this is never defined.
 function FindNearestPartnerCandidate()
-    local myPed = PlayerPedId()
-    local myCoords = GetEntityCoords(myPed)
-    local nearestPlayer, nearestDist
-
-    for _, playerId in ipairs(GetActivePlayers()) do
-        if playerId ~= PlayerId() then
-            local targetPed = GetPlayerPed(playerId)
-            if targetPed ~= 0 and DoesEntityExist(targetPed) then
-                local dist = #(myCoords - GetEntityCoords(targetPed))
-                if dist <= Config.Partnership.ProximityMeters and (not nearestDist or dist < nearestDist) then
-                    nearestPlayer, nearestDist = playerId, dist
-                end
-            end
-        end
-    end
-
-    if not nearestPlayer then return nil end
-    return GetPlayerServerId(nearestPlayer)
+    return FindNearestPairCandidate(Config.Partnership.ProximityMeters)
 end
-
 --- Idempotent (re-)registration of every "K9 Unit" radial menu and
 --- submenu this resource owns.
 ---
@@ -347,7 +342,7 @@ end
 --- registries this file's own state lives inside, not ox_target's.
 ---
 --- ORDERING PRESERVED: this function still registers every submenu
---- ('k9unit_bark', 'k9unit_fetch', 'k9unit_utility') strictly BEFORE the
+--- ('k9unit_bark', 'k9unit_utility') strictly BEFORE the
 --- 'k9unit' registration that follows it and BEFORE the root opener
 --- `lib.addRadialItem` call at the very end -- i.e. before anything that
 --- references one of those submenu ids via an item's `menu` field. This
@@ -593,12 +588,16 @@ local function ShouldShowK9RadialIcon()
     return type(HasK9Access) == 'function' and HasK9Access()
 end
 
+--- Which menu was built last (dog or human) -- the refresh loop at the
+--- bottom of this file rebuilds as soon as your character changes.
+local lastBuiltRoleIsDog = nil
+
 local function RegisterK9RadialMenu()
     -- Contents of the "K9 Unit" SUBMENU (registered via lib.registerRadial
     -- below) — none of these carry their own `menu` field, UNLESS noted
     -- otherwise (an opener that navigates into a nested sub-menu, same
     -- `menu`-field mechanic this file's header already documents for
-    -- 'k9unit_bark'/'k9unit_fetch'/'k9unit_utility'). Every other item
+    -- 'k9unit_bark'/'k9unit_utility'). Every other item
     -- here is a terminal action with
     -- its own onSelect, so `menu` must stay unset on all of those.
     local k9SubmenuItems = {}
@@ -892,7 +891,12 @@ local function RegisterK9RadialMenu()
                 -- then genuinely refuse ('no_k9_party') -- exactly the "offer
                 -- something that will just be refused" outcome this pass was
                 -- told to avoid. Left on the broader combinator on purpose.
-                if not CanShowK9UI() then
+                -- Only the dog needs K9 access to ask; a human handler asks
+                -- the server directly, which checks everything (the same
+                -- rule RequestLeashAttach() itself follows). This used to be
+                -- a plain CanShowK9UI() check, which refused every human
+                -- handler -- the person who actually holds the leash.
+                if IsOwnModelK9() and not CanShowK9UI() then
                     DenyK9UIAccess('common.no_k9_role_or_access')
                     return
                 end
@@ -1142,31 +1146,9 @@ local function RegisterK9RadialMenu()
         }
     end
 
-    --- K9 Camera Feed — the same discoverability gap as Scent Vision above,
-    --- and the same fix. Command + keybind since it shipped, never on the
-    --- wheel.
-    ---
-    --- Config.Features.CameraFeedPiP only, display-only, for the same
-    --- reason: ToggleCameraFeed() performs every real check itself and
-    --- notifies specifically on each failure (feature disabled, not
-    --- partnered with anyone, partner offline, partner out of range, camera
-    --- creation failed). Pre-filtering the item on partnership here would
-    --- ALSO be wrong on its own terms -- it would make the control vanish
-    --- exactly when a handler is trying to work out why they cannot see
-    --- their dog, replacing "you are not partnered with anyone" with
-    --- nothing at all.
-    if Config.Features.CameraFeedPiP then
-        k9SubmenuItems[#k9SubmenuItems + 1] = {
-            id = 'k9_camera_feed',
-            label = locale('radial.camera_feed_label'),
-            icon = 'video',
-            onSelect = function()
-                if type(ToggleCameraFeed) == 'function' then
-                    ToggleCameraFeed()
-                end
-            end,
-        }
-    end
+    --- The partner camera has no menu button: it is opened from the tablet
+    --- only (owner's choice) -- see client/tablet.lua's
+    --- FEATURE_TRIGGERS.CameraFeedPiP.
 
     --- K9 Vision — EXTRA, OPTIONAL CONVENIENCE, kept alongside the two
     --- explicit items immediately above (owner's own steer: "keep it as an
@@ -1467,172 +1449,20 @@ local function RegisterK9RadialMenu()
         }
     end
 
-    --- Break Partnership -- DEVELOPER_REFERENCE.md §12.0 item 7. Closes a real gap:
-    --- client/partnership.lua exposes BreakPartnership() as a fully
-    --- implemented resource-global specifically FOR a future radial entry (see
-    --- that file's own header, "FILE-TO-FILE CONTRACT" -> BreakPartnership()),
-    --- but nothing in this resource called it -- "Partner Up" has a live
-    --- ox_target entry point, "Break Partnership" had none at all. Two
-    --- consenting players therefore had no way to end a partnership short of
-    --- one of them losing certification or changing department (and even THAT
-    --- teardown path is separately disclosed as not actually wired yet -- see
-    --- client/partnership.lua's header, "SEPARATE, ALSO DISCLOSED FINDING").
-    --- This item is that entry point.
-    ---
-    --- NOT GATED ON CanShowK9UI() -- same "no unbounded trap" requirement as
-    --- Detach Leash / Release Bite & Hold / Release Drag above (DEVELOPER_REFERENCE.md §9 item
-    --- 3b), now applied to a persistent, DB-backed relationship instead of a
-    --- session-scoped one. client/partnership.lua's own BreakPartnership() is
-    --- documented as deliberately ungated for exactly this reason (its header:
-    --- "TERMINATION MUST NEVER BE GATED") -- gating the call HERE with a
-    --- CanShowK9UI() check this file adds on top would silently reintroduce the
-    --- exact trap that function was written to avoid (e.g. a K9 decertified or
-    --- moved off-department while still partnered would hit DenyK9UIAccess()
-    --- and have no way to leave). This onSelect therefore does nothing but the
-    --- type-guarded call below -- no access check, no local state check, before
-    --- or after.
-    ---
-    --- NOT A CONTEXT-SENSITIVE TOGGLE with "Partner Up" (unlike Attach/Detach
-    --- Leash, Bite & Hold, and Drag above), even though client/partnership.lua's
-    --- own header floats exactly that dual-mode shape as a possibility for
-    --- "a future radial entry." Deliberately NOT done here: every one of this
-    --- file's existing toggles keys its branch off a LOCAL client-side state
-    --- query (IsLeashed(), IsBiteHoldEngaged(), IsDragEngaged()) that mirrors
-    --- SERVER-side data the client can never fall meaningfully behind on --
-    --- movement.lua's own header frames leash pairs as ephemeral, session-scoped
-    --- state that cannot survive this client's own reconnect/restart, so a
-    --- locally-nil leash state is always accurate. client/partnership.lua's
-    --- PartnershipState cache has NO such guarantee: partnership.lua's own
-    --- header ("KNOWN CACHE-STALENESS GAP") discloses that IsPartnered() CAN
-    --- under-report for a client that reconnects, or whose OWN resource
-    --- restarts, while genuinely still partnered per the DB -- nothing in
-    --- server/partnership.lua's current contract re-syncs
-    --- 'qbx_k9unit:client:partnershipEstablished' (or anything else) to a
-    --- reconnecting client. If this item toggled visibility/label off
-    --- IsPartnered() the way Leash/Bite & Hold/Drag toggle off their own local
-    --- state, a genuinely-partnered player who just reconnected would read a
-    --- stale `false`, see only "Partner Up" here (never "Break Partnership"),
-    --- and get nothing but the server's `already_partnered` rejection if they
-    --- tried it -- silently reintroducing the exact trap this item exists to
-    --- close, and doing it specifically to the players most likely to hit it
-    --- (anyone who reconnected mid-shift). So instead: a single, ALWAYS-OFFERED,
-    --- flat action -- gated ONLY on Config.Features.HandlerPartnership at
-    --- registration (same as every other item's own feature flag here), never
-    --- on any client-side partnership-state read. This is safe to click even
-    --- for a player who was never partnered at all: BreakPartnership() sends
-    --- unconditionally, and server/partnership.lua's own breakPartnership
-    --- handler is an already-safe no-op for that case (NotifyPlayer: "You are
-    --- not currently partnered with anyone."). Offering this to a never-
-    --- partnered player is a DELIBERATE tradeoff, not an oversight left to be
-    --- "fixed" later -- a future reviewer who hides this behind an
-    --- IsPartnered() check to avoid that redundant click would silently bring
-    --- the reconnect trap back. An exit that is occasionally offered when
-    --- unneeded is strictly better than one that is sometimes invisible to
-    --- exactly the player who needs it.
-    ---
-    --- The live partnership-status callback this section once anticipated
-    --- has since landed -- server/partnership.lua registers
-    --- `lib.callback.register('qbx_k9unit:server:getPartnershipState', ...)`,
-    --- returning current SERVER-truth partnership state, and
-    --- client/partnership.lua's RefreshPartnershipStateFromServer() already
-    --- awaits it (per this resource's own fxmanifest.lua comment on that
-    --- file). This item needed no change when it landed -- "Break
-    --- Partnership" stays unconditionally offered regardless of local
-    --- partnership-state cache accuracy, for the exact reconnect-trap reason
-    --- described above. Noted here so a future reader doesn't go looking for
-    --- a callback that already exists.
+    --- Partner Up / Break Partnership -- ONE item (the owner's rework pass),
+    --- like Attach/Detach Leash. It used to be two items shown side by side
+    --- all the time, because the local partnership cache can be wrong after
+    --- a reconnect; client/partnership.lua's TogglePartnership() now asks
+    --- the server first and then does the right one. Breaking is never
+    --- gated. Run in a thread because the server check yields.
     if Config.Features.HandlerPartnership then
         k9SubmenuItems[#k9SubmenuItems + 1] = {
-            id = 'k9_break_partnership',
-            label = locale('radial.break_partnership_label'),
-            icon = 'handshake-slash',
-            onSelect = function()
-                -- type(...) == 'function' guard per this codebase's established
-                -- soft-dependency convention (e.g. AwardXP/
-                -- GetXPTier) -- effectively always true here in practice, since
-                -- this item is only ever registered under the SAME
-                -- Config.Features.HandlerPartnership flag that gates
-                -- client/partnership.lua's entire file (its own top-of-file
-                -- `if not Config.Features.HandlerPartnership then return end`),
-                -- so by the time a player can click this, that file has already
-                -- run and defined BreakPartnership(). Kept anyway: client/
-                -- partnership.lua's own header explicitly names this exact
-                -- guard as what a future radial caller should use, and it costs
-                -- nothing to honor that against, say, a future load-order change.
-                if type(BreakPartnership) == 'function' then
-                    BreakPartnership()
-                end
-            end,
-        }
-    end
-
-    --- Partner Up -- DEVELOPER_REFERENCE.md §12.0 item 7. The other half of the gap
-    --- Break Partnership above already closes: client/partnership.lua's own
-    --- ox_target "Partner Up" option is a live entry point; this item is what
-    --- makes fxmanifest.lua's comment on client/partnership.lua ("the radial
-    --- entry is now wired") true from this file's side as well.
-    ---
-    --- A SEPARATE FLAT ITEM, NOT A DUAL-MODE TOGGLE WITH Break Partnership --
-    --- same reasoning Break Partnership's own comment block above already
-    --- gives IN FULL for why THIS FILE never keys a Partner-Up/Break-Partnership
-    --- choice off IsPartnered() (see "KNOWN CACHE-STALENESS GAP", above).
-    --- client/partnership.lua's own header does separately float
-    --- RefreshPartnershipStateFromServer() as having been built "for... a
-    --- dual-mode radial item that picks Partner Up vs Break Partnership" --
-    --- deliberately NOT taken up here: Break Partnership's own resolution above
-    --- already settled this file's position on that exact question (kept
-    --- unconditional/flat even after that callback landed, specifically so the
-    --- one control that always works is never hidden behind a state read that
-    --- can be stale for a just-reconnected player), and introducing a SECOND,
-    --- opposite-conclusion pattern for the mirror-image action in the same
-    --- submenu would leave two contradictory answers to the identical design
-    --- question sitting side by side. Two always-offered flat items (this one
-    --- gated on CanShowK9UI() since it's an INITIATION, Break Partnership
-    --- ungated since it's a TERMINATION -- see this file's header's general
-    --- initiation-vs-termination gating split) give the same full coverage
-    --- without that inconsistency: clicking Partner Up while already partnered
-    --- just costs one harmless, already-tolerated round trip
-    --- (RequestPartnerUp()'s own local IsPartnered() pre-check, or failing
-    --- that server/partnership.lua's CheckPartnershipEligibility, rejects it
-    --- with a clear notification either way -- the exact tolerance
-    --- client/partnership.lua's own header already documents for its
-    --- ox_target predicate's identical display-only imprecision).
-    ---
-    --- Candidate selection: FindNearestPartnerCandidate() above, this file's
-    --- header.
-    if Config.Features.HandlerPartnership then
-        k9SubmenuItems[#k9SubmenuItems + 1] = {
-            id = 'k9_partner_up',
-            -- Reuses the already-migrated partnership.* key rather than minting
-            -- a fourth-pass-flagged duplicate — see DEVELOPER_REFERENCE.md's
-            -- "Found, NOT touched" note on this exact label (byte-for-byte
-            -- identical to client/partnership.lua's own ox_target option text).
-            label = locale('partnership.partner_up_target_label'),
+            id = 'k9_partner',
+            label = locale('radial.partner_toggle_label'),
             icon = 'handshake',
             onSelect = function()
-                -- NOT WIDENED TO HasK9Access() -- checked, matches Leash's
-                -- own "considered and rejected" case above verbatim:
-                -- server/partnership.lua's CheckPartnershipEligibility
-                -- requires at least one party to be a real K9 by model OR
-                -- the decoupled K9 role (IsConfiguredK9Model(...) or
-                -- HasK9Role(...)) BEFORE HasK9Access is ever consulted for
-                -- whichever party is cast as the K9 -- a bypass-only holder
-                -- with no model and no role fails that check regardless of
-                -- what this client offers. Left on the broader combinator.
-                if not CanShowK9UI() then
-                    DenyK9UIAccess('common.no_k9_role_or_access')
-                    return
-                end
-
-                local candidateServerId = FindNearestPartnerCandidate()
-                if not candidateServerId then
-                    lib.notify({ title = locale('common.notify_title'), description = locale('radial.no_partner_candidate'), type = 'error' })
-                    return
-                end
-
-                if type(RequestPartnerUp) == 'function' then
-                    RequestPartnerUp(candidateServerId)
-                end
+                if type(TogglePartnership) ~= 'function' then return end
+                CreateThread(function() TogglePartnership() end)
             end,
         }
     end
@@ -1649,79 +1479,20 @@ local function RegisterK9RadialMenu()
     --- proximity-driven actions on a specific ball/player, not a
     --- self-initiated radial verb) -- not duplicated here.
     ---
-    --- TWO ITEMS, NOT THREE, DESPITE THREE UNDERLYING FUNCTIONS -- Throw and
-    --- Release are combined into ONE context-sensitive toggle (same shape as
-    --- Attach/Detach Leash / Bite & Hold / Drag above: IsFetchCarryEngaged()
-    --- plays the same role IsLeashed()/IsBiteHoldEngaged()/IsDragEngaged() do),
-    --- since they are true opposites of the SAME per-client carry state, never
-    --- offered simultaneously. Recall stays a SEPARATE item because it is NOT
-    --- that state's opposite -- client/fetch.lua's own doc comment frames it as
-    --- "the THROWER's own early-interrupt for their currently active fetch
-    --- cycle (any state)," i.e. it belongs to the client who threw the ball,
-    --- who is typically NOT the client currently carrying it (the normal case
-    --- immediately after a throw, before any K9 has picked it up). Folding
-    --- Recall into the same toggle would mean a thrower who isn't the current
-    --- carrier -- the common case -- could never reach it, since
-    --- IsFetchCarryEngaged() would read false on their own client and route
-    --- them into "Throw" instead, silently losing the one control that lets
-    --- them call off a cycle they started.
-    ---
-    --- GATING: the Throw branch checks HasK9Access() directly (NOT
-    --- CanShowK9UI()) -- matching RequestThrowFetchBall()'s own doc comment
-    --- verbatim: "a HUMAN HANDLER action (gated on HasK9Access() alone, NOT
-    --- CanShowK9UI()/IsOwnModelK9() ... the thrower need not currently be
-    --- riding a K9 model)." Using CanShowK9UI() here instead would additionally
-    --- require IsOwnModelK9(), silently blocking the exact human-handler-not-
-    --- currently-a-K9 use case this feature exists for. The Release branch and
-    --- Recall are NOT gated at all -- same "no unbounded trap" reasoning as
-    --- every other release/termination item above; client/fetch.lua's own doc
-    --- comments state this explicitly for both ("Always available while
-    --- carrying -- no access gate on the way out" / "deliberately NOT gated on
-    --- HasK9Access()/CanShowK9UI() ... must still be able to call it off").
+    --- FETCH -- ONE item, one click (the owner's rework pass). It used to open
+    --- a sub-menu with Throw/Drop and Recall. client/fetch.lua's
+    --- FetchContextual() picks the right one: drop if carrying, recall if a
+    --- ball you threw is out (so the thrower, usually not the carrier, still
+    --- gets Recall), otherwise throw. Drop and Recall are never gated; Throw
+    --- gates itself (HasK9Access, a human-handler action).
     if Config.Features.FetchMechanic then
-        lib.registerRadial({
-            id = 'k9unit_fetch',
-            items = {
-                {
-                    id = 'k9_fetch_throw',
-                    label = locale('radial.fetch_throw_label'),
-                    icon = 'baseball',
-                    onSelect = function()
-                        if type(IsFetchCarryEngaged) == 'function' and IsFetchCarryEngaged() then
-                            if type(ReleaseFetchBall) == 'function' then
-                                ReleaseFetchBall()
-                            end
-                            return
-                        end
-
-                        if not HasK9Access() then
-                            DenyK9UIAccess('combat.no_access')
-                            return
-                        end
-
-                        if type(RequestThrowFetchBall) == 'function' then
-                            RequestThrowFetchBall()
-                        end
-                    end,
-                },
-                {
-                    id = 'k9_fetch_recall',
-                    label = locale('radial.fetch_recall_label'),
-                    icon = 'circle-down',
-                    onSelect = function()
-                        if type(RequestRecallFetchBall) == 'function' then
-                            RequestRecallFetchBall()
-                        end
-                    end,
-                },
-            },
-        })
-
         k9SubmenuItems[#k9SubmenuItems + 1] = {
             id = 'k9_fetch',
             label = locale('radial.fetch_menu_label'),
             icon = 'baseball',
-            menu = 'k9unit_fetch',
+            onSelect = function()
+                if type(FetchContextual) == 'function' then FetchContextual() end
+            end,
         }
     end
 
@@ -1843,7 +1614,9 @@ local function RegisterK9RadialMenu()
     --- access gate entirely on the way out of a mechanic.
     k9SubmenuItems[#k9SubmenuItems + 1] = {
         id = 'k9_kennel',
-        label = locale('radial.kennel_label'),
+        -- A person can put a kennel down, pick it up and open or close its
+        -- door; only the dog can get in -- so the label says which.
+        label = (type(IsOwnModelK9) == 'function' and not IsOwnModelK9()) and locale('radial.kennel_label_handler') or locale('radial.kennel_label'),
         icon = 'house-chimney',
         onSelect = function()
             if type(RequestKennelContextual) == 'function' then
@@ -2060,7 +1833,7 @@ local function RegisterK9RadialMenu()
     -- touches no gate, no onSelect closure, no id, no Config.Features check,
     -- and changes which items exist for nobody -- only the sequence ox_lib's
     -- own wheel paginates them in. Every nested submenu (`k9unit_bark`/
-    -- `k9unit_fetch`/`k9unit_utility`) was already registered, in full,
+    -- `k9unit_utility`) was already registered, in full,
     -- by the code above --
     -- this pass only ever reshuffles the flat list of OPENER/terminal items
     -- that live directly inside 'k9unit' itself; it never reaches inside a
@@ -2123,10 +1896,10 @@ local function RegisterK9RadialMenu()
     -- ======================================================================
     local K9_SUBMENU_DISPLAY_ORDER = {
         'k9_open_tablet',
-        'k9_bark', 'k9_leash', 'k9_vehicle', 'k9_utility',
-        'k9_partner_up', 'k9_break_partnership',
-        'k9_track_certified', 'k9_thermal_vision', 'k9_night_vision', 'k9_scent_vision', 'k9_camera_feed', 'k9_vision_cycle',
+        'k9_bark', 'k9_leash', 'k9_vehicle', 'k9_partner',
         'k9_bite_hold', 'k9_takedown', 'k9_drag',
+        'k9_track_certified', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle',
+        'k9_utility',
         'k9_fetch', 'k9_kennel',
     }
     do
@@ -2146,6 +1919,148 @@ local function RegisterK9RadialMenu()
             ordered[#ordered + 1] = item
         end
         k9SubmenuItems = ordered
+    end
+
+    -- ======================================================================
+    -- GROUPS -- NO "MORE..." PAGES (the owner's rework pass: "super easy to
+    -- use"). ox_lib's radial shows 6 slots a page and turns the 6th into
+    -- "More..." whenever there are more items (web/src/features/menu/radial,
+    -- PAGE_ITEMS = 6). This menu had about 17, so bite, takedown and drag sat
+    -- on the THIRD page -- three presses deep in the middle of a pursuit.
+    --
+    -- Now the K9 menu holds at most six entries: Tablet, Bark, and four
+    -- groups -- Partner & Leash (leash, vehicle, partner), Combat, Senses, and
+    -- Utility (which also takes Fetch and Kennel). Every action is at most
+    -- two presses away, and no page ever needs "More...".
+    --
+    -- Nothing is removed and no gate moves: each group is a plain sub-menu
+    -- holding the SAME item tables built above, onSelect closures untouched.
+    -- A group with only one available item on this server is not wrapped at
+    -- all -- that item stays in the top menu, so nobody opens a sub-menu to
+    -- find a single button.
+    -- ======================================================================
+    -- ======================================================================
+    -- ONE MENU PER PLAYER (owner: "act like you are a player... super
+    -- simple"). A human handler used to open the K9 menu and find it full
+    -- of dog-only moves -- Sit, Bark, Bite, Scent Vision -- that could only
+    -- ever refuse. Now the menu is built for who you are playing right now:
+    --   the dog sees its own moves; a human sees the handler's.
+    -- Shared buttons (tablet, leash, vehicle, partner, fetch, kennel) stay
+    -- in both. Nothing is removed from the game: every keybind and command
+    -- still works, and the menu is rebuilt the moment your character
+    -- changes (see the refresh loop at the bottom of this file).
+    -- "Gate the start, never the stop": a dog-only move that is still
+    -- running (a bite or drag held while the character changes) keeps its
+    -- button so it can always be let go.
+    -- ======================================================================
+    do
+        local DOG_ONLY = {
+            k9_sit = true, k9_bark = true, k9_track_certified = true, k9_vehicle = true,
+            k9_scent_vision = true, k9_thermal_vision = true, k9_night_vision = true, k9_vision_cycle = true,
+            k9_bite_hold = true, k9_takedown = true, k9_drag = true,
+            k9_prop_attachment = true, k9_open_inventory = true,
+        }
+        local HUMAN_ONLY = { k9_treat_nearest = true }
+        local STILL_RUNNING = {
+            k9_bite_hold = function() return type(IsBiteHoldEngaged) == 'function' and IsBiteHoldEngaged() end,
+            k9_vehicle = function() return type(IsInK9Vehicle) == 'function' and IsInK9Vehicle() end,
+            k9_drag = function() return type(IsDragEngaged) == 'function' and IsDragEngaged() end,
+            k9_track_certified = function() return type(IsTracking) == 'function' and IsTracking() end,
+            k9_prop_attachment = function() return type(IsPropAttachmentEngaged) == 'function' and IsPropAttachmentEngaged() end,
+            k9_fetch = function() return type(IsFetchCarryEngaged) == 'function' and IsFetchCarryEngaged() end,
+            k9_kennel = function() return type(IsRestingInKennel) == 'function' and IsRestingInKennel() end,
+        }
+        local amDog = type(IsOwnModelK9) == 'function' and IsOwnModelK9()
+        local hide = amDog and HUMAN_ONLY or DOG_ONLY
+
+        -- SHOW ONLY WHAT YOU CAN USE (owner: "what they have been certified
+        -- in"): a button whose ability high command has blocked for you is
+        -- left out, and a dog without K9 access (not certified) does not
+        -- get the dog's moves. Leash and Partner Up are never hidden this
+        -- way -- partnering is how an uncertified handler gets access.
+        local FEATURE_OF_ITEM = {
+            k9_bark = 'BasicBarkSounds', k9_vehicle = 'VehicleEntryExit', k9_track_certified = 'ScentTracking',
+            k9_scent_vision = 'ScentVision', k9_thermal_vision = 'ThermalVision', k9_night_vision = 'NightVision',
+            k9_bite_hold = 'BiteAndHold', k9_takedown = 'NonLethalTakedown', k9_drag = 'PropDragging',
+            k9_fetch = 'FetchMechanic', k9_prop_attachment = 'PropAttachments', k9_kennel = 'DeployableKennel',
+            k9_open_inventory = 'K9Inventory', k9_treat_nearest = 'K9Medkit',
+        }
+        local dogWithoutAccess = amDog and type(HasK9AccessCached) == 'function' and HasK9AccessCached() == false
+        local baseHide = hide
+        hide = setmetatable({}, { __index = function(_, id)
+            if baseHide[id] then return true end
+            if dogWithoutAccess and DOG_ONLY[id] then return true end
+            local feature = FEATURE_OF_ITEM[id]
+            if feature and type(IsK9FeatureBlocked) == 'function' and IsK9FeatureBlocked(feature) then return true end
+            return nil
+        end })
+        local function keep(list)
+            local out = {}
+            for _, item in ipairs(list) do
+                local running = STILL_RUNNING[item.id]
+                if not hide[item.id] or (running and running()) then out[#out + 1] = item end
+            end
+            return out
+        end
+        k9SubmenuItems = keep(k9SubmenuItems)
+        k9UtilitySubmenuItems = keep(k9UtilitySubmenuItems)
+        lib.registerRadial({ id = 'k9unit_utility', items = k9UtilitySubmenuItems })
+        lastBuiltRoleIsDog = amDog
+    end
+
+    local K9_SUBMENU_GROUPS = {
+        { menuId = 'k9unit_handler', openerId = 'k9_group_handler', label = locale('radial.group_handler_label'), icon = 'people-arrows', members = { 'k9_leash', 'k9_vehicle', 'k9_partner' } },
+        { menuId = 'k9unit_combat', openerId = 'k9_group_combat', label = locale('radial.group_combat_label'), icon = 'hand-fist', members = { 'k9_bite_hold', 'k9_takedown', 'k9_drag' } },
+        { menuId = 'k9unit_senses', openerId = 'k9_group_senses', label = locale('radial.group_senses_label'), icon = 'eye', members = { 'k9_track_certified', 'k9_scent_vision', 'k9_thermal_vision', 'k9_night_vision', 'k9_vision_cycle' } },
+    }
+    -- Moved into the existing Utility sub-menu rather than a group of their own.
+    local MOVE_TO_UTILITY = { k9_fetch = true, k9_kennel = true }
+    do
+        local byId = {}
+        for _, item in ipairs(k9SubmenuItems) do byId[item.id] = item end
+
+        local grouped = {}
+        for _, group in ipairs(K9_SUBMENU_GROUPS) do
+            local members = {}
+            for _, id in ipairs(group.members) do
+                if byId[id] then members[#members + 1] = byId[id] end
+            end
+            group.present = members
+            if #members >= 2 then
+                for _, item in ipairs(members) do grouped[item.id] = group end
+            end
+        end
+
+        local movedToUtility = false
+        local top, openerPlaced = {}, {}
+        for _, item in ipairs(k9SubmenuItems) do
+            local group = grouped[item.id]
+            if group then
+                if not openerPlaced[group.menuId] then
+                    openerPlaced[group.menuId] = true
+                    lib.registerRadial({ id = group.menuId, items = group.present })
+                    top[#top + 1] = { id = group.openerId, label = group.label, icon = group.icon, menu = group.menuId }
+                end
+            elseif MOVE_TO_UTILITY[item.id] and byId.k9_utility then
+                k9UtilitySubmenuItems[#k9UtilitySubmenuItems + 1] = item
+                movedToUtility = true
+            else
+                top[#top + 1] = item
+            end
+        end
+        if movedToUtility then
+            -- Re-registered with the moved items; lib.registerRadial replaces
+            -- a menu by id.
+            lib.registerRadial({ id = 'k9unit_utility', items = k9UtilitySubmenuItems })
+        end
+        -- A Utility sub-menu left with nothing in it for this player
+        -- loses its button instead of opening onto an empty wheel.
+        if #k9UtilitySubmenuItems == 0 then
+            for i = #top, 1, -1 do
+                if top[i].id == 'k9_utility' then table.remove(top, i) end
+            end
+        end
+        k9SubmenuItems = top
     end
 
     -- Per-person block on the WHOLE radial surface -- see this function's
@@ -2235,16 +2150,30 @@ local function RegisterK9RadialMenu()
             -- string describes (not currently an on-duty, access-granted K9
             -- handler, and not mid-engagement) -- more specific than the
             -- bare fallback, and never factually wrong for this case.
-            lib.addRadialItem({
-                {
-                    id = 'k9unit_open',
-                    label = locale('radial.menu_open_label'),
-                    icon = 'dog',
-                    onSelect = function()
-                        if type(DenyK9UIAccess) == 'function' then DenyK9UIAccess('common.no_k9_role_or_access') end
-                    end,
-                },
-            })
+            --
+            -- NOW VERIFIED against ox_lib's own source
+            -- (resource/interface/client/radial.lua): `lib.removeRadialItem(id)`
+            -- is real -- it removes the item by id, does nothing if it is not
+            -- there, and a later `lib.addRadialItem` puts it back. So a
+            -- civilian or an officer with nothing to do with K9 no longer
+            -- carries a dead "K9 Unit" button in their radial; the periodic
+            -- refresh below re-adds it the moment they gain department /
+            -- access. An ox_lib too old to have the function keeps the
+            -- honest inert stub, exactly as before.
+            if type(lib.removeRadialItem) == 'function' then
+                lib.removeRadialItem('k9unit_open')
+            else
+                lib.addRadialItem({
+                    {
+                        id = 'k9unit_open',
+                        label = locale('radial.menu_open_label'),
+                        icon = 'dog',
+                        onSelect = function()
+                            if type(DenyK9UIAccess) == 'function' then DenyK9UIAccess('common.no_k9_role_or_access') end
+                        end,
+                    },
+                })
+            end
         else
             lib.addRadialItem({
                 {
@@ -2267,7 +2196,7 @@ end
 -- First call site for RegisterK9RadialMenu() -- this resource's own start,
 -- or ox_lib's, same two-branch `onResourceStart` idiom as
 -- client/movement.lua's RegisterLeashOxTargetOption() /
--- RegisterCertifyOxTargetOptions() / RegisterDoorInteractionOxTargetOptions(),
+-- RegisterDoorInteractionOxTargetOptions(),
 -- client/fetch.lua's RegisterFetchOxTargetOptions(), client/medkit.lua's and
 -- client/wellbeing.lua's own matching dispatchers, and client/search.lua's --
 -- all fixing the identical bug class against ox_target's own file-local
@@ -2353,6 +2282,20 @@ if Config.Features.RadialMenu then
         while true do
             Wait(K9_RADIAL_ICON_REFRESH_INTERVAL_MS)
             RegisterK9RadialMenu()
+        end
+    end)
+
+    -- ONE MENU PER PLAYER: rebuild as soon as you switch between dog and
+    -- human (a chief assigning or reverting the K9 look), instead of
+    -- showing the old character's buttons for up to 15 seconds.
+    local ROLE_CHECK_INTERVAL_MS = 1000
+    CreateThread(function()
+        while true do
+            Wait(ROLE_CHECK_INTERVAL_MS)
+            local amDog = type(IsOwnModelK9) == 'function' and IsOwnModelK9() or false
+            if lastBuiltRoleIsDog ~= nil and amDog ~= lastBuiltRoleIsDog then
+                RegisterK9RadialMenu()
+            end
         end
     end)
 end

@@ -138,9 +138,9 @@
     resource's single most-repeated lesson (five separate prior bugs) and
     because IsK9FeatureBlocked() is a NEW tool an editor could reach for at
     the wrong call site: DetachLeash(), ExitK9Vehicle(), StopTracking(),
-    ReleaseBiteHold(), ReleaseDrag(), RequestRecall(), BreakPartnership(),
-    and every other release/stop/detach path in this resource stay exactly
-    as ungated as they already are. A block on, say, NightVision or
+    ReleaseBiteHold(), ReleaseDrag(), BreakPartnership(), and every other
+    release/stop/detach path in this resource stay exactly as ungated as
+    they already are. A block on, say, NightVision or
     VehicleEntryExit only ever refuses a NEW turn-on/entry; it is written,
     in every call site here, to never be able to refuse turning the SAME
     thing off or getting back out. This is why the maintenance-thread

@@ -1753,6 +1753,26 @@ function CountEquipmentShopItemsRequiringTier(tierKey)
     return #matched, matched
 end
 
+--- How many shop items currently require role `roleKey`, and their keys
+--- in tablet order. server/roles.lua refuses to delete a role any item
+--- still needs -- otherwise that item could never be bought again and the
+--- refusal would name a role nobody can see.
+--- @param roleKey string
+--- @return integer count
+--- @return string[] itemKeys
+function CountEquipmentShopItemsRequiringRole(roleKey)
+    local matched = {}
+    if type(roleKey) ~= 'string' or roleKey == '' then return 0, matched end
+    if type(ItemByKey) ~= 'table' then return 0, matched end
+    for _, key in ipairs(ItemOrder or {}) do
+        local entry = ItemByKey[key]
+        if type(entry) == 'table' and entry.requiredSpecialization == roleKey then
+            matched[#matched + 1] = key
+        end
+    end
+    return #matched, matched
+end
+
 --- Display label for the tablet's own item list -- an explicit DB
 --- override wins; otherwise this resource asks ox_inventory itself for
 --- the item's own real label (never hardcoded, never duplicated into this
@@ -2287,6 +2307,28 @@ end
 --- de-duplication of its own).
 --- @param shopType string
 --- @return boolean ok
+--- The purchase refusal for a role-gated item, in the buyer's terms:
+--- "needs the X role", or -- when they hold it but their XP has not
+--- reached it yet -- how much XP it switches on at and how much they have.
+--- @param citizenid string @param jobName string @param roleKey string
+--- @return string
+local function EquipmentShopRoleDenialText(citizenid, jobName, roleKey)
+    local def = type(Config.K9Specializations) == 'table' and Config.K9Specializations[roleKey] or nil
+    local label = (type(def) == 'table' and type(def.label) == 'string' and def.label ~= '') and def.label or roleKey
+    local need = (type(def) == 'table' and type(def.xpRequired) == 'number') and def.xpRequired or 0
+    local held = false
+    if type(HasSpecializationGranted) == 'function' then
+        held = HasSpecializationGranted(citizenid, jobName, roleKey) == true
+    end
+    if held and need > 0 and type(GetRoleXpForCitizen) == 'function' then
+        local have = math.floor(tonumber(GetRoleXpForCitizen(citizenid)) or 0)
+        if have < need then
+            return locale('equipmentshop.requires_role_xp', label, math.floor(need), have)
+        end
+    end
+    return locale('equipmentshop.requires_specialization', label)
+end
+
 local EquipmentShopBuyHookRegistered = false
 local function RegisterEquipmentShopBuyItemRequirementHook(shopType)
     if EquipmentShopBuyHookRegistered then return true end
@@ -2330,11 +2372,14 @@ local function RegisterEquipmentShopBuyItemRequirementHook(shopType)
             end
         end
 
+        -- requiredSpecialization names a ROLE (server/roles.lua): the item
+        -- sells only to someone holding that role whose XP has reached it
+        -- (HasSpecialization checks both).
         if entry.requiredSpecialization ~= nil then
             local has = type(HasSpecialization) == 'function' and HasSpecialization(citizenid, jobName, entry.requiredSpecialization)
             if has ~= true then
                 if type(NotifyPlayer) == 'function' and type(source) == 'number' then
-                    NotifyPlayer(source, locale('equipmentshop.requires_specialization', entry.requiredSpecialization), 'error')
+                    NotifyPlayer(source, EquipmentShopRoleDenialText(citizenid, jobName, entry.requiredSpecialization), 'error')
                 end
                 return false
             end

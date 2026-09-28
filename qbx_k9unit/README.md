@@ -22,7 +22,7 @@ encryption, is what stops redistribution.
 **This is the one document for installing, configuring, and running this
 resource.** Everything about *playing* it — every command, what each one
 needs, and step-by-step walkthroughs for setting up a handler, running a
-search, and so on — lives in the K9 Command Tablet's own in-game Help tab
+search, and so on — lives in the K9 Command Tablet's own in-game Guide tab
 (`/k9tablet`), not here. This document covers what that tablet can't:
 getting the resource running in the first place, the decisions you need
 to make before real players touch it, and what to do if it misbehaves.
@@ -35,21 +35,23 @@ The full feature set, in brief, so nothing here is a surprise you find
 out about from a support ticket. All of these ship **on** by default
 unless noted; every one is an independent switch in `Config.Features`
 and can be turned off. Full command syntax for all of these is in the
-tablet's own Help tab, not here.
+tablet's own Guide tab, not here.
 
 - **Certification** — the access-control core: a supervisor certifies a
-  department member as a K9 handler, or high command assigns the role
-  directly from the tablet. See "How a K9 gets made" below.
+  department member as a handler, or as the K9 with a breed picked, in
+  one step. See "How a K9 gets made" below.
 - **Leash, vehicle loading, radial menu, basic bark** — the core
   day-to-day handler/K9 interactions.
 - **Tracking** (scent/blood/gunpowder trails), **search zones and
   contraband alerts**, **thermal/night vision**, **door interaction**.
-- **Combat**: Bite & Hold, Non-Lethal Takedown, Prop Dragging,
-  Handler-Down Defense — see "Before you trust the combat features in
-  production" below before relying on these.
-- **Wellbeing**: mood, fatigue, fear/stress, distraction, injury/limping
-  — each independently switched, each with a small movement-speed
-  effect when it's low.
+- **Combat**: Bite & Hold, Non-Lethal Takedown, Prop Dragging — see
+  "Before you trust the combat features in production" below before
+  relying on these.
+- **Wellbeing**: fatigue — a sustained sprint decays a value that
+  reduces top speed until the K9 rests. It is the only wellbeing system
+  this resource ships. Mood, fear/stress, distraction and injury/limping
+  were removed at the owner's request on 2026-09-02 and are not switched
+  off but gone: there are no `Config.Features` keys for them.
 - **XP/progression, K9 inventory, a K9 medkit, a vitality HUD, prop
   attachments (a cosmetic vest), fetch, a deployable kennel, a K9 supply
   shop, and a leaderboard.**
@@ -58,65 +60,139 @@ tablet's own Help tab, not here.
   limitations" below for the one real gap in its anti-farming guard) and
   a partner camera-feed toggle (full-screen view-switch to your
   partner's viewpoint, not a literal picture-in-picture — see below).
-- **Four reaction/"hunting" features, easy to miss because they're new
-  enough that even this resource's own internal history file hadn't
-  caught up on them — all shipped, on by default, and worth knowing
-  about specifically:**
+- **Two reaction/"hunting" features, easy to miss, both shipped and on
+  by default, and worth knowing about specifically:**
   - **Find Alerts** — a search or completed track makes the K9
     automatically sit and bark, reacting differently depending on the
     outcome. No manual trigger, and it doesn't depend on the XP system
     being on.
-  - **Scent Trail Hunt was removed** (owner-approved — judged genuinely
-    redundant with the scent-tracking "follow a fading signal"
-    mechanic above, which already covers the same interaction shape
-    against a real destination instead of a made-up one). It is
-    **not** one of the four below, and it is not merely toggled off:
-    `Config.Features.ScentTrailHunt` no longer exists in `config.lua`
-    at all, so `/k9nosehunt` cannot be turned on by editing config —
-    see that key's own former spot in `config.lua`'s `Config.Features`
-    comment for the full reasoning and exactly how to bring it back.
   - **Pursuit Sprint** — a short, cooldown-gated burst of genuinely
     extra speed for a certified K9 chasing a *wanted* target only.
     Every speed source this resource has (breed, XP tier, fatigue,
     this burst) is clamped to a combined maximum, so it can't be
     stacked into something an escaping target has no real chance
     against.
-  - **Scent Lineup** — several players line up and must all explicitly
-    accept; the server secretly picks one and reveals nothing until the
-    K9 commits a single final guess. No XP, since the outcome is random.
-  - **SAR Calls** — a hidden search-and-rescue target (a missing person
-    or lost property); the K9 reacts more strongly on approach. Always
-    resolves as a rescue, never an arrest, and the "target" is always
-    scenery, never a real player without their consent.
-  - All four need an individual grant from high command on top of their
-    global switch by default (see `Config.FeatureControl.RequireGrant`
-    in "The command tablet" section below) — nobody has any of them
-    until high command hands them out one person at a time.
-- **A training mode** — a practice sandbox against a scripted dummy;
-  touches no real player, no real inventory, and awards zero XP.
+  - Neither needs an individual grant out of the box:
+    `Config.FeatureControl.RequireGrant` ships **empty**, so every feature
+    whose global switch is on is available to every certified handler.
+    Add a feature name to that table if you want high command to hand it
+    out one person at a time instead.
+
+**Removed, and not merely switched off.** Scent Trail Hunt, Scent Lineup,
+SAR Calls, training mode, Handler-Down Defense, the danger-warn and
+apprehension-announcement alerts, the "call your K9 off" recall, and the
+mood/fear-stress/distraction/injury wellbeing systems were all taken out at
+the owner's request. There are no `Config.Features` keys for any of them, so
+none can be brought back by editing config — restoring one means restoring
+its code.
+
+---
+
+## How to play it (the 30-second version)
+
+Paste this to your players.
+
+**Playing the dog**
+1. Press **Z**, pick **K9 Unit**. Every move you have is in there.
+2. Sniff people with the third eye (**Left Alt** > **Sniff Person**). You
+   and your handler are told if they have a warrant in the MDT.
+3. Go after anyone with Bite (**B**), Takedown (**[**) or Drag (**Y**).
+4. Follow scents with scent vision (**.**) and switch vision modes with
+   **I**. Hop in and out of the patrol car with **Vehicle** in the K9
+   menu.
+
+**Playing the handler**
+1. Stand next to your dog, press **Z**, pick **K9 Unit** > **Partner &
+   Leash** > **Partner Up**. Your dog accepts once, and from then on
+   the leash clips on with no questions.
+2. **Leash** is right next to it: stand by your dog and press it.
+
+**Running the unit (chief / high command)**
+1. Open the tablet (`/k9tablet`), type a name in **Find a person**, open them.
+2. Under **Certifications**, set **Certify as** to a breed (makes them the
+   dog) or **Handler**, and press **Certify**. That's it.
+
+## Default keys
+
+Every player can change any of these in **Settings > Key Bindings >
+FiveM**; a key they have already changed keeps their choice. The same list
+is at the top of the tablet's **Guide** tab (only the keys for features
+switched on on your server).
+
+| Key | What it does |
+|---|---|
+| **Z** | Open the K9 menu (ox_lib's radial menu) — every action is in here |
+| **Left Alt** | Third eye (ox_target) — look at a person, vehicle or kennel to see what you can do |
+| **G** | Sit |
+| **U** | Bark |
+| **.** (full stop) | Scent vision on / off |
+| **B** | Bite & hold / let go |
+| **[** | Take down a fleeing suspect |
+| **Y** | Drag / let go |
+| **X** | Jump a low obstacle |
+| **N** | Pursuit sprint |
+| **L** | First-person view on / off |
+| **I** | Vision: off, night, thermal (the one vision key) |
+
+Bite & hold, takedown, drag and scent vision take their default from
+`config.lua` (`Config.Combat.*` and `Config.Tracking.ScentVision.keybind`).
+Changing a default there never moves a key a player has already set.
+
+Not on a key, on purpose: the **partner camera** is a button in the
+tablet; **leaving the kennel** is the K9 menu's Kennel button or the third
+eye on the kennel; thermal and night vision each have a button in the K9
+menu's Senses group as well as the **I** cycle.
 
 ---
 
 ## How a K9 gets made
 
-Two ways, both server-authoritative:
+A certification is held by both halves of a team: the human **handler**
+and the player who **plays the dog**. So certifying asks one question —
+which one?
 
-- **Certify an existing department member.** A qualifying supervisor
-  (or, by default, the officer themselves) grants a certification with
-  `/k9certify` or the "Certify K9 Handler" ox_target option. The target
-  does **not** need to already look like a dog — any member of an
-  eligible department is a valid target.
-- **High command assigns the role directly**, from the K9 Command
-  Tablet, to any citizenid, with a chosen model.
+- **On the tablet**, open the person and press **Certify**. The picker
+  beside it starts on **Handler**: they are certified and nothing about
+  how they look changes. Pick a **breed** instead and they are certified
+  as the K9 *and* turned into that dog, in the same press.
+- **Certifying is tablet-only.** There is no `/k9certify` and no walk-up
+  certify option any more; the same goes for every admin job (roles,
+  giving XP, permissions, the audit). If you want the old admin chat
+  commands back for console use, set
+  `Config.CommandTablet.adminChatCommands = true`.
+- **Keep someone a dog permanently**: on their tablet page, **Keep as a
+  Dog Permanently** pins the selected breed whatever happens to their
+  certification (**Stop Keeping as a Dog** undoes it).
+- **A handler doesn't strictly need a certification.** Any on-duty
+  officer from a K9 department who partners up with a certified dog gets
+  handler access (leash, ball, treats, partner camera)
+  for as long as that partnership lasts. Certify handlers when you want
+  them to have access on their own, without a dog.
+- **Roles decide what someone can do beyond the basics.** Tiers and
+  specializations are now one thing: a *role*. High command makes roles
+  under **Server Settings → Catalogs → Roles** — a name, the XP it needs,
+  and what it unlocks (which scents it can track, what it can sniff out,
+  whether it may bite / take down). Give someone a role on their tablet
+  page; it switches on by itself once their XP (K9 or handler XP,
+  whichever is higher) reaches the number. Until then their record shows
+  "Unlocks at N XP". Three roles ship ready to use: Narcotics and Patrol
+  (0 XP) and Explosives (1250 XP). Bite / takedown stays open to everyone
+  until you add it to some role — then only that role's holders can.
+  Supply shop items can require a role too (**Required Role** on each
+  item): only holders whose XP has reached it can buy that item. Every
+  role change is logged on the Audit Trail under Catalog Changes.
+- **The tablet only shows what you have.** Features you're not allowed
+  to use and roles you don't hold simply don't appear.
+- **High command can also assign the K9 role directly** from the tablet
+  (Assign K9 Role), to any citizenid, with a chosen model — also how you
+  change an existing K9's breed.
 
-By default (`Config.K9Appearance.applyPedModelOnCertify = true`), either
-path **actually changes that player's character** into the configured
-K9 ped — their original appearance is recorded first, so losing the
-role (revoke, job change, or a high-command "revert") changes them
-back. If you don't want this resource ever touching a player's
-appearance, set `applyPedModelOnCertify = false`; certification then
-behaves the old way — a pure access-control layer on top of a character
-who already chose to look like a dog on their own.
+Turning someone into a dog records their original appearance first, so
+losing the role (revoke, job change, or a high-command "Revert to
+Human") changes them back. If you don't want this resource ever touching
+a player's appearance, set `Config.K9Appearance.applyPedModelOnCertify =
+false`; certifying is then a pure access-control layer on top of a
+character who already chose to look like a dog on their own.
 
 The "K9 role" itself (what you're allowed to *do*) and "what you look
 like" are independent: `Config.K9Appearance.requireK9ModelForRole`
@@ -137,7 +213,7 @@ one of them is missing:
 |---|---|---|
 | [`qbx_core`](https://github.com/Qbox-project/qbx_core) | Qbox-project | Player data, jobs, ranks |
 | [`ox_lib`](https://github.com/overextended/ox_lib) | overextended | Notifications, callbacks, the radial menu, translations |
-| [`ox_target`](https://github.com/overextended/ox_target) | overextended | Every walk-up/look-at interaction (leash, certify, search, shop, etc.) |
+| [`ox_target`](https://github.com/overextended/ox_target) | overextended | Every walk-up/look-at interaction (leash, search, kennel, shop, etc.) |
 | [`oxmysql`](https://github.com/overextended/oxmysql) | overextended | Database access |
 | [`ox_inventory`](https://github.com/overextended/ox_inventory) | overextended | Items, stashes, the K9 supply shop, contraband search |
 
@@ -275,14 +351,9 @@ resource, not flipping a switch.
    choose it for a server with real players on it.
 6. Work through "Before real players touch this" below.
 7. Certify your first handler: get an eligible job at a high enough
-   rank (or department boss), then run `/k9certify [your own server id]`.
-
-   **Your "server id" is not your Steam name or your citizen ID.** It is
-   the small number FiveM gives every connected player, and it changes
-   every time you reconnect. To find yours, open the pause menu and look
-   at Online Players — your own id is next to your name. Most servers
-   also answer `/id` in chat. If your id is 3, the command is
-   `/k9certify 3`.
+   rank (or department boss), open the tablet with `/k9tablet`, go to
+   **Command Console**, type your own name in **Find a person**, open
+   yourself and press **Certify**.
 
 `config.lua` is long but ships its own plain-English index at the top
 ("WHAT IS IN THIS FILE") — search it for the setting you want rather
@@ -300,7 +371,7 @@ and step 2 of "Your first session" below) — you can check almost everything
 by yourself: reaching High Command (a
 department boss already qualifies, and so does anyone at the configured
 `highCommandGrade`), self-certifying (on by default), turning into the
-K9, opening `/k9tablet`, reading its Help tab, and using every
+K9, opening `/k9tablet`, reading its Guide tab, and using every
 single-player ability (search, tracking, vision, wellbeing, the radial
 menu, and so on).
 
@@ -370,9 +441,10 @@ Work through all of these first:
   resource for that option to appear. Nothing breaks if you skip this;
   recovery is just slower and "Drink from Bowl" simply never shows up.
 - **Decide `Config.K9Appearance.applyPedModelOnCertify`** (default
-  `true`). On, certifying someone — or high command assigning them the
-  role directly from the tablet — actually changes that player's
-  character to a K9 model, recording what they looked like first so
+  `true`). On, certifying someone as the K9 (a breed picked beside
+  Certify on the tablet) — or high command assigning them the role
+  directly — actually changes that player's character to a K9 model
+  (certifying a handler never does), recording what they looked like first so
   losing the role changes them back. Off, this resource is a pure
   access-control layer over a character who already chose to look like
   a dog; appearance is never touched.
@@ -472,26 +544,24 @@ config. *Does not prove:* any feature works.
 
 **2. Certify yourself.** Get a job and rank that qualify under your
 `Config.Departments` (`Config.AllowSelfCertification` ships `true`, so you
-do not need a second person for this), then run:
-
-```
-/k9certify [your own server id]
-```
+do not need a second person for this), then open the tablet
+(`/k9tablet`) > **Command Console**, find yourself and press **Certify**.
 
 *Proves:* the certification path works end-to-end — permission check,
 grant, and storage. This is the single most load-bearing step; almost
 everything else is gated behind it.
 
-**3. Open the tablet** with `/k9tablet`. Check the **Home**, **My Record**
-and **Progression** tabs. Progression should show your K9 and Handler rank
-blocks, and My Record your certification from step 2.
+**3. Open the tablet** with `/k9tablet`. The **My Record** tab should show
+your certification from step 2, and your K9 and Handler rank blocks.
 
 *Proves:* the whole NUI layer — the page loads, its callbacks reach the
 server, and the server's answers render.
 
-**4. Become a K9 and try the basics.** With a K9 ped model, press **V**
-(sit) and **C** (bark), then open your ox_lib radial menu and find the "K9
-Unit" submenu.
+**4. Become a K9 and try the basics.** You are already certified from step
+2, so on the tablet open your own record and use Assign K9 Role with a
+breed. Then press
+**G** (sit) and **U** (bark), and open your ox_lib radial menu to find the
+"K9 Unit" submenu.
 
 *Proves:* keybinds, the radial, and client-side actions are wired. If a
 radial entry is missing, its feature is switched off in config — that is
@@ -627,8 +697,8 @@ verified against the current code, not a guess.)*
 `/k9tablet` (or an item, depending on `Config.CommandTablet.openMode`)
 opens the K9 Command Tablet — the in-game control panel for everything
 in this resource, and the place to go for a full command reference and
-guided walkthroughs (its own Help/Commands tabs cover that; this
-section only covers what you need to know *before* you trust it).
+guided walkthroughs (its own Guide tab covers both; this section only
+covers what you need to know *before* you trust it).
 
 It is a **view only** — every action it offers is re-checked
 server-side exactly as if the matching chat command had been typed, so
@@ -637,16 +707,14 @@ nothing about the tablet itself is a security shortcut.
 - **High command** (set per department via `highCommandGrade`, or
   `job.isboss`) gets the full roster and can certify, assign or revert
   the K9 role/appearance for any citizen, grant XP, hand out named
-  permissions, block individual people from individual features, add
-  or relabel certification tiers and permission keys, retune XP
+  permissions, block individual people from individual features, create
+  and edit roles and permission keys, retune XP
   thresholds, manage supply shop locations, hand-tune an individual
   K9's speed/scent/medkit-cooldown numbers on top of its rank, flip
   most feature switches and tune numbers live, and restyle the tablet
-  itself. A separate "Guided Flows" hub walks high command through the
-  common jobs (onboard a handler, offboard one, handle a problem
-  player, tune the server) as single sequences instead of scattered
-  screens — it fires the exact same underlying actions as the standalone
-  screens, nothing new.
+  itself. Everything about one person is on that person's record; every
+  whole-server setting is under one Server Settings tab, one click per
+  section.
 - **Every handler and K9** gets a read-only view of their own
   certification, XP, and any personal grants by default
   (`Config.FeatureControl.everyoneCanViewOwnRecord`).
@@ -672,7 +740,7 @@ covers to their own citizenid — the `feature.<Name>`/`block.<Name>`
 grants above, **and now also the four named capabilities**
 (`k9.access`/`k9.certify`/`k9.audit`/`k9.givexp`). Separately,
 `Config.HighCommand.allowSelfGrant` (also default `true`) covers
-granting **XP** to yourself via `/k9givexp`. Both are the owner's own
+granting **XP** to yourself from the tablet. Both are the owner's own
 explicit decision ("high command can grant anything they want to
 themselves") rather than just a deadlock fix, and neither is hidden:
 every self-grant is still fully logged, tagged explicitly as a
@@ -699,11 +767,18 @@ radial menu, a keybind, or a typed command all exist), it goes through
 the exact same server-side check every time. There's no faster or
 looser path through a keybind than through the menu.
 
-Combat only ever targets a player your dispatch integration has
-flagged **wanted** by default (`Config.Combat.RequireWantedStatus`) —
-wire `Config.Combat.WantedStatusCheckOverride` to your own dispatch
-resource; the built-in fallback guess is lower-confidence and meant as
-a stopgap only.
+A K9 can bite, take down, drag or chase **any** player: nobody has to be
+marked or wanted first. (`Config.Combat.RequireWantedStatus` is off; turn
+it on only if you want those moves limited to players your own setup
+flags as wanted.)
+
+**The sniff checks for warrants.** Third eye (Left Alt) on a person >
+**Sniff Person (Contraband & Warrants)**. Besides contraband, the sniff
+looks the person up in sc-dispatch's MDT and tells the dog and its
+partner about an active, approved **arrest** or **bench** warrant. Search
+warrants and warrants still waiting for a judge don't count. It's
+information for the roleplay; it doesn't change what the dog may do.
+Change or turn it off with `Config.Combat.WantedFromDispatch`.
 
 ---
 
@@ -814,4 +889,4 @@ needed to get this resource running:
   They are listed here only so that finding them in the folder does not
   send you off reading the wrong thing — `docs/history/TABLET_REWORK_SPEC.md` in
   particular is named after a feature you *will* use, and is not its
-  documentation. The tablet documents itself, in its own Help tab.
+  documentation. The tablet documents itself, in its own Guide tab.

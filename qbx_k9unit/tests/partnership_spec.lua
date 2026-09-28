@@ -1616,6 +1616,44 @@ t.test('ForceBreakPartnershipForCitizenId: works for a GENUINELY OFFLINE citizen
     t.isTrue(fired, 'the broadcastReason passed to the outbound event must be the UNPREFIXED reason, distinct from the DB\'s system:-prefixed ended_by')
 end)
 
+t.test('ForceBreakPartnershipForCitizenId: when a PERSON ended it (high command from the tablet), ended_by names that officer, not the system -- and the broadcast reason is unchanged', function()
+    local f = newFixture()
+    wirePair(f, 10, 'OFF-ACT', 20, 'K9-ACT')
+    f.dispatchNetEvent('qbx_k9unit:server:requestPartnerUp', 10, 20)
+    f.mysql.single.await = function() return { k9_citizenid = 'K9-ACT', handler_citizenid = 'OFF-ACT' } end
+    f.dispatchNetEvent('qbx_k9unit:server:respondPartnerUp', 20, 10, true)
+
+    local updateParams
+    f.mysql.update.await = function(_sql, params) updateParams = params; return 1 end
+    f.mysql.single.await = function() return { id = 1, k9_citizenid = 'K9-ACT', handler_citizenid = 'OFF-ACT' } end
+
+    t.isTrue(f.env.ForceBreakPartnershipForCitizenId('K9-ACT', 'admin_forced_from_tablet', 'CHIEF-CID'))
+    t.equals(updateParams[1], 'CHIEF-CID', 'the partnership history must say WHICH officer ended it')
+
+    local fired = false
+    for _, ev in ipairs(f.outboundEvents) do
+        if ev[1] == 'qbx_k9unit:events:partnershipEnded' and ev[4] == 'admin_forced_from_tablet' then fired = true end
+    end
+    t.isTrue(fired, 'the reason both players are told stays the plain reason tag, whoever ended it')
+end)
+
+t.test('ForceBreakPartnershipForCitizenId: an empty or non-string actor falls back to the system sentinel -- never an empty ended_by', function()
+    for _, actor in ipairs({ '', 42, false }) do
+        local f = newFixture()
+        wirePair(f, 10, 'OFF-EMP', 20, 'K9-EMP')
+        f.dispatchNetEvent('qbx_k9unit:server:requestPartnerUp', 10, 20)
+        f.mysql.single.await = function() return { k9_citizenid = 'K9-EMP', handler_citizenid = 'OFF-EMP' } end
+        f.dispatchNetEvent('qbx_k9unit:server:respondPartnerUp', 20, 10, true)
+
+        local updateParams
+        f.mysql.update.await = function(_sql, params) updateParams = params; return 1 end
+        f.mysql.single.await = function() return { id = 1, k9_citizenid = 'K9-EMP', handler_citizenid = 'OFF-EMP' } end
+
+        t.isTrue(f.env.ForceBreakPartnershipForCitizenId('K9-EMP', 'department_changed', actor))
+        t.equals(updateParams[1], 'system:department_changed', 'actor ' .. tostring(actor) .. ' must not be written as ended_by')
+    end
+end)
+
 t.test('ForceBreakPartnershipForCitizenId: a citizenid with no active partnership at all is a clean no-op returning false', function()
     local f = newFixture()
     t.isFalse(f.env.ForceBreakPartnershipForCitizenId('NEVER-PARTNERED', 'department_changed'))

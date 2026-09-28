@@ -563,6 +563,15 @@ local function ResolveHeldContrabandCategoriesForCitizenId(citizenid, jobName)
     if type(HasSpecialization) ~= 'function' or type(citizenid) ~= 'string' then
         return held -- soft dependency, this resource's established convention -- no specialization data available, so no categorised item can ever match (uncategorised items are unaffected -- see this function's own doc comment)
     end
+    -- ROLES (server/roles.lua): a category counts when a held, unlocked
+    -- role has detect_<category>.
+    if type(GetHeldRoleUnlocks) == 'function' then
+        for unlock in pairs(GetHeldRoleUnlocks(citizenid, jobName)) do
+            local category = unlock:match('^detect_(.+)$')
+            if category then held[category] = true end
+        end
+        return held
+    end
     local knownSpecializations = type(Config.K9Specializations) == 'table' and Config.K9Specializations or {}
     for specKey in pairs(knownSpecializations) do
         if HasSpecialization(citizenid, jobName, specKey) then
@@ -1924,6 +1933,18 @@ local function HandleSearchTarget(source, targetType, targetNetId, requestedAt)
     -- allowed to appear (security review §6). Applies identically when
     -- Config.Features.ContrabandAlerts == false (§11.5: that flag gates
     -- the broadcast above, not the requester's own result here).
+    -- THE SNIFF CHECKS FOR WARRANTS (server/warrants.lua): a person with an
+    -- approved arrest/bench warrant in the dispatch MDT is reported to the
+    -- K9 and its partner. Placed last, after everything above has
+    -- committed, because it reads the database; pcall so a problem there
+    -- can never turn a finished search into a failed one.
+    if targetType == 'person' and targetServerId and type(CheckWarrantOnSniff) == 'function' then
+        local warrantOk, warrantErr = pcall(CheckWarrantOnSniff, source, targetServerId)
+        if not warrantOk then
+            print(('[qbx_k9unit] search: warrant check errored for target %s: %s'):format(tostring(targetServerId), tostring(warrantErr)))
+        end
+    end
+
     return {
         ok = true,
         contrabandFound = contrabandFound,

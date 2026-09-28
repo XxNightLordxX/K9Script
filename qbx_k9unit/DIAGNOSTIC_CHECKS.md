@@ -632,7 +632,7 @@ already written and tested.
   containing the literal text `RegisterCommand('...')` already fooled two
   separate guards into reporting a phantom command named `...`, per commit
   `2f21165`) and compare the resulting list against whatever the tablet's
-  Commands tab actually renders.
+  Guide tab actually renders in its command table.
 - **Tier:** WORTH CHECKING.
 - **False-positive risk:** proven high if built naively (see the `'...'`
   incident above) — must match on the real call shape (`RegisterCommand`

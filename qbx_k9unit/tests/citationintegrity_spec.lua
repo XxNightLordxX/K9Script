@@ -491,7 +491,18 @@ t.test('REGRESSION: the three-way locale contract itself is intact (the count co
         jsCount = jsCount + 1
     end
 
-    t.isTrue(luaCount > 900, ('expected >900 tablet string keys, found %d -- the scan is broken'):format(luaCount))
+    -- A "did the scan silently break" floor, NOT a policy that the tablet
+    -- must carry a given number of strings. It has to sit comfortably
+    -- below the real count: a pattern that stopped matching returns single
+    -- digits, which any sane floor catches, while a floor set just under
+    -- the current total turns every honest removal into a red build.
+    --
+    -- Was >900, which the tablet cleared until the three person-shaped
+    -- guided flows were retired and took 74 keys with them, landing it on
+    -- exactly 900 and tripping a guard that was never about them. The real
+    -- contract -- same size, same keys, both directions -- is asserted
+    -- immediately below and is what actually protects this.
+    t.isTrue(luaCount > 800, ('expected >800 tablet string keys, found %d -- the scan is broken'):format(luaCount))
     t.equals(luaCount, jsCount, 'TABLET_STRING_KEYS and DEFAULT_STRINGS differ in size')
 
     local onlyLua = {}

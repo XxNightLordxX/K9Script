@@ -24,7 +24,7 @@ const fs = require('fs');
 const path = require('path');
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findAll, findByText } = require('./tablet-dom-stub');
+const { findAll, findByText, openSettingsSection } = require('./tablet-dom-stub');
 
 function routeFetch(handlers) {
     return function (url, init) {
@@ -196,7 +196,7 @@ t.test('branding.theme still seeds the theme screen\'s draft colours when a logo
     // screen by this point -- this test is only about theme seeding still
     // working correctly with a logo/serverName configured alongside it,
     // not about the badge's own visibility.
-    findByText(h.getRoot(), 'Tablet Theme')[0].click();
+    openSettingsSection(h.getRoot(), 'Tablet Theme');
     await settle();
     const colorInputs = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.getAttribute('type') === 'color');
     t.isTrue(colorInputs.length > 0, 'theme screen still builds normally with a badge configured alongside it');

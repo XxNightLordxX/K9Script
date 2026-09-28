@@ -612,11 +612,46 @@ t.test('HasK9Role: true via an active k9.access PERMISSION alone (no certificati
     t.isTrue(f.env.HasK9Role(TARGET_SRC))
 end)
 
-t.test('HasK9Role: true via an active CERTIFICATION for the target\'s current job alone (no permission grant at all)', function()
+-- A CERTIFICATION ALONE IS NOT THE K9 ROLE (the rework pass). Handlers are
+-- certified too; before, every certified handler read as a second K9 and
+-- partnering/leashing refused with "Both of you are playing K9s".
+
+t.test('HasK9Role: a CERTIFICATION alone (a certified HANDLER on a human body) is NOT the K9 role', function()
     local f = newFixture()
     setupGranterAndTarget(f)
     f.grantCertDirect('CITIZEN_TARGET', 'police')
+    t.isFalse(f.env.HasK9Role(TARGET_SRC))
+end)
+
+t.test('HasK9Role: certified AND an active K9 appearance assignment (Certify as K9 / Assign K9 Role) is the K9 role, whatever body they are on', function()
+    local f = newFixture()
+    setupGranterAndTarget(f)
+    f.grantCertDirect('CITIZEN_TARGET', 'police')
+    f.env.K9Store.Appearance_UpsertApplied('CITIZEN_TARGET', 'a_c_shepherd', nil, 'test')
     t.isTrue(f.env.HasK9Role(TARGET_SRC))
+end)
+
+t.test('HasK9Role: certified AND currently wearing a configured K9 model is the K9 role (servers that leave appearance to the player)', function()
+    local f = newFixture()
+    setupGranterAndTarget(f)
+    f.grantCertDirect('CITIZEN_TARGET', 'police')
+    f.env.IsConfiguredK9Model = function(hash) return hash == 55555 end -- this fixture's live model hash
+    t.isTrue(f.env.HasK9Role(TARGET_SRC))
+end)
+
+t.test('HasK9Role: certified AND a pinned dog character is the K9 role', function()
+    local f = newFixture()
+    setupGranterAndTarget(f)
+    f.grantCertDirect('CITIZEN_TARGET', 'police')
+    f.env.IsPinnedDogCharacter = function(cid) return cid == 'CITIZEN_TARGET' end
+    t.isTrue(f.env.HasK9Role(TARGET_SRC))
+end)
+
+t.test('HasK9Role: an appearance assignment WITHOUT a certification or grant is not the role -- looks alone never grant abilities', function()
+    local f = newFixture()
+    setupGranterAndTarget(f)
+    f.env.K9Store.Appearance_UpsertApplied('CITIZEN_TARGET', 'a_c_shepherd', nil, 'test')
+    t.isFalse(f.env.HasK9Role(TARGET_SRC))
 end)
 
 t.test('HasK9Role: a cert for a DIFFERENT job than the target\'s CURRENT job does not count', function()
@@ -1357,7 +1392,10 @@ local function setupIdentityScene(f)
     local k9 = f.registerPlayer(K9_SRC, 'CITIZEN_K9', { name = 'police', isboss = false, grade = { level = 0 } })
     f.setCharinfo(asking, 'Alex', 'Asker')
     f.setCharinfo(k9, 'Rex', 'Callahan')
-    f.grantCertDirect('CITIZEN_K9', 'police') -- HasK9Role(K9_SRC) == true
+    -- A real K9: certified AND assigned a K9 appearance (a certification
+    -- alone is a handler). HasK9Role(K9_SRC) == true.
+    f.grantCertDirect('CITIZEN_K9', 'police')
+    f.env.K9Store.Appearance_UpsertApplied('CITIZEN_K9', 'a_c_shepherd', nil, 'test')
     return asking, k9
 end
 
@@ -1557,6 +1595,7 @@ t.test('CANNOT SELF-LABEL: two different K9s in the same scene never cross-conta
     local otherK9 = f.registerPlayer(OTHER_K9_SRC, 'CITIZEN_K9_OTHER', { name = 'police', isboss = false, grade = { level = 0 } })
     f.setCharinfo(otherK9, 'Buddy', 'Otherdog')
     f.grantCertDirect('CITIZEN_K9_OTHER', 'police')
+    f.env.K9Store.Appearance_UpsertApplied('CITIZEN_K9_OTHER', 'a_c_husky', nil, 'test')
     f.setPersonnelRow('CITIZEN_K9', 'police', 'k9', '9-Lincoln-3')
     f.setPersonnelRow('CITIZEN_K9_OTHER', 'police', 'k9', '9-Lincoln-9')
 
@@ -1632,6 +1671,7 @@ t.test('SANITIZATION: control characters are stripped and an oversized name is c
     local k9 = f.registerPlayer(K9_SRC, 'CITIZEN_K9', { name = 'police', isboss = false, grade = { level = 0 } })
     f.setCharinfo(asking, 'Alex', 'Asker')
     f.grantCertDirect('CITIZEN_K9', 'police')
+    f.env.K9Store.Appearance_UpsertApplied('CITIZEN_K9', 'a_c_shepherd', nil, 'test')
     f.setCharinfo(k9, 'Rex\7\27[31m', ('X'):rep(80))
 
     local result = callIdentity(f, ASKING_SRC, K9_SRC)

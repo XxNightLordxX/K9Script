@@ -402,6 +402,20 @@ local TABLET_READ_COOLDOWN_MS = 500
 local TabletReadCooldown = NewCooldown(TABLET_READ_COOLDOWN_MS)
 TabletReadCooldown.RegisterPlayerDropped()
 
+-- FORCE END PARTNERSHIP's own action cooldown, keyed by the acting officer.
+-- Every other high-command mutation in this resource owns one of these --
+-- AppearanceActionCooldown, CertifyActionCooldown, PermissionActionCooldown,
+-- all at 1500ms -- and this was the one destructive admin action without
+-- it, while its two READ siblings in this same file were throttled.
+--
+-- It lives HERE, in the tablet handler, and NOT inside
+-- ForceBreakPartnershipForCitizenId: that primitive is also called by
+-- automatic teardowns (a revoked certification, a department change), and
+-- those must never be refused for arriving close together.
+local PARTNERSHIP_FORCE_END_COOLDOWN_MS = 1500
+local PartnershipForceEndCooldown = NewCooldown(PARTNERSHIP_FORCE_END_COOLDOWN_MS)
+PartnershipForceEndCooldown.RegisterPlayerDropped()
+
 --- DYNAMIC feature key list -- see this file's header "myFeatures /
 --- features KEY LIST -- DYNAMIC, NOT HARDCODED" for the full reasoning.
 --- Reads `Config.Features` FRESH on every call (never cached at file-load
@@ -1886,6 +1900,11 @@ lib.callback.register('qbx_k9unit:server:tabletRequestMyRecord', function(source
         certifications = EnrichCertificationsWithGrantedByName(BuildCertificationsArray(citizenid)),
         xp = xp,
         tierLabel = tierLabel,
+        -- ROLES (server/roles.lua): the live role list (roles high command
+        -- created included) and the XP a role requirement is measured
+        -- against, so the tablet can say "active" or "unlocks at N XP".
+        roleCatalog = type(ListRolesForDisplay) == 'function' and ListRolesForDisplay() or nil,
+        roleXp = type(GetRoleXpForCitizen) == 'function' and GetRoleXpForCitizen(citizenid) or nil,
         -- HANDLER LADDER (owner-directed progression pass). Carried
         -- ALONGSIDE the K9 pair above, never merged into it: the two are
         -- separate ladders on separate feature switches, and either can be
@@ -2414,6 +2433,8 @@ lib.callback.register('qbx_k9unit:server:tabletRequestPersonSummary', function(s
         certifications = EnrichCertificationsWithGrantedByName(BuildCertificationsArray(targetCitizenId)),
         xp = xp,
         tierLabel = tierLabel,
+        roleCatalog = type(ListRolesForDisplay) == 'function' and ListRolesForDisplay() or nil,
+        roleXp = type(GetRoleXpForCitizen) == 'function' and GetRoleXpForCitizen(targetCitizenId) or nil,
         -- HANDLER LADDER (owner-directed progression pass). Carried
         -- ALONGSIDE the K9 pair above, never merged into it: the two are
         -- separate ladders on separate feature switches, and either can be
@@ -2422,6 +2443,10 @@ lib.callback.register('qbx_k9unit:server:tabletRequestPersonSummary', function(s
         -- sends 0, and the UI must be able to tell those apart.
         handlerXp = handlerXp,
         handlerTierLabel = handlerTierLabel,
+        -- Dog-character PIN (server/dogcharacter.lua): the breed this
+        -- character is kept as permanently, or nil. Set/cleared from the
+        -- tablet only (the /k9setdog family was removed).
+        pinnedDogModel = type(GetPinnedDogCharacterModel) == 'function' and GetPinnedDogCharacterModel(targetCitizenId) or nil,
         permissions = permissions,
         -- Owner-directed "one screen shows everything about a person" feature
         -- (roster panel: cert+tier, rank, XP+tier, partnership, permissions).
@@ -2576,6 +2601,38 @@ lib.callback.register('qbx_k9unit:server:tabletRevertK9Ped', function(source, ta
 end)
 
 -- ======================================================================
+-- DOG-CHARACTER PIN -- tabletPinDogCharacter / tabletUnpinDogCharacter.
+-- "Keep this character as a dog permanently", independent of any
+-- certification (server/dogcharacter.lua's header explains the pin vs
+-- the certification-driven look). These replace /k9setdog, /k9removedog
+-- and /k9dog -- all admin work is on the tablet now (owner's choice).
+-- SetDogCharacter/RemoveDogCharacter re-check high command and rate-limit
+-- themselves; this only validates the arguments and shapes the reply.
+-- ======================================================================
+lib.callback.register('qbx_k9unit:server:tabletPinDogCharacter', function(source, targetCitizenId, modelName)
+    if type(targetCitizenId) ~= 'string' or targetCitizenId == '' or #targetCitizenId > MAX_CITIZENID_LENGTH
+        or type(modelName) ~= 'string' or modelName == '' then
+        return { ok = false, error = 'invalid_args' }
+    end
+    if type(SetDogCharacter) ~= 'function' then return { ok = false, error = 'not_available' } end
+    local ok, outcome = SetDogCharacter(source, targetCitizenId, modelName)
+    if ok then return { ok = true } end
+    if outcome == 'denied' then return { ok = false, error = 'not_authorized', message = locale('highcommand.not_authorized') } end
+    return { ok = false, error = outcome }
+end)
+
+lib.callback.register('qbx_k9unit:server:tabletUnpinDogCharacter', function(source, targetCitizenId)
+    if type(targetCitizenId) ~= 'string' or targetCitizenId == '' or #targetCitizenId > MAX_CITIZENID_LENGTH then
+        return { ok = false, error = 'invalid_args' }
+    end
+    if type(RemoveDogCharacter) ~= 'function' then return { ok = false, error = 'not_available' } end
+    local ok, outcome = RemoveDogCharacter(source, targetCitizenId)
+    if ok then return { ok = true } end
+    if outcome == 'denied' then return { ok = false, error = 'not_authorized', message = locale('highcommand.not_authorized') } end
+    return { ok = false, error = outcome }
+end)
+
+-- ======================================================================
 -- CALLBACKS 7-9 -- THE PARTNERSHIPS TAB. Owner's own words, in two rounds:
 -- "both the k9 and handler should be able to pull
 -- up a list of there partners and levels etc in a tab... Past
@@ -2598,8 +2655,10 @@ end)
 -- All three share TabletReadCooldown/TABLET_READ_COOLDOWN_MS where they
 -- read (this file's own header "RATE LIMITING" -- 7/8 are the fifth and
 -- sixth callers of that one shared bucket; 9 is a mutation, not a read,
--- so it spends nothing from that budget, matching CALLBACK 5/6's own
--- no-extra-cooldown precedent for a single-row DB write).
+-- so it spends nothing from that budget and owns its own 1500ms
+-- PartnershipForceEndCooldown instead -- the same per-officer action
+-- cooldown CALLBACK 5/6 get from server/appearance.lua's
+-- AppearanceActionCooldown, which their delegates consume internally).
 --
 -- "ONE ACTIVE PARTNERSHIP PER CITIZENID, EITHER ROLE, AT A TIME" -- VERIFIED
 -- (qa-tester/ad71ee3115acd466d's audit, this same pass), not assumed: the
@@ -2822,6 +2881,23 @@ lib.callback.register('qbx_k9unit:server:tabletForceEndPartnership', function(so
         return { ok = false, error = 'not_authorized', message = locale('highcommand.not_authorized') }
     end
 
+    -- The officer making the call. Resolved BEFORE anything is changed: an
+    -- action that ends two other players' partnership has to be
+    -- attributable, so if we cannot say who is doing it we do not do it.
+    local Player = exports.qbx_core:GetPlayer(source)
+    local actorCitizenid = Player and Player.PlayerData and Player.PlayerData.citizenid
+    if type(actorCitizenid) ~= 'string' or actorCitizenid == '' then
+        return { ok = false, error = 'not_authorized', message = locale('common.unable_to_resolve_citizenid') }
+    end
+
+    -- After the authorization check, so someone who is refused anyway
+    -- cannot burn a legitimate officer's cooldown -- the key is the
+    -- caller's own source regardless, but refusing first keeps the
+    -- ordering the same as this file's other gated handlers.
+    if not PartnershipForceEndCooldown.Consume(source, PARTNERSHIP_FORCE_END_COOLDOWN_MS) then
+        return { ok = false, error = 'rate_limited' }
+    end
+
     if type(ForceBreakPartnershipForCitizenId) ~= 'function' then
         return { ok = false, error = 'not_available' }
     end
@@ -2837,7 +2913,7 @@ lib.callback.register('qbx_k9unit:server:tabletForceEndPartnership', function(so
     -- SELECT) and returns `false` cleanly when there is truly no active
     -- row -- this callback trusts that single, already-correct answer
     -- rather than re-deriving a second, offline-unsafe one.
-    local ended = ForceBreakPartnershipForCitizenId(targetCitizenId, 'admin_forced_from_tablet')
+    local ended = ForceBreakPartnershipForCitizenId(targetCitizenId, 'admin_forced_from_tablet', actorCitizenid)
     if not ended then
         return { ok = false, error = 'not_partnered' }
     end

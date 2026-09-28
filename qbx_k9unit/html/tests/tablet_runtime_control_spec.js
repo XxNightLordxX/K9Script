@@ -34,7 +34,7 @@
 
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findByText, findAll } = require('./tablet-dom-stub');
+const { findByText, findAll, openSettingsSection, findByClass } = require('./tablet-dom-stub');
 
 function routeFetch(handlers) {
     return function (url, init) {
@@ -71,7 +71,7 @@ async function openTablet(h, extraOpenData) {
 }
 
 function openRuntimeControlTab(h) {
-    return findByText(h.getRoot(), 'Runtime Control')[0].click();
+    return openSettingsSection(h.getRoot(), 'Runtime Control');
 }
 
 // ======================================================================
@@ -97,9 +97,9 @@ t.test('a non-high-command officer holding a delegated k9.runtimecontrol grant D
         })),
     });
     await openTablet(h);
-    const tab = findByText(h.getRoot(), 'Runtime Control')[0];
-    t.isTrue(!!tab, 'the tab itself is visible to a delegated non-high-command officer');
-    tab.click();
+    t.equals(findByText(h.getRoot(), 'Server Settings').length, 1, 'the Server Settings tab is visible to a delegated non-high-command officer');
+    openSettingsSection(h.getRoot(), 'Runtime Control');
+    t.equals(findByClass(h.getRoot(), 'k9tablet-settings-sections')[0].children.length, 1, 'and holds exactly the one section this delegate may change');
     await settle();
     t.isTrue(findByText(h.getRoot(), 'Runtime Feature Control').length >= 1, 'the real screen renders, not a dead end');
 });

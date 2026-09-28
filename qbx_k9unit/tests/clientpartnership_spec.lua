@@ -305,6 +305,60 @@ t.test('THE REGRESSION FIX: an officer-role initiator (IsOwnModelK9 false) reach
     t.equals(f.denyCallCount(), 0)
 end)
 
+-- ========================================================================
+-- TogglePartnership -- the ONE action behind /k9partner, the radial item and
+-- the tablet button. Asks the server first, then breaks or partners up.
+-- ========================================================================
+
+t.test('TogglePartnership: the server says partnered -> breaks it, even with the local cache empty (the reconnect case) and with no K9 access', function()
+    local f = newPartnershipFixture()
+    f.setCanShowK9UI(false)
+    f.setCallbackAwaitBehavior({ ok = true, isPartnered = true, partnerServerId = 55, isK9 = false })
+    t.isFalse(f.env.IsPartnered(), 'sanity: the local cache starts empty, as after a reconnect')
+
+    t.isTrue(f.env.TogglePartnership())
+
+    t.equals(f.callbackAwaitCalls[1].name, 'qbx_k9unit:server:getPartnershipState', 'the server was asked first')
+    t.equals(f.lastServerEvent().event, 'qbx_k9unit:server:breakPartnership')
+    t.equals(f.denyCallCount(), 0, 'breaking is never gated')
+end)
+
+t.test('TogglePartnership: not partnered -> partner up with the nearest player', function()
+    local f = newPartnershipFixture()
+    f.setCallbackAwaitBehavior({ ok = true, isPartnered = false })
+    f.env.FindNearestPartnerCandidate = function() return 55 end
+
+    t.isTrue(f.env.TogglePartnership())
+
+    t.equals(f.lastServerEvent().event, 'qbx_k9unit:server:requestPartnerUp')
+    t.equals(f.lastServerEvent().args[1], 55)
+end)
+
+t.test('TogglePartnership: not partnered and nobody nearby -> says so, sends nothing', function()
+    local f = newPartnershipFixture()
+    f.setCallbackAwaitBehavior({ ok = true, isPartnered = false })
+    f.env.FindNearestPartnerCandidate = function() return nil end
+    local before = #f.serverEvents
+
+    local acted = f.env.TogglePartnership()
+
+    t.isFalse(acted)
+    t.equals(#f.serverEvents, before)
+    t.equals(f.lastNotify().description, locale('radial.no_partner_candidate'))
+end)
+
+t.test('TogglePartnership: not partnered and no K9 access -> refused before looking for anyone', function()
+    local f = newPartnershipFixture()
+    f.setCanShowK9UI(false)
+    f.setCallbackAwaitBehavior({ ok = true, isPartnered = false })
+    local looked = false
+    f.env.FindNearestPartnerCandidate = function() looked = true; return 55 end
+
+    t.isFalse(f.env.TogglePartnership())
+    t.equals(f.denyCallCount(), 1)
+    t.isFalse(looked)
+end)
+
 t.test('RequestPartnerUp: already partnered blocks locally with a notify, no server contact, regardless of which side initiated', function()
     local f = newPartnershipFixture()
     f.dispatchNetEvent('qbx_k9unit:client:partnershipEstablished', 65535, 55, true)

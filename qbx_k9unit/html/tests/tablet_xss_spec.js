@@ -35,7 +35,7 @@
 
 const t = require('./testkit');
 const { createHarness, jsonResponse } = require('./tablet-sandbox');
-const { findAll, findByText } = require('./tablet-dom-stub');
+const { findAll, findByText, openSettingsSection } = require('./tablet-dom-stub');
 
 function routeFetch(handlers) {
     return function (url, init) {
@@ -174,20 +174,17 @@ for (const malicious of MALICIOUS_STRINGS) {
         }
     });
 
-    t.test(`tablet theming + cert tier editing: header title / tier label / capability label / reorder warning containing ${shortLabel} reach the DOM verbatim via textContent, never innerHTML`, async () => {
+    t.test(`tablet theming + roles editing: header title / role label / unlock label containing ${shortLabel} reach the DOM verbatim via textContent, never innerHTML`, async () => {
         const h = createHarness({
             fetchImpl: routeFetch({
                 'tablet:requestMyRecord': () => ({ ok: true, viewer: HIGH_COMMAND_VIEWER, certifications: [], xp: null, tierLabel: null, myFeatures: [] }),
                 'tablet:getTheme': () => ({ ok: true, theme: { primaryColor: '#2563eb', accentColor: '#f59e0b', backgroundColor: '#111827', textColor: '#f9fafb', density: 'comfortable', headerTitle: malicious } }),
-                'tablet:certTiersList': () => ({
+                'tablet:rolesList': () => ({
                     ok: true,
-                    tiers: [
-                        { key: 'x', label: malicious, ordinal: 1, capabilities: { cap1: true } },
-                        { key: 'certified', label: 'Certified', ordinal: 2, capabilities: {} },
-                    ],
-                    capabilityCatalog: { cap1: { label: malicious } },
+                    roles: [{ key: 'x', label: malicious, xpRequired: 0, unlocks: ['cap1'] }],
+                    unlockOptions: [{ key: 'cap1', label: malicious }],
+                    canManage: true,
                 }),
-                'tablet:certTiersReorder': () => ({ ok: true, tiers: [], warning: malicious }),
             }),
         });
 
@@ -209,21 +206,18 @@ for (const malicious of MALICIOUS_STRINGS) {
         t.equals(everyElementInnerHTMLWriteCount(h), 0);
 
         const { findByText } = require('./tablet-dom-stub');
-        findByText(h.getRoot(), 'Catalogs')[0].click();
+        openSettingsSection(h.getRoot(), 'Catalogs');
         await settle();
 
-        t.isTrue(findAll(h.getRoot(), (n) => n._textContent === malicious).length >= 1, 'malicious cert-tier label AND capability label both rendered verbatim');
+        t.isTrue(findAll(h.getRoot(), (n) => n._textContent === malicious).length >= 2, 'malicious role label AND unlock label both rendered verbatim');
         t.equals(everyElementInnerHTMLWriteCount(h), 0);
 
-        // Trigger a reorder (move the second row, "certified", up) to reach
-        // the server-supplied `warning` banner.
-        const moveUpButtons = findAll(h.getRoot(), (n) => n.tagName === 'button' && n._textContent === '↑');
-        const enabledMoveUp = moveUpButtons.filter((b) => b.getAttribute('disabled') !== 'disabled')[0];
-        t.isDefined(enabledMoveUp, 'at least one enabled Move Up control exists with two tiers present');
-        enabledMoveUp.click();
-        await new Promise((r) => setTimeout(r, 30));
-
-        t.isTrue(findAll(h.getRoot(), (n) => n._textContent === malicious).length >= 1, 'malicious reorder warning text rendered verbatim');
+        // The edit form: the name goes into an input's value, the unlock
+        // label into a checkbox row's text -- never markup.
+        findByText(h.getRoot(), 'Edit')[0].click();
+        await settle();
+        const nameInput = findAll(h.getRoot(), (n) => n.tagName === 'input' && n.classList.contains('k9tablet-role-name-input'))[0];
+        t.equals(nameInput.value, malicious);
         t.equals(everyElementInnerHTMLWriteCount(h), 0);
     });
 
@@ -243,7 +237,7 @@ for (const malicious of MALICIOUS_STRINGS) {
         h.postMessage('tablet:open', { runtimeControlEnabled: true });
         await settle();
 
-        findByText(h.getRoot(), 'Runtime Control')[0].click();
+        openSettingsSection(h.getRoot(), 'Runtime Control');
         await settle();
 
         // The server's own lockoutWarning text is only shown once the
@@ -304,7 +298,7 @@ for (const malicious of MALICIOUS_STRINGS) {
         await settle();
 
         const { findByText } = require('./tablet-dom-stub');
-        findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+        openSettingsSection(h.getRoot(), 'K9 Supply Shop');
         await settle();
 
         // Table: label + ped model, rendered identically for BOTH the
@@ -350,7 +344,7 @@ for (const malicious of MALICIOUS_STRINGS) {
         await settle();
 
         const { findByText } = require('./tablet-dom-stub');
-        findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+        openSettingsSection(h.getRoot(), 'K9 Supply Shop');
         await settle();
 
         findByText(h.getRoot(), 'Add Location Here')[0].click();
@@ -451,7 +445,7 @@ t.test('shop locations: a full battery of malicious strings across many sequenti
         // a freshly-random malicious payload on every visit.
         findByText(h.getRoot(), 'My Record')[0].click();
         await settle();
-        findByText(h.getRoot(), 'K9 Supply Shop')[0].click();
+        openSettingsSection(h.getRoot(), 'K9 Supply Shop');
         await settle();
     }
     t.equals(everyElementInnerHTMLWriteCount(h), 0, 'zero innerHTML writes across the whole document after every malicious shop-location payload in this suite, across repeated tab-visit cycles');

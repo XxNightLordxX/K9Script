@@ -147,7 +147,6 @@ Config = {}
 --   Config.PursuitSprint ............ the short burst of real speed
 --   Config.Partnership .............. handler and K9 pairing
 --   Config.DoorInteraction .......... scratching at doors
---   Config.Vision ................... thermal and night vision
 --
 -- KIT AND PLACES
 --   Config.K9Vehicles ............... which vehicles a K9 can ride in
@@ -907,9 +906,11 @@ Config.Peds = {
 -- made a K9.
 --
 -- Until now this resource only ever DETECTED whether someone was already
--- playing a K9 model; it never set one. With this on, certifying someone
--- (or granting them k9.access) actually turns their character INTO the
--- ped, and revoking turns them back.
+-- playing a K9 model; it never set one. With this on, making someone a K9
+-- actually turns their character INTO the ped, and revoking turns them
+-- back. "Making someone a K9" is: the tablet's Certify with a breed picked
+-- (instead of "Handler"), or Assign K9 Role, or a k9.access grant.
+-- Certifying a HANDLER never changes how they look.
 --
 -- THIS CHANGES A PLAYER'S CHARACTER, so it is worth understanding before
 -- switching it on:
@@ -1242,28 +1243,26 @@ Config.FeatureControl = {
     -- names the affected features and points at these commands whenever
     -- both conditions above are true at once.
     --
-    -- These four default to grant-required because they are the ones that
-    -- act ON another player rather than on the K9 itself, so "who is
-    -- allowed to do this" is a decision a server will actually want to
-    -- make per person rather than per rank.
-    RequireGrant = {
-        BiteAndHold       = true,
-        NonLethalTakedown = true,
-        PropDragging      = true,
-        AdminAuditCommands = true,
-        -- FindAlerts does NOT fit the "acts on another player" rationale
-        -- above -- it is cosmetic and affects only the searcher's own
-        -- character. It is listed anyway because the requirement is that
-        -- high command can switch ANY feature on or off for an individual,
-        -- not only the dangerous ones. Treat the paragraph above as the
-        -- reason the original four were chosen, not as a rule limiting what
-        -- may appear here.
-        FindAlerts        = true,
-        -- ScentTrailHunt's own RequireGrant entry was removed alongside the
-        -- feature itself (Config.Features' own comment where that key used
-        -- to live has the full removal writeup and revert instructions).
-        PursuitSprint     = true,
-    },
+    -- SHIPS EMPTY, ON PURPOSE: a K9 that high command has made a K9 can use
+    -- every ability straight away. Before, bite & hold, takedown, dragging,
+    -- pursuit sprint, find alerts and the audit commands were all listed
+    -- here, so every new K9 needed up to six separate per-person grants
+    -- before they could do their job -- and nothing told them why the keys
+    -- did nothing.
+    --
+    -- Taking an ability away from ONE person does not need this list: block
+    -- it for them from their record on the tablet. That works whatever is
+    -- (or is not) listed here.
+    --
+    -- Want "only the people I hand it to" for something? Add it back, one
+    -- line each -- the names are the Config.Features keys:
+    --     BiteAndHold = true,
+    --     NonLethalTakedown = true,
+    --     PropDragging = true,
+    --     PursuitSprint = true,
+    --     FindAlerts = true,
+    --     AdminAuditCommands = true,
+    RequireGrant = {},
 
     -- Whether high command can grant permissions to THEMSELVES. Ships on,
     -- at the owner's request.
@@ -1331,6 +1330,15 @@ Config.CommandTablet = {
     -- Any other value is treated as 'command' and warns loudly at startup,
     -- rather than silently leaving players with no way in at all.
     openMode = 'both',
+
+    -- ADMIN CHAT COMMANDS. Off: certifying, decertifying, tiers/roles,
+    -- giving XP, permissions, the dog-character pin and the audit are all
+    -- done on the tablet only (/k9certify, /k9decertify, /k9settier,
+    -- /k9specialize, /k9unspecialize, /k9givexp, /k9permission,
+    -- /k9grantpermission, /k9revokepermission, /k9setdog, /k9removedog,
+    -- /k9dog and /k9audit do not exist). Set true only if you want those
+    -- commands back for console or staff use.
+    adminChatCommands = false,
 
     -- The chat command, used by 'command' and 'both'. Also reachable from
     -- the K9 radial menu in every mode -- the radial is a UI affordance, not
@@ -1410,6 +1418,7 @@ Config.CommandTablet = {
         GunpowderSniffing = true,
         ThermalVision     = true,
         NightVision       = true,
+        CameraFeedPiP     = true, -- the only place the partner camera is opened
         BiteAndHold       = true,
         NonLethalTakedown = true,
         PropDragging      = true,
@@ -1509,8 +1518,8 @@ Config.K9Onboarding = {
 
     -- The key/button that dismisses the nudge for good, as a raw game
     -- control number rather than a key name -- this is NOT the same kind
-    -- of setting as Config.CameraFeed.toggleKey elsewhere in this file, so
-    -- you cannot just type a letter here. Leave this at its default (202,
+    -- of setting as the letter keys elsewhere in this file, so you cannot
+    -- just type a letter here. Leave this at its default (202,
     -- Backspace on keyboard / B on a controller) unless you already know
     -- it clashes with something else on your server. A missing or invalid
     -- number falls back to 202.
@@ -1569,10 +1578,22 @@ Config.CertificationExpiryCheckIntervalMs = 300000
 -- existing active certification. Add freely -- but the keys are stored in
 -- the database, so never RENAME one that has already been granted; add a
 -- new key and migrate, the same rule Config.Permissions carries.
+-- K9 ROLES. These three are the roles a new server starts with; high
+-- command adds, renames, re-prices and removes roles on the tablet
+-- (Server Settings > Catalogs > Roles), and those edits win over this list.
+-- A role does nothing until its holder's XP (K9 XP for a dog, handler XP
+-- for a handler, whichever is higher) reaches xpRequired.
+--   unlocks: what the role switches on --
+--     'track_blood', 'track_gunpowder'  a tracking type
+--     'detect_<category>'               counts that contraband category
+--                                        when sniffing (see
+--                                        Config.SearchContrabandItems)
+--     'bite_takedown'                   once ANY role has this, only its
+--                                        holders may bite or take down
 Config.K9Specializations = {
-    narcotics  = { label = 'Narcotics detection' },
-    explosives = { label = 'Explosives detection' },
-    patrol     = { label = 'Patrol / apprehension' },
+    narcotics  = { label = 'Narcotics detection',   xpRequired = 0,    unlocks = { 'detect_narcotics' } },
+    patrol     = { label = 'Patrol / apprehension', xpRequired = 0,    unlocks = { 'track_blood' } },
+    explosives = { label = 'Explosives detection',  xpRequired = 1250, unlocks = { 'detect_explosives', 'track_gunpowder' } },
 }
 
 -- ======================================================================
@@ -2593,7 +2614,7 @@ Config.Tracking = {
         -- lowercase):
         --
         --   'keybind' (RECOMMENDED, and the default) -- a handler presses
-        --   the key below (Z by default, rebindable per-player in their own
+        --   the key below (. -- the full stop / period -- by default, rebindable per-player in their own
         --   FiveM Settings) to see the coloured dots, and presses it again
         --   to stop. This is the original brief exactly as asked for, and
         --   costs nothing extra: nobody sees anything on their screen until
@@ -2661,7 +2682,12 @@ Config.Tracking = {
         -- call -- a collision shipped here once for exactly that reason.
         -- The resolved defaults in use are listed in
         -- DEVELOPER_REFERENCE.md §22.
-        keybind = 'Z',
+        --
+        -- NOT 'Z': ox_lib's radial menu -- the menu every K9 action here
+        -- lives in -- defaults to Z, so a Z default toggled scent vision
+        -- every time a K9 opened their menu. tests/keybindcollisions_spec.lua
+        -- now checks defaults against the keys ox_lib and ox_target own.
+        keybind = 'PERIOD',
 
         -- One colour per visible trail. A person's colour is derived from
         -- their own citizenid, so the same person looks the same to every
@@ -2857,28 +2883,18 @@ Config.DoorInteraction = {
 -- ======================================================================
 -- client/vision.lua. Tuning for the partner camera feed above.
 Config.CameraFeed = {
-    toggleKey              = 'H',   -- rebindable in-game like any other key
+    -- No key: the partner camera is opened from the tablet only.
     fov                    = 50.0,  -- field of view, degrees. Lower = more zoomed in.
     k9EyeHeightOffset      = 0.65,  -- metres above a dog-shaped partner's feet. Approximate, not read off the model — tune it for the breeds you actually use.
     handlerEyeHeightOffset = 1.6,   -- metres above a human-shaped partner's feet. Same caveat.
 }
 
-Config.Vision = {
-    Thermal = { toggleKey = 'K' }, -- drives SetSeethrough(true/false) -- see §11.6
-    Night   = { toggleKey = 'J' }, -- drives SetNightvision(true/false) -- see §11.6
-}
--- The K and J keys above still jump straight to that one specific mode --
--- nothing above changed. Each also has its own K9 radial menu entry ("K9:
--- Thermal Vision" / "K9: Night Vision"), independent of the other. There is
--- ALSO a single "/k9vision" cycle (default key I, also in the K9 radial
--- menu as "K9: Vision"), kept as an extra, optional convenience alongside
--- the two above, not a replacement for them -- it steps Off -> Night ->
--- Thermal -> Off in one press, skipping whichever of ThermalVision/
--- NightVision you turn off below in Config.Features. Turn both off and the
--- cycle just tells the player nothing is available right now, rather than
--- doing nothing with no explanation. This does not add a new setting to
--- turn off on its own -- it simply respects the two flags above, the same
--- way the K/J keys already do.
+-- VISION: there is one vision key, I ("/k9vision"), which steps Off ->
+-- Night -> Thermal -> Off in one press, skipping whichever of ThermalVision/
+-- NightVision you turn off above in Config.Features. The K9 menu's Senses
+-- group also has a button for each mode. The separate K and J keys were
+-- removed at the owner's request. Turn both flags off and the cycle just
+-- tells the player nothing is available right now.
 
 -- ======================================================================
 -- COMBAT & ADVANCED AGILITY -- bite and hold, non-lethal takedowns, dragging.
@@ -2919,7 +2935,29 @@ Config.Combat = {
     -- Applies to BiteAndHold and NonLethalTakedown's player-target paths
     -- below (and would apply to PropDragging's, if/when that's built).
     -- DEVELOPER_REFERENCE.md §12.0 item 5 — RESOLVED, secure-by-default.
-    RequireWantedStatus = true, -- a K9 may only target a PLAYER who is flagged wanted/suspect. Does NOT affect NPC targets (a "wanted" concept doesn't apply to an NPC this resource has no reason to protect from griefing).
+    -- OFF: a K9 can bite, take down, drag and pursuit-sprint ANY player
+    -- (owner: "the dog should be able to do that whether someone is marked
+    -- or not"). Turn it on only if you want those moves limited to players
+    -- your own setup flags as wanted -- WantedStatusCheckOverride below, or
+    -- metadata.wanted / metadata.iswanted. NPC targets are never affected.
+    RequireWantedStatus = false,
+
+    -- THE SNIFF CHECKS FOR WARRANTS. When a K9 sniffs a person (third eye >
+    -- Sniff Person) and the resource named here is running, the sniff also
+    -- looks them up in its MDT and tells the K9 and its partner about an
+    -- ACTIVE, APPROVED warrant -- information for the roleplay; it does not
+    -- change what the K9 may do. Built for sc-dispatch (it reads
+    -- sc-dispatch's own mdt_warrants table, and like sc-dispatch only
+    -- approved warrants count -- pending and denied never).
+    --   warrantTypes: a warrant is reported when its type contains one of
+    --     these words (not case-sensitive). "Arrest Warrant" and "Bench
+    --     Warrant" are; a "Search Warrant" is for a place, not a person, so
+    --     it is not.
+    -- Set resource = nil to turn this off.
+    WantedFromDispatch = {
+        resource = 'sc-dispatch',
+        warrantTypes = { 'arrest', 'bench' },
+    },
 
     -- function(playerId: number) -> boolean, OPTIONAL, nil by default.
     -- Expected to be the NORMAL path for a real server, not the exceptional
@@ -3213,8 +3251,8 @@ Config.Combat = {
 -- Config.Combat (a different file's config namespace) would blur that
 -- ownership split for no benefit. Mirrors this file's own established
 -- convention of one dedicated top-level table per Phase 2/3 feature
--- (Config.Tracking, Config.SearchZones, Config.DoorInteraction, Config.Vision,
--- Config.Combat above) rather than a single everything-table.
+-- (Config.Tracking, Config.SearchZones, Config.DoorInteraction, Config.Combat
+-- above) rather than a single everything-table.
 --
 -- This registry started as a FOUNDATION ONLY, with no combat consequence
 -- wired to it. The two combat mechanics DEVELOPER_REFERENCE.md 12.0 item 7
