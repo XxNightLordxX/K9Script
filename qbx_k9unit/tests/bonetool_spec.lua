@@ -227,14 +227,17 @@ end)
 -- exists to catch.
 -- ======================================================================
 
-t.test('flag ON, convar UNSET: k9bonetool is NOT registered, and exactly one loud WARNING names the convar', function()
+t.test('flag ON, convar UNSET: k9bonetool is NOT registered, and exactly one calm note names the convar', function()
     local ctx = buildEnv({ featureFlag = true, convarValue = 0 })
     startResource(ctx)
     t.isNil(ctx.registeredCommands.k9bonetool, 'the flag alone must never register the command -- the convar is a required second opt-in')
-    t.equals(#ctx.printedLines, 1, 'exactly one warning line, not silence and not a flood')
-    t.contains(ctx.printedLines[1], 'WARNING')
-    t.contains(ctx.printedLines[1], BONE_DEV_TOOL_ENABLE_CONVAR, 'the warning must name the exact convar an operator needs to set')
-    t.contains(ctx.printedLines[1], 'NOT')
+    t.equals(#ctx.printedLines, 1, 'exactly one line, not silence and not a flood')
+    -- The flag ships on, so this is the normal live-server state: a note
+    -- that says so, never a WARNING the owner thinks they must fix.
+    t.notContains(ctx.printedLines[1], 'WARNING')
+    t.contains(ctx.printedLines[1], 'nothing to do')
+    t.contains(ctx.printedLines[1], BONE_DEV_TOOL_ENABLE_CONVAR, 'the note must name the exact convar an operator needs to set')
+    t.contains(ctx.printedLines[1], 'OFF')
     t.notContains(ctx.printedLines[1], 'dev-only bone-index sweep tool registered', 'this must be the not-registered warning, never the success line')
 end)
 

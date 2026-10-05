@@ -1157,18 +1157,44 @@ end
 -- loud, actionable, printed warning -- impossible to miss in server console
 -- output, unlike a comment only read by whoever opens this file -- is the
 -- proportionate response here, not a hard stop.
+--
+-- IsTargetDowned asks the detected ambulance resource (K9Compat) before it
+-- ever falls back to that metadata, so the warning only applies when no
+-- supported ambulance resource was found. K9Compat looks for one
+-- Config.Compat.startupGraceMs after start, so this check waits for that.
+local function WarnIfDownedCheckIsClientReported()
+    if not (Config.Features.PropDragging and Config.Combat.PropDragging.IsPlayerDownedOverride == nil) then return end
+
+    local ambulance = nil
+    if type(K9Compat) == 'table' and type(K9Compat.Which) == 'function' then
+        local ok, name = pcall(K9Compat.Which, 'ambulance')
+        if ok and type(name) == 'string' then ambulance = name end
+    end
+    if ambulance then
+        print(('[qbx_k9unit] combat.lua: PropDragging checks whether a player is down through %s, server-side (detected automatically -- nothing to set up).'):format(ambulance))
+        return
+    end
+
+    print('[qbx_k9unit] WARNING: Config.Features.PropDragging is enabled, Config.Combat.PropDragging.IsPlayerDownedOverride is nil, ' ..
+        'and no supported ambulance resource was detected (see /k9compat). The fallback ' ..
+        '(metadata.isdead/.inlaststand) is typically a CLIENT-self-reported flag on QB/qbx ' ..
+        'ambulance integrations, not a server-verified state machine -- a player can spoof it ' ..
+        'true to always qualify as a drag target, or spoof it false to become permanently ' ..
+        'undraggable while genuinely downed. Supply a real IsPlayerDownedOverride tied to your ' ..
+        "own ambulance/laststand resource for a server-authoritative check (see config.lua's " ..
+        'own comment on this field).')
+end
+
 AddEventHandler('onResourceStart', function(resourceName)
     if GetCurrentResourceName() ~= resourceName then return end
+    if not (Config.Features.PropDragging and Config.Combat.PropDragging.IsPlayerDownedOverride == nil) then return end
 
-    if Config.Features.PropDragging and Config.Combat.PropDragging.IsPlayerDownedOverride == nil then
-        print('[qbx_k9unit] WARNING: Config.Features.PropDragging is enabled but ' ..
-            'Config.Combat.PropDragging.IsPlayerDownedOverride is nil. The default fallback ' ..
-            '(metadata.isdead/.inlaststand) is typically a CLIENT-self-reported flag on QB/qbx ' ..
-            'ambulance integrations, not a server-verified state machine -- a player can spoof it ' ..
-            'true to always qualify as a drag target, or spoof it false to become permanently ' ..
-            'undraggable while genuinely downed. Supply a real IsPlayerDownedOverride tied to your ' ..
-            "own ambulance/laststand resource for a server-authoritative check (see config.lua's " ..
-            'own comment on this field).')
+    local graceMs = type(Config.Compat) == 'table' and tonumber(Config.Compat.startupGraceMs) or 0
+    if graceMs ~= graceMs or graceMs < 0 then graceMs = 0 end
+    if type(SetTimeout) == 'function' then
+        SetTimeout(graceMs + 1000, WarnIfDownedCheckIsClientReported)
+    else
+        WarnIfDownedCheckIsClientReported()
     end
 end)
 

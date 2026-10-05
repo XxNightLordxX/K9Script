@@ -62,6 +62,14 @@ tagged release will draw a line under this section.
 
 ### Fixed — things that were broken for players
 
+- **Server start-up messages that were wrong or alarming for no reason**
+  (found in a live boot log). Supply-shop warnings printed twice. Start-up
+  claimed `/k9givexp` and `/k9audit` were registered when chat commands are
+  switched off. The blood and gunpowder tracking note still pointed at the
+  retired `/k9specialize` command instead of roles on the tablet. The prop
+  dragging warning fired even though your ambulance script (sc-ambulance)
+  was already being used to check who is down. The bone tool showed a
+  WARNING for its normal, safe "off" state.
 - **A decertified handler stayed stuck in their kennel or vehicle seat.**
   Losing K9 access tore down the leash, any bite in progress and the
   partnership, but not a kennel you were resting in or a seat you were
@@ -226,6 +234,12 @@ tagged release will draw a line under this section.
 
 ### Added
 
+- **sc-dispatch support.** When a K9 goes down, sc-dispatch now gets a
+  top-priority call for that K9's department automatically. Nothing to
+  set up.
+- **`docs/ox_inventory_items.lua`**: every K9 item (medkit, treat, meat
+  bait, ultrasonic whistle, tablet) ready to paste into ox_inventory, with
+  step-by-step instructions.
 - **A K9 roster and a handler roster.** Two lists, sortable by rank, showing
   callsign, department, tier, XP and current partner. Clicking Manage opens
   the person screen that already existed rather than a second one that would

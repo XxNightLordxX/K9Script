@@ -338,6 +338,39 @@ function K9SelfCheck.FindSpecializationGatedTrackTypes(configFeatures, specializ
     return out
 end
 
+--- The same check against the roles catalog (server/roles.lua), which
+--- replaced Config.SpecializationTracking as what unlocks a trail: a
+--- switched-on trail type that some role unlocks is a role skill, and a
+--- dog without one of those roles finds nothing on it.
+--- @param configFeatures table -- Config.Features
+--- @param trailRoles table|nil -- trackType -> role labels (ListTrailRoleRequirements)
+--- @param trackTypeFeatureFlags table -- trackType -> Config.Features key
+--- @return { trackType: string, feature: string, roles: string[] }[]
+function K9SelfCheck.FindRoleGatedTrackTypes(configFeatures, trailRoles, trackTypeFeatureFlags)
+    local out = {}
+    if type(configFeatures) ~= 'table' or type(trailRoles) ~= 'table'
+        or type(trackTypeFeatureFlags) ~= 'table' then
+        return out
+    end
+
+    local trackTypes = {}
+    for trackType, labels in pairs(trailRoles) do
+        if type(trackType) == 'string' and trackType ~= 'scent' and type(labels) == 'table' and #labels > 0 then
+            trackTypes[#trackTypes + 1] = trackType
+        end
+    end
+    table.sort(trackTypes)
+
+    for _, trackType in ipairs(trackTypes) do
+        local featureKey = trackTypeFeatureFlags[trackType]
+        if type(featureKey) == 'string' and configFeatures[featureKey] then
+            out[#out + 1] = { trackType = trackType, feature = featureKey, roles = trailRoles[trackType] }
+        end
+    end
+
+    return out
+end
+
 --- ======================================================================
 --- PART 3 -- K9 EQUIPMENT SHOP PURCHASE-ENFORCEMENT BACKEND CHECK
 --- (coder-security, this pass -- red-team finding on server/equipmentshop.lua
@@ -615,25 +648,37 @@ end
 --- @return number -- how many gated-and-enabled trail types were named
 local function RunSpecializationGateCheck()
     if type(Config) ~= 'table' or type(Config.Features) ~= 'table' then return 0 end
+    local flags = { scent = 'ScentTracking', blood = 'BloodTracking', gunpowder = 'GunpowderSniffing' }
 
-    local gated = K9SelfCheck.FindSpecializationGatedTrackTypes(
-        Config.Features,
-        Config.SpecializationTracking,
-        { scent = 'ScentTracking', blood = 'BloodTracking', gunpowder = 'GunpowderSniffing' }
-    )
+    -- Roles (server/roles.lua) decide which trails a dog can follow
+    -- whenever that file is loaded; the older config map only otherwise.
+    if type(ListTrailRoleRequirements) == 'function' then
+        local okRoles, trailRoles = pcall(ListTrailRoleRequirements)
+        local gated = K9SelfCheck.FindRoleGatedTrackTypes(Config.Features, okRoles and trailRoles or nil, flags)
+        if #gated == 0 then return 0 end
+
+        local parts = {}
+        for _, entry in ipairs(gated) do
+            parts[#parts + 1] = ('%s tracking needs the %s role'):format(entry.trackType, table.concat(entry.roles, ' or '))
+        end
+        print(("[qbx_k9unit] selfcheck: %d trail type(s) are role skills: %s. A dog without one of those roles " ..
+               "finds nothing on that trail (scent tracking always works for every dog). Give a person a role from " ..
+               "their page on the tablet. Change which role unlocks which trail in the tablet's Server Settings > " ..
+               "Catalogs > Roles, or switch the trail off in config.lua if you do not want it."):format(#gated, table.concat(parts, '; ')))
+        return #gated
+    end
+
+    local gated = K9SelfCheck.FindSpecializationGatedTrackTypes(Config.Features, Config.SpecializationTracking, flags)
     if #gated == 0 then return 0 end
 
     local parts = {}
     for _, entry in ipairs(gated) do
-        parts[#parts + 1] = ("%s tracking needs the '%s' specialization"):format(entry.trackType, entry.specialization)
+        parts[#parts + 1] = ("%s tracking needs the '%s' role"):format(entry.trackType, entry.specialization)
     end
 
-    print(("[qbx_k9unit] selfcheck: %d trail type(s) now require a specialization before any dog can follow them: %s. " ..
-           "This changed deliberately -- following a person's scent is still something every certified dog can do, " ..
-           "but these ones are now specialist skills. A dog without the specialization finds NOTHING on these trails " ..
-           "and is told nothing, which looks exactly like the feature being broken. Grant them with /k9specialize, " ..
-           "or switch the trail off in config.lua if you do not want it. Change which specialization unlocks what " ..
-           "under Config.SpecializationTracking in config.lua."):format(#gated, table.concat(parts, '; ')))
+    print(("[qbx_k9unit] selfcheck: %d trail type(s) are role skills: %s. A dog without that role finds nothing " ..
+           "on that trail (scent tracking always works for every dog). Give a person a role from their page on " ..
+           "the tablet, or switch the trail off in config.lua if you do not want it."):format(#gated, table.concat(parts, '; ')))
 
     return #gated
 end
@@ -730,8 +775,10 @@ function K9SelfCheck.FormatUnknownDepartmentWarning(missing, totalConfigured)
 
     return ('[qbx_k9unit] selfcheck: !! %d of %d Config.Departments job name(s) do not exist on this server: %s. ')
         :format(#missing, totalConfigured, table.concat(missing, ', '))
-        .. 'Nobody in those departments can certify, reach High Command, or use the tablet. '
-        .. 'Either fix the name in config.lua or remove the entry.'
+        .. 'If your server simply has no such job, this is harmless -- remove the entry from Config.Departments '
+        .. 'in config.lua to stop this message. If the job does exist under another name (for example "bcso" '
+        .. 'instead of "sheriff"), fix the name there, or members of that job cannot certify, reach High Command, '
+        .. 'or use the tablet.'
 end
 
 --- Probes for a job-listing export and, if one is really there, checks the

@@ -4203,6 +4203,9 @@ Config.Compat = {
         dispatch = {
             override = nil,
             candidates = {
+                -- FIRST on purpose: the dispatch this server runs. The
+                -- adapter was written against sc-dispatch's own source.
+                'sc-dispatch',
                 'ps-dispatch',
                 'cd_dispatch',
                 'qs-dispatch',

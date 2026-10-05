@@ -2244,5 +2244,9 @@ AddEventHandler('onResourceStart', function(resourceName)
         return { ok = true, rows = rows, label = label, cap = HARD_MAX_RESULTS, limit = clampedLimit, truncated = wasTruncated }
     end)
 
-    print('[qbx_k9unit] admin.lua: audit command registered (/k9audit, with subcommands cert/partner/search/xp/dept); audit callbacks registered (tabletAuditCert, tabletAuditPartner, tabletAuditSearch, tabletAuditXp, tabletAuditDept, tabletAuditCatalog).')
+    if type(Config.CommandTablet) == 'table' and Config.CommandTablet.adminChatCommands == true then
+        print('[qbx_k9unit] admin.lua: audit command registered (/k9audit, with subcommands cert/partner/search/xp/dept); tablet audit screens ready.')
+    else
+        print('[qbx_k9unit] admin.lua: tablet audit screens ready (the /k9audit chat command is off -- Config.CommandTablet.adminChatCommands = false).')
+    end
 end)

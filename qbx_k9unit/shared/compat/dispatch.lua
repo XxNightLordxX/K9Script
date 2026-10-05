@@ -334,6 +334,61 @@ local function NormalizeAlertPayload(payload)
 end
 
 -- ======================================================================
+-- sc-dispatch -- CONFIRMED, written against the resource's own source
+-- (sc-dispatch 3.0.0, server/main.lua): a SERVER export
+-- `AddNotification(data)` that this server's own scripts already call.
+-- It reads data.job_table (job names; any police job reaches every police
+-- department), data.title (stored as the call type, VARCHAR(50)),
+-- data.message, data.coords ({x,y,z} or vector3), data.street,
+-- data.caller, data.priority (1 = top, 2 = normal, 3 = low -- its UI
+-- styles exactly those three), data.flash and data.blip
+-- ({ sprite, scale, colour, flashes, text }; every field optional). It
+-- returns the new call's id, or nil when no department matched.
+-- sc-dispatch also ships its own "ps-dispatch" bridge resource; this
+-- adapter talks to sc-dispatch directly, so that bridge is not needed.
+-- ======================================================================
+K9Compat.RegisterAdapter('dispatch', 'sc-dispatch', function(realm)
+    if realm ~= 'server' then return nil end
+
+    return {
+        --- @param payload table -- see this file's header for the shape
+        --- @return boolean sent
+        Alert = function(payload)
+            local n = NormalizeAlertPayload(payload)
+            if not n.coords then return false end
+
+            if GetResourceState('sc-dispatch') ~= 'started' then return false end
+
+            local indexOk, addNotificationExport = pcall(function()
+                return exports['sc-dispatch'].AddNotification
+            end)
+            if not indexOk or type(addNotificationExport) ~= 'function' then return false end
+
+            -- This file's 0..3 scale (0 = critical) onto sc-dispatch's
+            -- 1..3 (1 = top): critical and urgent are both its top tier.
+            local priority = (n.priority <= 1) and 1 or n.priority
+            local title = n.code10 and (n.code10 .. ' ' .. n.title) or n.title
+            local jobs = (#n.jobs > 0) and n.jobs or { 'police' }
+
+            local callOk, callId = pcall(function()
+                return exports['sc-dispatch']:AddNotification({
+                    job_table = jobs,
+                    title     = title:sub(1, 50),
+                    message   = n.message,
+                    coords    = { x = n.coords.x, y = n.coords.y, z = n.coords.z },
+                    street    = '',
+                    caller    = 'K9 Unit (automated)',
+                    priority  = priority,
+                    flash     = (priority == 1) and 1 or 0,
+                    blip      = { text = n.title, flashes = priority == 1 },
+                })
+            end)
+            return callOk == true and callId ~= nil
+        end,
+    }
+end)
+
+-- ======================================================================
 -- ps-dispatch -- CONFIRMED. See header for the exact source cited.
 -- ======================================================================
 K9Compat.RegisterAdapter('dispatch', 'ps-dispatch', function(realm)

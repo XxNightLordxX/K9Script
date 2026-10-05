@@ -265,6 +265,24 @@ function RoleUnlockPermits(citizenid, jobName, unlock)
     return GetHeldRoleUnlocks(citizenid, jobName)[unlock] == true
 end
 
+--- Which roles unlock each trail type, for the boot self-check: one entry
+--- per track type some role unlocks, role names sorted.
+--- @return table<string, string[]> trackType -> role labels
+function ListTrailRoleRequirements()
+    local out = {}
+    for _, role in pairs(ROLES) do
+        for unlock in pairs(role.unlocks) do
+            local trackType = unlock:match('^track_(.+)$')
+            if trackType then
+                out[trackType] = out[trackType] or {}
+                table.insert(out[trackType], role.label)
+            end
+        end
+    end
+    for _, labels in pairs(out) do table.sort(labels) end
+    return out
+end
+
 --- The catalog for display: sorted by XP needed, then name.
 --- @return table[] { key, label, xpRequired, unlocks = string[] }
 function ListRolesForDisplay()

@@ -539,7 +539,7 @@ local function RegisterEquipmentShopFromConfig()
     end
 
     if #inventoryItems == 0 then
-        print('[qbx_k9unit] equipmentshop: WARNING: every configured item failed validation or does not exist in this server\'s ox_inventory -- the K9 Supply shop will NOT be registered (there is nothing left to sell). See the WARNING lines above for the exact item(s) to fix.')
+        print('[qbx_k9unit] equipmentshop: WARNING: every configured item failed validation or does not exist in this server\'s ox_inventory -- the K9 Supply shop will NOT be registered (there is nothing left to sell). See the WARNING lines above for the exact item(s) to fix. docs/ox_inventory_items.lua in this resource has ready-to-paste entries for every K9 item.')
         return false
     end
 
@@ -2526,27 +2526,11 @@ function EnsureEquipmentShopReflectsCurrentCatalog()
     ActivateEquipmentShopIfEnabled()
 end
 
--- ======================================================================
--- BOOT -- register the two purchase-time hooks (and, transitively, the
--- shop itself -- see ActivateEquipmentShopIfEnabled above) when the
--- feature is already on at boot. A SEPARATE, ADDITIONAL onResourceStart
--- handler from this file's own pre-existing ones above (AddEventHandler
--- allows any number of handlers for the same event; all run, in
--- registration order, when the event actually fires) -- kept separate so
--- this section stays independently readable/reviewable, same reasoning
--- this file's own RUNTIME SHOP LOCATIONS boot handler gives for its own
--- separateness. ActivateEquipmentShopIfEnabled is itself idempotent, so it
--- makes no difference that this file's very first onResourceStart handler
--- (the REGISTRATION section, top of file) already calls it too -- whichever
--- of the two runs first (registration order: the REGISTRATION section's
--- handler was registered earlier in this file, so it runs first) performs
--- the real activation; this one is then a guaranteed no-op.
--- ======================================================================
-AddEventHandler('onResourceStart', function(resourceName)
-    if GetCurrentResourceName() ~= resourceName then return end
-    if not (Config.Features and Config.Features.K9EquipmentShop == true) then return end
-    ActivateEquipmentShopIfEnabled()
-end)
+-- BOOT: the shop is activated once, by this file's first onResourceStart
+-- handler (above, next to RegisterEquipmentShopFromConfig). There used to
+-- be a second boot handler here as well. When activation failed (every
+-- item missing from ox_inventory, say), the second one ran it again and
+-- every warning printed twice.
 
 -- ======================================================================
 -- RUNTIME TOGGLE-ON WATCHER -- the actual fix for "the shop cannot be

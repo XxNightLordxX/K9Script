@@ -327,6 +327,12 @@ local function newCombatFixture(opts)
             end
             return {}
         end,
+        -- opts.ambulanceResource: the resource K9Compat detected for
+        -- 'ambulance' (nil = nothing detected).
+        Which = function(system)
+            if system == 'ambulance' then return opts.ambulanceResource end
+            return nil
+        end,
     }
 
     local config = {
@@ -1000,6 +1006,17 @@ t.test('onResourceStart: no warning when a real IsPlayerDownedOverride is config
     for _, line in ipairs(f.printedLines) do
         t.isFalse(line:find('IsPlayerDownedOverride is nil', 1, true) ~= nil)
     end
+end)
+
+t.test('onResourceStart: a detected ambulance resource answers "is this player down?", so no spoofable-default warning', function()
+    local f = newCombatFixture({ propDragging = true, downedOverride = nil, ambulanceResource = 'sc-ambulance' })
+    f.fireResourceStart('qbx_k9unit')
+    local named = false
+    for _, line in ipairs(f.printedLines) do
+        t.isFalse(line:find('WARNING', 1, true) ~= nil, 'no warning when sc-ambulance is detected')
+        if line:find('sc-ambulance', 1, true) then named = true end
+    end
+    t.isTrue(named, 'the boot line says which ambulance resource is used')
 end)
 
 t.test('onResourceStart: ignores a different resource restarting', function()

@@ -144,8 +144,8 @@ local function newDispatchFixture(opts)
     return registered, { triggerEvent = triggerEventCalls }, env
 end
 
-local DISPATCH_CANDIDATES = { 'ps-dispatch', 'cd_dispatch', 'qs-dispatch', 'rcore_dispatch', 'core_dispatch', 'linden_outlawalert' }
-local DISPATCH_CONFIRMED = { ['ps-dispatch'] = true, ['linden_outlawalert'] = true }
+local DISPATCH_CANDIDATES = { 'sc-dispatch', 'ps-dispatch', 'cd_dispatch', 'qs-dispatch', 'rcore_dispatch', 'core_dispatch', 'linden_outlawalert' }
+local DISPATCH_CONFIRMED = { ['sc-dispatch'] = true, ['ps-dispatch'] = true, ['linden_outlawalert'] = true }
 
 t.test('dispatch.lua registers every Config.Compat candidate exactly once, in the "dispatch" system', function()
     local registered = newDispatchFixture()
@@ -347,6 +347,85 @@ t.test('linden_outlawalert Alert: a throwing downstream handler is caught -- Ale
     local ok, sent = pcall(adapter.Alert, { title = 't', coords = vector3(1, 1, 1) })
     t.isTrue(ok, 'a throwing downstream handler must never propagate out of Alert')
     t.isFalse(sent)
+end)
+
+-- ---- sc-dispatch -----------------------------------------------------
+
+t.test('sc-dispatch Alert: sends AddNotification with sc-dispatch\'s own field names and returns true when a call was created', function()
+    local captured
+    local registered = newDispatchFixture({
+        resourceStates = { ['sc-dispatch'] = 'started' },
+        exportsResources = {
+            ['sc-dispatch'] = { AddNotification = function(_self, data) captured = data; return 42 end },
+        },
+    })
+    local adapter = registered.dispatch['sc-dispatch']('server')
+    local sent = adapter.Alert({
+        code = 'k9_down', title = 'K9 Unit Down', message = 'A K9 unit (police) has gone down.',
+        coords = vector3(100, 200, 30), jobs = { 'police' }, priority = 0,
+    })
+    t.isTrue(sent)
+    t.equals(captured.job_table[1], 'police')
+    t.equals(captured.title, 'K9 Unit Down')
+    t.equals(captured.message, 'A K9 unit (police) has gone down.')
+    t.equals(captured.coords.x, 100)
+    t.equals(captured.coords.z, 30)
+    t.equals(captured.priority, 1, 'critical maps to sc-dispatch\'s top priority, 1')
+    t.equals(captured.flash, 1)
+    t.equals(captured.caller, 'K9 Unit (automated)')
+end)
+
+t.test('sc-dispatch Alert: priority maps 0/1 -> 1, 2 -> 2, 3 -> 3; a radio code goes in front of the title', function()
+    local seen = {}
+    local registered = newDispatchFixture({
+        resourceStates = { ['sc-dispatch'] = 'started' },
+        exportsResources = {
+            ['sc-dispatch'] = { AddNotification = function(_self, data) seen[#seen + 1] = data; return 1 end },
+        },
+    })
+    local adapter = registered.dispatch['sc-dispatch']('server')
+    for _, p in ipairs({ 0, 1, 2, 3 }) do
+        adapter.Alert({ title = 'K9 Unit Down', code10 = '10-99', coords = vector3(1, 1, 1), jobs = { 'police' }, priority = p })
+    end
+    t.equals(seen[1].priority, 1)
+    t.equals(seen[2].priority, 1)
+    t.equals(seen[3].priority, 2)
+    t.equals(seen[4].priority, 3)
+    t.equals(seen[3].flash, 0)
+    t.equals(seen[1].title, '10-99 K9 Unit Down')
+end)
+
+t.test('sc-dispatch Alert: no jobs falls back to police, so the alert still reaches a department', function()
+    local captured
+    local registered = newDispatchFixture({
+        resourceStates = { ['sc-dispatch'] = 'started' },
+        exportsResources = {
+            ['sc-dispatch'] = { AddNotification = function(_self, data) captured = data; return 7 end },
+        },
+    })
+    registered.dispatch['sc-dispatch']('server').Alert({ title = 't', coords = vector3(1, 1, 1) })
+    t.equals(#captured.job_table, 1)
+    t.equals(captured.job_table[1], 'police')
+end)
+
+t.test('sc-dispatch Alert: false (never a throw) for no coords, not started, a missing export, a throwing export, or no call created', function()
+    local function adapterWith(state, impl)
+        local registered = newDispatchFixture({
+            resourceStates = { ['sc-dispatch'] = state },
+            exportsResources = impl and { ['sc-dispatch'] = { AddNotification = impl } } or {},
+        })
+        return registered.dispatch['sc-dispatch']('server')
+    end
+    local good = { title = 't', coords = vector3(1, 1, 1), jobs = { 'police' } }
+    local called = false
+    t.isFalse(adapterWith('started', function() called = true; return 1 end).Alert({ title = 't', jobs = { 'police' } }))
+    t.isFalse(called, 'no coords: the export is never called')
+    t.isFalse(adapterWith('stopped', function() error('never') end).Alert(good))
+    t.isFalse(adapterWith('started', nil).Alert(good))
+    local ok, sent = pcall(adapterWith('started', function() error('sc-dispatch crashed') end).Alert, good)
+    t.isTrue(ok)
+    t.isFalse(sent)
+    t.isFalse(adapterWith('started', function() return nil end).Alert(good), 'nil id = no department matched = not sent')
 end)
 
 -- ======================================================================

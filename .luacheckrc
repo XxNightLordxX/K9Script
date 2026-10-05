@@ -1069,7 +1069,7 @@ globals = {
     "IsPlayerK9Wanted", "CheckWarrantOnSniff",
     -- server/roles.lua -- the K9 role catalog (tiers + specializations merged)
     "RefreshRoleCatalog", "GetRoleXpForCitizen", "IsRoleXpUnlocked", "GetHeldRoleUnlocks",
-    "RoleUnlockPermits", "ListRolesForDisplay", "ListRoleUnlockOptions",
+    "RoleUnlockPermits", "ListRolesForDisplay", "ListRoleUnlockOptions", "ListTrailRoleRequirements",
     -- client/main.lua -- the last known K9 access answer, no server call
     "HasK9AccessCached",
     -- server/cooldowns.lua constructors

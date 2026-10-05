@@ -1830,7 +1830,7 @@ local function WarnIfItemMissing(itemName, configPath, featureFlagName)
     end
 
     if not item then
-        print(('[qbx_k9unit] WARNING: %s is enabled but %s (%q) does not exist in this server\'s ox_inventory item registry. Every attempt to use this feature will silently fail as a generic "you do not have that item" error -- indistinguishable from a player simply not carrying one, with nothing else explaining why. Add %q to your ox_inventory data/items.lua (or point %s at a real, existing item name) before relying on this feature.'):format(featureFlagName, configPath, itemName, itemName, configPath))
+        print(('[qbx_k9unit] WARNING: %s is enabled but %s (%q) does not exist in this server\'s ox_inventory item registry. Every attempt to use this feature will silently fail as a generic "you do not have that item" error -- indistinguishable from a player simply not carrying one, with nothing else explaining why. Add %q to your ox_inventory data/items.lua (or point %s at a real, existing item name) before relying on this feature. docs/ox_inventory_items.lua in this resource has ready-to-paste entries for every K9 item.'):format(featureFlagName, configPath, itemName, itemName, configPath))
     end
 end
 

@@ -574,6 +574,35 @@ t.test('SPECIALIZATION GATE: the result is always in ascending trail order, so t
     end
 end)
 
+-- Roles (server/roles.lua) replaced Config.SpecializationTracking as what
+-- unlocks a trail, so the boot line names roles from the live catalog.
+t.test('ROLE GATE: an enabled trail some role unlocks is named with every role that unlocks it', function()
+    local gated = K9SelfCheck.FindRoleGatedTrackTypes(
+        { ScentTracking = true, BloodTracking = true, GunpowderSniffing = true },
+        { gunpowder = { 'Explosives' }, blood = { 'Patrol', 'Search and Rescue' } },
+        FLAGS)
+    t.equals(#gated, 2)
+    t.equals(gated[1].trackType, 'blood')
+    t.equals(table.concat(gated[1].roles, ','), 'Patrol,Search and Rescue')
+    t.equals(gated[2].trackType, 'gunpowder')
+    t.equals(gated[2].roles[1], 'Explosives')
+end)
+
+t.test('ROLE GATE: a switched-off trail, scent, and a trail no role unlocks are never named', function()
+    local gated = K9SelfCheck.FindRoleGatedTrackTypes(
+        { ScentTracking = true, BloodTracking = false, GunpowderSniffing = true },
+        { blood = { 'Patrol' }, scent = { 'Patrol' }, gunpowder = {} },
+        FLAGS)
+    t.equals(#gated, 0)
+end)
+
+t.test('ROLE GATE: missing or malformed input degrades to silence, never an error', function()
+    t.equals(#K9SelfCheck.FindRoleGatedTrackTypes({ BloodTracking = true }, nil, FLAGS), 0)
+    t.equals(#K9SelfCheck.FindRoleGatedTrackTypes({ BloodTracking = true }, 'nope', FLAGS), 0)
+    t.equals(#K9SelfCheck.FindRoleGatedTrackTypes({ BloodTracking = true }, { blood = 'Patrol' }, FLAGS), 0)
+    t.equals(#K9SelfCheck.FindRoleGatedTrackTypes(nil, { blood = { 'Patrol' } }, FLAGS), 0)
+end)
+
 -- ======================================================================
 -- K9 EQUIPMENT SHOP PURCHASE-ENFORCEMENT BACKEND CHECK (coder-security,
 -- this pass). The red-team finding this answers claimed that on a

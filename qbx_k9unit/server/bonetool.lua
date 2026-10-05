@@ -455,15 +455,12 @@ AddEventHandler('onResourceStart', function(resourceName)
     -- WARNING, NOT ASSERT — see header for why this must never become a
     -- hard failure of resource start.
     if GetConvarInt(BONE_DEV_TOOL_ENABLE_CONVAR, 0) ~= 1 then
+        -- The normal state on a live server, so a plain note, not a
+        -- warning: the flag ships on, and the convar is the real switch.
         print(
-            ('[qbx_k9unit] WARNING: Config.Features.BoneSweepDevTool is true, but /k9bonetool was NOT ' ..
-             'registered. This dev-only tool spawns and attaches real props on command, and this ' ..
-             'resource requires a SECOND, explicit opt-in on top of the feature flag before it will ' ..
-             'ever run -- so flipping every Config.Features flag on at once (or shipping this one true ' ..
-             'by default/mistake) can never expose it by itself. To enable it on a server you control ' ..
-             "and intend to use for bone-index research, set `setr %s 1` in server.cfg (a REPLICATED " ..
-             'convar, so client/bonetool.lua sees the same value) and restart this resource. NEVER set ' ..
-             "this on a production server -- see this file's own header ACCESS MODEL section."):format(BONE_DEV_TOOL_ENABLE_CONVAR)
+            ("[qbx_k9unit] bonetool.lua: the /k9bonetool developer tool is OFF (normal for a live server -- " ..
+             "nothing to do). It only turns on if you also put `setr %s 1` in server.cfg, which is " ..
+             "meant for a private test server only."):format(BONE_DEV_TOOL_ENABLE_CONVAR)
         )
         return
     end

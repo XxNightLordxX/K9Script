@@ -262,8 +262,10 @@ shop to work for players, or need bag-searching to be trustworthy, use
 instead.
 
 **Dispatch integration covers one alert, not every K9 event.** If a
-supported dispatch is detected, this resource automatically posts to
-its board with zero setup for exactly one thing: a K9 going down. A
+supported dispatch is detected (sc-dispatch, ps-dispatch or
+linden_outlawalert), this resource automatically posts to its board
+with zero setup for exactly one thing: a K9 going down. On sc-dispatch
+it arrives as a top-priority call for the K9's own department. A
 search-and-rescue call being completed and a contraband search
 finishing both still announce themselves as an event your own scripts
 can listen for (see "Public API for developers" below), but neither one
@@ -419,14 +421,14 @@ Work through all of these first:
   to be used from. (High command can also add/move/remove supply shop
   locations later from the tablet, without touching this file again.)
 - **Create these items in your inventory script** — none exist on a
-  fresh install. A missing one doesn't error; for a player it simply
-  never works, with nothing on screen explaining why. (The supply shop
-  is the exception: it prints a console warning naming any item it was
-  asked to sell that your inventory doesn't have, so check the server
-  console after a restart.) The items: `k9_medkit`, `k9_treat`,
-  `k9_meat_bait`, `k9_ultrasonic_whistle`, **`k9_food`**, **`k9_water`**,
-  and `k9_tablet` **only if**
-  you set
+  fresh install. **`docs/ox_inventory_items.lua` has all of them ready
+  to paste** into `ox_inventory/data/items.lua`, with step-by-step
+  instructions at the top. A missing one doesn't error; for a player it
+  simply never works, with nothing on screen explaining why. (The supply
+  shop and the K9 Medkit are the exception: the server console names
+  every item they need that your inventory doesn't have, so check it
+  after a restart.) The items: `k9_medkit`, `k9_treat`, `k9_meat_bait`,
+  `k9_ultrasonic_whistle`, and `k9_tablet` **only if** you set
   `Config.CommandTablet.openMode` to `'item'` or `'both'` (default is
   `'both'`, so you need it either way unless you change that).
 

@@ -589,6 +589,17 @@ t.test('every configured item missing: warned, and the shop is NOT registered at
     f.fireResourceStart()
     t.equals(#f.registerShopCalls, 0)
     t.isTrue(anyLineContains(f.printedLines, 'nothing left to sell'))
+    -- One start, one set of warnings. A second boot handler used to run
+    -- the failed activation again and print every line twice.
+    local function countContaining(needle)
+        local n = 0
+        for _, line in ipairs(f.printedLines) do
+            if tostring(line):find(needle, 1, true) then n = n + 1 end
+        end
+        return n
+    end
+    t.equals(countContaining('nothing left to sell'), 1, 'the summary warning prints once per start')
+    t.equals(countContaining('"k9_medkit"'), 1, 'each missing item is named once per start')
 end)
 
 t.test('an item with a non-numeric/negative price is skipped and warned about, independent of whether the item name itself is real', function()

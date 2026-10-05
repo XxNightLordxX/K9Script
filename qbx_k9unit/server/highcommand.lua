@@ -895,5 +895,9 @@ AddEventHandler('onResourceStart', function(resourceName)
         end)
     end
 
-    print('[qbx_k9unit] highcommand.lua: /k9givexp registered.')
+    if type(Config.CommandTablet) == 'table' and Config.CommandTablet.adminChatCommands == true then
+        print('[qbx_k9unit] highcommand.lua: /k9givexp chat command registered; tablet XP grants ready.')
+    else
+        print('[qbx_k9unit] highcommand.lua: tablet XP grants ready (the /k9givexp chat command is off -- Config.CommandTablet.adminChatCommands = false).')
+    end
 end)
