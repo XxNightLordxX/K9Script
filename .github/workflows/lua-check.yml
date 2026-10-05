@@ -3,7 +3,7 @@ name: Lua Check
 on:
   push:
     paths:
-      - 'qbx_k9unit/**'
+      - 'john-k9/**'
       - '.luacheckrc'
       - '.github/workflows/lua-check.yml'
       # The locale-cross-check job runs this script. Without it listed, a
@@ -13,7 +13,7 @@ on:
       - '.github/scripts/**'
   pull_request:
     paths:
-      - 'qbx_k9unit/**'
+      - 'john-k9/**'
       - '.luacheckrc'
       - '.github/workflows/lua-check.yml'
       # The locale-cross-check job runs this script. Without it listed, a
@@ -35,7 +35,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y lua5.4
 
-      - name: luac5.4 -p on every .lua file under qbx_k9unit/
+      - name: luac5.4 -p on every .lua file under john-k9/
         run: |
           set -uo pipefail
           status=0
@@ -45,7 +45,7 @@ jobs:
               echo "::error file=$file::luac5.4 -p reported a syntax error in this file"
               status=1
             fi
-          done < <(find qbx_k9unit -type f -name '*.lua' -print0)
+          done < <(find john-k9 -type f -name '*.lua' -print0)
           exit "$status"
 
   luacheck:
@@ -61,9 +61,9 @@ jobs:
           sudo apt-get install -y luarocks
           sudo luarocks install luacheck
 
-      - name: luacheck qbx_k9unit (repo-root .luacheckrc)
+      - name: luacheck john-k9 (repo-root .luacheckrc)
         run: |
-          luacheck qbx_k9unit
+          luacheck john-k9
         # Config lives in the repo-root .luacheckrc: a curated read_globals
         # list of the FiveM/CFX natives this resource actually calls, plus a
         # globals list of this resource's own cross-file globals (Config,
@@ -115,7 +115,7 @@ jobs:
         # ui_page(...) calls are.
         run: |
           set -uo pipefail
-          MANIFEST="qbx_k9unit/fxmanifest.lua"
+          MANIFEST="john-k9/fxmanifest.lua"
           status=0
           # Keep only strings that look like an own-resource relative file
           # path: doesn't start with '@' (an '@resource/file' string is a
@@ -128,7 +128,7 @@ jobs:
           # dot).
           while IFS= read -r path; do
             [ -z "$path" ] && continue
-            full="qbx_k9unit/$path"
+            full="john-k9/$path"
             if [ ! -f "$full" ]; then
               echo "::error file=$MANIFEST::fxmanifest.lua references '$path', but $full does not exist on disk. Either the file was renamed/deleted without updating fxmanifest.lua, or this is a typo -- the resource will fail to start with this manifest."
               status=1
@@ -182,7 +182,7 @@ jobs:
           import sys
           from pathlib import Path
 
-          RESOURCE = Path("qbx_k9unit")
+          RESOURCE = Path("john-k9")
           SQL_FILE = RESOURCE / "sql" / "install.sql"
 
           # NOTE: (?<!KEY ) excludes the `... ON DUPLICATE KEY UPDATE col = val`
@@ -334,7 +334,7 @@ jobs:
           import sys
           from pathlib import Path
 
-          RESOURCE = Path("qbx_k9unit")
+          RESOURCE = Path("john-k9")
 
           INSTR_RE = re.compile(r"^\t(\d+)\t\[(\d+)\]\t(\S+)\s*\t?(.*)$")
           FUNC_HEADER_RE = re.compile(r"^(main|function) <.*?:(\d+),(\d+)>")
@@ -584,7 +584,7 @@ jobs:
           import sys
           from pathlib import Path
 
-          RESOURCE = Path("qbx_k9unit")
+          RESOURCE = Path("john-k9")
           LUACHECKRC = Path(".luacheckrc")
 
 
@@ -643,7 +643,7 @@ jobs:
               missing = [n for n in names if not has_definition_site(n, combined)]
 
               if missing:
-                  print("::error::.luacheckrc globals check FAILED -- these names are allowlisted in .luacheckrc's `globals` table but have no real `function NAME(...)` or `NAME = ...` definition anywhere in qbx_k9unit: " + ", ".join(missing))
+                  print("::error::.luacheckrc globals check FAILED -- these names are allowlisted in .luacheckrc's `globals` table but have no real `function NAME(...)` or `NAME = ...` definition anywhere in john-k9: " + ", ".join(missing))
                   print()
                   print("This means either: (a) the allowlist entry is stale/premature (the planned function was never actually written), or (b) it's a typo and the REAL definition uses a different spelling -- in which case the real spelling is a genuinely undefined global from luacheck's point of view too, just not yet exercised by any code path luacheck's own analysis walks.")
                   print("Fix: either implement the missing definition, remove the stale allowlist entry, or correct the typo so it matches the real definition site. (Report this to whoever owns .luacheckrc rather than editing it in an unrelated PR.)")
@@ -667,9 +667,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y lua5.4
 
-      - name: Run qbx_k9unit/tests suite
+      - name: Run john-k9/tests suite
         run: |
-          cd qbx_k9unit/tests
+          cd john-k9/tests
           chmod +x run.sh
           ./run.sh
         # This resource had 48 files and zero automated tests until now. Every
@@ -706,9 +706,9 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run qbx_k9unit/html/tests suite
+      - name: Run john-k9/html/tests suite
         # html/tests/ is a Node harness for the K9 NUI, mirroring
-        # qbx_k9unit/tests/testkit.lua's own "why not a real framework"
+        # john-k9/tests/testkit.lua's own "why not a real framework"
         # reasoning on the JS side: html/tests/testkit.js is a
         # zero-dependency assertion+runner (no jest/mocha/vitest, no
         # package.json, no `npm install` step -- runs under any Node the box
@@ -736,6 +736,6 @@ jobs:
         # every *_spec.js file, so one half-written spec turns this whole
         # job red (intended, not a bug -- see lua-tests' own comment above).
         run: |
-          cd qbx_k9unit/html/tests
+          cd john-k9/html/tests
           chmod +x run.sh
           ./run.sh

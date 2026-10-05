@@ -1,7 +1,7 @@
 -- Root luacheck config for this repo.
 --
--- Scope: currently only qbx_k9unit/ has Lua code, but this file is kept at
--- the repo root (not qbx_k9unit/.luacheckrc) per the "one shared root config
+-- Scope: currently only john-k9/ has Lua code, but this file is kept at
+-- the repo root (not john-k9/.luacheckrc) per the "one shared root config
 -- beats a different one per resource" rule, so a second resource dropped in
 -- later inherits it automatically.
 --
@@ -31,7 +31,7 @@ exclude_files = {
 
 -- Read-only: FiveM/CFX natives and the implicit server-event `source` global
 -- this codebase actually calls. This list was generated FROM this
--- codebase's real usage (`luacheck qbx_k9unit` run with no config, then every
+-- codebase's real usage (`luacheck john-k9` run with no config, then every
 -- "accessing undefined variable" finding that is a genuine engine/runtime
 -- global rather than a typo was pulled out) -- it is not a speculative
 -- everything-native list, so it should stay in sync with actual usage: if a
@@ -565,7 +565,7 @@ read_globals = {
     -- client/movement.lua, Phase 3,
     -- PHASE3_SPEC.md §12.5.5/§12.0 item 3) -- the ORIGINAL citation for this
     -- entry pointed only at this resource's own internal doc
-    -- (qbx_k9unit/DEVELOPER_REFERENCE.md#phase-3-combat), not a primary CFX
+    -- (john-k9/DEVELOPER_REFERENCE.md#phase-3-combat), not a primary CFX
     -- source -- an internal doc can be just as wrong as a misremembered
     -- name, so this pass (2026-08-27) independently re-verified all three
     -- against a freshly-fetched runtime.fivem.net/doc/natives.json rather
@@ -651,7 +651,7 @@ read_globals = {
     --     to allowlist.
     "SetNightvision", "GetUsingnightvision", "SetSeethrough", "GetUsingseethrough",
     -- DeployableKennel (client/kennel.lua, server/kennel.lua, Phase 5 R&D,
-    -- qbx_k9unit/DEVELOPER_REFERENCE.md#phase-5-research) -- object creation/
+    -- john-k9/DEVELOPER_REFERENCE.md#phase-5-research) -- object creation/
     -- placement/model-loading natives, none previously used anywhere else
     -- in this resource
     "CreateObject", "PlaceObjectOnGroundProperly", "DeleteEntity",
@@ -690,7 +690,7 @@ read_globals = {
     -- before every native this client applies to a ped it may not own --
     -- added after a QA pass found the pre-existing applyNpcBiteHold/
     -- applyNpcTakedown handlers omitted it, which this resource's own
-    -- qbx_k9unit/DEVELOPER_REFERENCE.md#phase-3-combat names as required for
+    -- john-k9/DEVELOPER_REFERENCE.md#phase-3-combat names as required for
     -- exactly those natives. It is best-effort: no success-check native is
     -- confirmed available here, so the call improves the odds of the
     -- effect landing rather than guaranteeing it -- see client/combat.lua's
@@ -1080,7 +1080,7 @@ globals = {
     "NotifyPlayer",
     -- server/events.lua -- the shared outbound-event helper, extracted from
     -- six identical local copies into one resource-global. Fires the stable
-    -- qbx_k9unit:events:* contract that server/exports.lua's header
+    -- john-k9:events:* contract that server/exports.lua's header
     -- documents. Same consolidation as NotifyPlayer directly above.
     "FireOutboundEvent",
     -- server/certifications.lua
@@ -1515,7 +1515,7 @@ globals = {
     "RefreshXPProgressionLiveStateForAllOnline",
     -- server/progression.lua -- the HANDLER-side twin of
     -- RefreshXPProgressionLiveStateForAllOnline immediately above, added
-    -- when a client push (qbx_k9unit:client:handlerXpTierChanged) was
+    -- when a client push (john-k9:client:handlerXpTierChanged) was
     -- built for the handler XP ladder for the first time ("a handler
     -- cannot see their own rank or XP anywhere" gap closure). NOT YET
     -- called from server/runtimecontrol.lua's ApplyFeatureOverride as of

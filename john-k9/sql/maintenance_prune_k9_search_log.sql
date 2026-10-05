@@ -1,0 +1,99 @@
+-- =====================================================================
+-- john-k9 :: OPTIONAL, MANUAL maintenance :: prune old k9_search_log rows
+--
+-- NOT RUN AUTOMATICALLY BY ANYTHING. Not referenced by install.sql, not
+-- referenced by any migration, not scheduled by any Lua file in this
+-- resource. This file exists purely so a server owner who has decided they
+-- want retention has an already-reviewed, safe statement to run by hand
+-- (cron / txAdmin scheduled task / manual DB client) -- the DECISION of
+-- whether and how long to retain this data is explicitly the server
+-- owner's to make, not this resource's to impose. See
+-- `john-k9/sql/install.sql`'s own `k9_search_log` header for why this
+-- table is persisted at all (in-fiction dispute accountability: "did this
+-- K9 unit actually search my vehicle").
+--
+-- WHY THIS TABLE, SPECIFICALLY, NEEDS A DOCUMENTED RETENTION OPTION:
+-- `k9_search_log` is the one table in this resource with genuinely
+-- UNBOUNDED growth -- it is a plain append-only log with one INSERT per
+-- completed contraband search (`server/search.lua`'s `LogSearchAttempt`),
+-- and nothing in this resource ever prunes it. Every OTHER table this
+-- resource writes stays small on its own: `k9_certifications` grows only
+-- with grant/revoke EVENTS (rare relative to search volume),
+-- `k9_partnerships` only with establish/end events (rarer still), and
+-- `k9_progression` is a fixed one-row-per-citizenid profile that never
+-- grows past your player count. `k9_search_log` alone scales with GAMEPLAY
+-- ACTIVITY VOLUME, not headcount or event rarity.
+--
+-- ROUGH GROWTH ESTIMATE (order-of-magnitude, for an owner deciding whether
+-- to opt in -- not a guarantee for any specific server's config/population):
+--   * Row size: each row is small (two ENUMs, a handful of VARCHAR/INT
+--     columns, one DATETIME) -- roughly 100-250 bytes of real data per row
+--     once you include InnoDB's per-row overhead, plus three secondary
+--     indexes (idx_searcher_searched_at, idx_target_plate_searched_at,
+--     idx_target_citizenid_searched_at) that each add their own storage on
+--     top of the table's own data pages -- call it ~250-400 bytes of total
+--     on-disk footprint per row as a rough planning figure (InnoDB page
+--     overhead, index fragmentation, and utf8mb4 column widths make an
+--     exact number config-dependent).
+--   * Row RATE: every completed search is gated behind
+--     `Config.SearchZones.searchCooldownMs` (a per-officer cooldown) AND a
+--     genuine human action (an officer manually initiating a search) --
+--     this is not a background/tick-driven write. A single busy K9 officer
+--     realistically logs on the order of tens of searches per active
+--     session, not hundreds. Scaled up to a genuinely busy server (dozens
+--     of concurrent K9-certified officers across a full day of shifts),
+--     a few thousand rows/day is a reasonable planning figure; a very
+--     large, very active roleplay server running multiple K9 units for
+--     many hours daily could plausibly reach 5,000-10,000 rows/day at
+--     peak.
+--   * Extrapolated: at ~5,000 rows/day and ~300 bytes/row (data + all
+--     three indexes), that is roughly 1.5 MB/day, ~45 MB/month, ~500 MB-1 GB
+--     over a full year of continuous operation for a genuinely busy
+--     server. That is not catastrophic for a modern DB host on its own,
+--     but it is unbounded and compounds indefinitely with no natural
+--     ceiling -- and it is the kind of slow, easy-to-miss growth that
+--     shows up as "why is my database backup suddenly huge" months later,
+--     not as an immediate problem. A quieter server naturally sees a
+--     small fraction of this and may reasonably decide retention is
+--     unnecessary -- that is a legitimate answer too, which is exactly why
+--     this ships as an opt-in statement, not a default.
+--
+-- WHAT THIS FILE DOES NOT DO:
+--   * It does not TRUNCATE or DROP anything -- only a targeted DELETE with
+--     an explicit, adjustable age cutoff and an explicit LIMIT-based batch
+--     size (see below).
+--   * It does not run itself. Copy the DELETE statement below into your
+--     own DB client / scheduled job, after reading and adjusting the
+--     retention window to your own server's actual policy.
+--   * It does not archive rows before deleting them. If you need to keep a
+--     long-term record for compliance/dispute purposes beyond your live
+--     operational retention window, copy matching rows into a separate
+--     archive table (or export them, e.g. `SELECT ... INTO OUTFILE`)
+--     BEFORE running the DELETE below -- that is a decision and a step
+--     this file deliberately leaves to you, since "what to archive and
+--     where" is a server-specific policy question, not a schema one.
+--
+-- ADJUST THIS: the retention window is 90 days in the example below --
+-- change the `INTERVAL 90 DAY` to whatever your own policy requires (30,
+-- 180, 365, etc.). Nothing in this resource assumes any specific value.
+--
+-- WHY BATCHED (LIMIT), NOT ONE UNBOUNDED DELETE: a single DELETE with no
+-- LIMIT against a table that has been accumulating for months can lock a
+-- large number of rows/index pages for an extended period, competing with
+-- this resource's own live INSERTs (a search happening *right now*) and
+-- with any admin-audit SELECTs (`server/admin.lua`'s /k9auditsearch
+-- commands) for the same table/index pages. Running the statement below
+-- repeatedly (e.g. in a loop from your scheduler, or by hand a few times)
+-- until it reports 0 rows affected keeps each individual transaction
+-- short. Pick a batch size that suits your server's traffic (5,000 shown
+-- below as a reasonable starting point) -- smaller batches for a busier
+-- server, larger for a quiet one run during a maintenance window.
+-- =====================================================================
+
+-- Run this repeatedly (cron/scheduled task, or by hand) until it reports
+-- 0 rows affected. Safe to stop and resume at any time -- each execution
+-- is a self-contained, independently-committed batch.
+DELETE FROM `k9_search_log`
+WHERE `searched_at` < DATE_SUB(NOW(), INTERVAL 90 DAY)
+ORDER BY `id` ASC
+LIMIT 5000;
