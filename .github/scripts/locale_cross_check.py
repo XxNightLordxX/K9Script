@@ -2,8 +2,8 @@
 """
 .github/scripts/locale_cross_check.py
 
-Cross-checks qbx_k9unit/locales/en.json against every locale('...') call
-site in qbx_k9unit/client/, qbx_k9unit/server/, and qbx_k9unit/html/, in
+Cross-checks john-k9/locales/en.json against every locale('...') call
+site in john-k9/client/, john-k9/server/, and john-k9/html/, in
 both directions:
 
   * MISSING: a locale() call site references a key with no entry in
@@ -49,7 +49,7 @@ import re
 import sys
 from pathlib import Path
 
-RESOURCE = Path("qbx_k9unit")
+RESOURCE = Path("john-k9")
 LOCALE_FILE = RESOURCE / "locales" / "en.json"
 SCAN_DIRS = ["client", "server", "html"]
 SCAN_EXTS = {".lua", ".js", ".html"}
@@ -73,10 +73,10 @@ LOCALE_DYNAMIC_PREFIX_RE = re.compile(r"""locale\(\s*['"]([A-Za-z0-9_.]*[._])['"
 # English source for this group, paired with client/tablet.lua's
 # TABLET_STRING_KEYS, and resolved through `pcall(locale, 'tablet.' .. key)`
 # rather than by any literal call. That three-way contract has its own
-# dedicated enforcement in qbx_k9unit/tests/tabletlocalization_spec.lua,
+# dedicated enforcement in john-k9/tests/tabletlocalization_spec.lua,
 # which this script must not duplicate or second-guess. The same exclusion,
 # for the same stated reason, already exists in
-# qbx_k9unit/tests/localecallsites_spec.lua -- this is that file's rule
+# john-k9/tests/localecallsites_spec.lua -- this is that file's rule
 # restated here, not a new judgement call invented to go green.
 GROUPS_OWNED_ELSEWHERE = {"tablet"}
 
@@ -203,7 +203,7 @@ def strip_js_comments(text):
 def strip_html(text):
     """Strip `<!-- -->` comments, then strip JS comments inside any
     inline `<script>...</script>` body (a `src=` script tag has no
-    inline body to scan). qbx_k9unit/html/index.html currently has no
+    inline body to scan). john-k9/html/index.html currently has no
     inline script (only `<script src="app.js">`), but this keeps the
     check correct if one is ever added."""
     text = re.sub(r'<!--.*?-->', lambda m: '\n' * m.group(0).count('\n'), text, flags=re.DOTALL)
@@ -362,7 +362,7 @@ def main():
     # ignored." So MISSING still fails the build, as it always did and must.
     # An unused key is dead weight, not a bug -- reported so somebody can
     # tidy it, never a reason to block a release. That is also exactly the
-    # posture qbx_k9unit/tests/localecallsites_spec.lua already takes for the
+    # posture john-k9/tests/localecallsites_spec.lua already takes for the
     # same question, and the two disagreeing was its own small inconsistency.
     if unused:
         print(f"INFO (not a failure): {len(unused)} locales/en.json key(s) have no reaching call site:")

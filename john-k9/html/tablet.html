@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!--
+    john-k9/html/tablet.html
+
+    K9 Command Tablet (Config.Features.CommandTablet). See html/tablet.js's
+    own header for the full NUI contract, the "why a separate document
+    loaded in an iframe, not a panel bolted onto index.html" decision, and
+    THE SECURITY RULE this whole surface is built around: this page is a
+    VIEW. It decides nothing. Every action re-authorizes server-side from
+    the caller's own live job/grants/blocks, exactly as if they had typed
+    the command or pressed the keybind -- a modified client can fire any
+    NUI callback below with any payload it likes, so a control being
+    visible here must NEVER be what makes the action it fires permitted.
+    This page only ever HIDES what the viewer cannot do, as a convenience.
+
+    Deliberately near-empty markup: every visible element on this page
+    (header, tabs, roster table, feature lists, buttons, status text) is
+    built by tablet.js via document.createElement/appendChild/textContent
+    at runtime, from a single `render()` entry point that clears and
+    rebuilds the current screen from `state` on every change -- see that
+    file's header for why (single source of truth for what's on screen,
+    no separate "static HTML vs dynamic JS" text to keep in sync, and
+    every player-controlled or config-controlled string flows through the
+    exact same textContent-only rendering path with no exceptions).
+    `#k9tablet-root` is the one element tablet.js ever needs to find by id.
+
+    This document has its OWN stylesheet (tablet.css) -- deliberately not
+    html/style.css, which belongs to the always-on passive HUD in
+    index.html and enforces `pointer-events: none` everywhere for that
+    surface. This page is the opposite: it needs real mouse/keyboard
+    input, which is exactly why it is the first surface in this resource
+    to ever call SetNuiFocus (done client-side, in client/tablet.lua --
+    never from here).
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>K9 Command Tablet</title>
+    <link rel="stylesheet" href="tablet.css" />
+</head>
+<body>
+    <div id="k9tablet-root" class="k9tablet-root"></div>
+    <!-- ORDER IS LOAD-BEARING: the catalog defines DEFAULT_STRINGS,
+         COMMAND_REFERENCE_CATEGORIES and COMMAND_REFERENCE, which tablet.js
+         re-binds at its top. Swap these two and the tablet renders nothing. -->
+    <script src="tablet-catalog.js"></script>
+    <script src="tablet.js"></script>
+</body>
+</html>

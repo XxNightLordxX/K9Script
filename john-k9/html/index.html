@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<!--
+    john-k9/html/index.html
+
+    ======================================================================
+    WIRED, BUT STILL FEATURE-FLAGGED OFF — Phase 4 vitality HUD. See the
+    header comment in app.js for the full status note; short version:
+    fxmanifest.lua's `ui_page`/`files` block and `client/hud.lua` (the
+    Lua-side poll/push thread) both exist and are live. The one thing
+    still gating this off is `Config.Features.HealthStaminaHUD`, which is
+    `false` in config.lua — flip that (once its two lower-confidence
+    natives are independently verified, see client/hud.lua's own header)
+    to actually enable the feature.
+    ======================================================================
+
+    Design sources (read these before changing the contract below):
+      - DEVELOPER_REFERENCE.md#hud-bridge  (authoritative naming/shape)
+
+    These used to be two separate citations into phase2_notes/RESEARCH_ARCHIVE.md,
+    one of them kept only for an OPEN visibility-gate question. Both are now the
+    one section above: that archive was merged into DEVELOPER_REFERENCE.md, and
+    the visibility gate is no longer open -- it resolved to CanShowK9UI()
+    (client/main.lua), which is what this page's own show/hide already follows.
+
+    This is a plain HTML/CSS/JS page, no framework, no build step — see
+    DEVELOPER_REFERENCE.md#hud-bridge's reasoning (nothing else in this
+    resource has any JS tooling; this is a receive-only readout, not a
+    component tree that benefits from a reactive framework).
+
+    Structure: one root container (#k9hud) holding two labeled
+    track+fill bar rows (health/stamina), one additional
+    wellbeing track+fill bar row (fatigue), and one XP tier status-text row
+
+    HUNGER AND THIRST ROWS DELETED (owner directive: "hungerthirstsystem"
+    is one of the subsystems removed completely). They were the last
+    visible remnant of it: the K9 hunger/thirst mechanic itself was gone,
+    but these two bars kept rendering the PLAYER's ordinary framework
+    hunger/thirst (qbx_core metadata) inside the K9 HUD -- duplicating what
+    the server's own HUD already shows, under a removed feature's name.
+    (app.js's applyXPTierStatus()) — each of the two additive rows starts
+    with the `k9hud-row--hidden` class already applied (style.css), a
+    row-scoped sibling of the `#k9hud.hidden` class the root itself uses:
+    app.js's applyGatedBarStat()/applyXPTierStatus() toggle this same class
+    on a row per-message, based on whether that row's value key is present in
+    the payload (present only while its owning Config.Features flag is
+    on) — feature-gated absence, not merely a CSS-hidden default, since a
+    disabled row can never receive a value to display in the first place.
+    No interactive elements anywhere on this page — see style.css's
+    header comment for why every element here carries
+    `pointer-events: none`.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>John-K9 HUD</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <!--
+        Starts with the `hidden` class applied — see style.css and app.js:
+        the root stays hidden until the first real `hud:updateVitals`
+        message with `data.visible === true` arrives, so nothing
+        default-visible/unstyled flashes on screen before Lua ever sends
+        anything (this page is expected to be loaded, via `ui_page`, for
+        the entire client session once wired, not opened/closed like a
+        modal).
+    -->
+    <div id="k9hud" class="k9hud hidden" aria-hidden="true">
+        <div class="k9hud-row" data-stat-row="health">
+            <span class="k9hud-label">Health</span>
+            <div class="k9hud-bar-track">
+                <div class="k9hud-bar-fill k9hud-bar-fill--health" data-fill="health"></div>
+            </div>
+            <span class="k9hud-value" data-value="health">--</span>
+        </div>
+
+        <div class="k9hud-row" data-stat-row="stamina">
+            <span class="k9hud-label">Stamina</span>
+            <div class="k9hud-bar-track">
+                <div class="k9hud-bar-fill k9hud-bar-fill--stamina" data-fill="stamina"></div>
+            </div>
+            <span class="k9hud-value" data-value="stamina">--</span>
+        </div>
+
+        <!--
+            WELLBEING ROW. Starts with the `k9hud-row--hidden` class
+            already applied (belt-and-suspenders with app.js's own
+            applyGatedBarStat()/applyXPTierStatus(), which also toggle this
+            same class per payload): before the FIRST `hud:updateVitals` payload ever
+            arrives, there is no way yet to know whether this row's owning
+            Config.Features flag is on, so it defaults to hidden rather
+            than briefly flashing an unstyled/zeroed bar. See app.js's own
+            header for the full "wellbeing" payload contract these
+            data-fill/data-value/data-stat-row hooks bind to.
+        -->
+        <div class="k9hud-row k9hud-row--hidden" data-stat-row="fatigue">
+            <span class="k9hud-label">Fatigue</span>
+            <div class="k9hud-bar-track">
+                <div class="k9hud-bar-fill k9hud-bar-fill--fatigue" data-fill="fatigue"></div>
+            </div>
+            <span class="k9hud-value" data-value="fatigue">--</span>
+        </div>
+
+        <!--
+            XP tier — text-only, deliberately: the
+            raw XP count is never sent to the client at all (server-
+            authoritative, see client/progression.lua's own header), only
+            the current tier's label, so a bar/percentage would be
+            fabricating a magnitude that doesn't exist client-side.
+        -->
+        <div class="k9hud-row k9hud-row--hidden k9hud-row--status" data-stat-row="xpTier">
+            <span class="k9hud-label">K9 Rank</span>
+            <span class="k9hud-status-value" data-status="xpTier">--</span>
+        </div>
+    </div>
+
+    <!--
+        HANDLER CONDITION BADGE (this pass) -- see app.js's own header
+        "HANDLER CONDITION BADGE CONTRACT" section, and server/wellbeing.lua's
+        "HANDLER CONDITION BADGE" header section, for the full design.
+        Deliberately a SEPARATE element from #k9hud above, not one more row
+        inside it: #k9hud's own visibility is driven by CanShowK9UI() --
+        true only for the LOCAL player's OWN K9 vitals -- which is false for
+        the overwhelming common case this badge exists for (a human handler
+        who is not themselves K9-modeled). Starts hidden; only unhidden by a
+        `hud:partnerCondition` push carrying `visible: true` (see app.js's
+        applyPartnerCondition()) -- independent of #k9hud.hidden, and never
+        toggled by anything in this file's own `hud:updateVitals` handling.
+    -->
+    <div id="k9partner-badge" class="k9partner-badge hidden" aria-hidden="true">
+        <span class="k9partner-badge-label" data-partner="label">K9 Partner</span>
+        <span class="k9partner-badge-value" data-partner="value">--</span>
+    </div>
+
+    <!--
+        K9 ONBOARDING HINT (Config.K9Onboarding.enabled) -- see app.js's own
+        "ONBOARDING HINT CONTRACT" section, and client/hud.lua's own
+        "K9 ONBOARDING HINT" section, for the full design. A SECOND chance
+        at the one-time chat line a brand-new K9/handler gets the moment
+        their role is granted (easy to miss entirely -- tabbed out,
+        mid-conversation, chat scrolled). Deliberately a SEPARATE element
+        from #k9hud (bottom-left) and #k9partner-badge (top-left), placed
+        top-right so none of the three can ever overlap. Starts hidden;
+        only unhidden by a `hud:onboardingHint` push carrying
+        `visible: true`.
+
+        NO CLICKABLE DISMISS CONTROL ANYWHERE IN THIS MARKUP, ON PURPOSE:
+        this page never calls SetNuiFocus (see app.js's own header), and
+        without focus there is no visible cursor for a player to click
+        anything with -- see client/hud.lua's own comment on
+        IsDisabledControlJustPressed for why dismissing this is a native
+        key read on the Lua side instead, never a click here.
+    -->
+    <div id="k9onboarding-hint" class="k9onboarding-hint hidden" aria-hidden="true">
+        <span class="k9onboarding-hint-title" data-onboarding="title">K9 Command Tablet</span>
+        <span class="k9onboarding-hint-body" data-onboarding="body">--</span>
+        <span class="k9onboarding-hint-dismiss" data-onboarding="dismiss">--</span>
+    </div>
+
+    <script src="app.js"></script>
+
+    <!--
+        K9 Command Tablet (Config.Features.CommandTablet) -- see
+        html/tablet.html/tablet.js/tablet.css/tablet-bridge.js. Deliberately
+        isolated in its own document, loaded via this <iframe>, rather than
+        a panel added to this file's own DOM/JS/CSS -- see html/tablet.js's
+        own "ARCHITECTURE NOTE" header for the full reasoning. This is the
+        ONLY addition this feature makes to this file: everything above this
+        comment (the passive HUD, app.js) is completely unmodified and
+        unaware this exists.
+
+        Starts hidden (see style.css's `.k9tablet-wrap.hidden` rule,
+        mirroring `#k9hud.hidden` above) until html/tablet-bridge.js's relay
+        receives a 'tablet:open' SendNUIMessage push and un-hides it.
+        tablet-bridge.js is the ONLY script that touches this element or
+        anything inside this iframe from this document's side -- it never
+        touches app.js's own DOM/state, and app.js never touches this.
+    -->
+    <div id="k9tablet-wrap" class="k9tablet-wrap hidden" aria-hidden="true">
+        <iframe id="k9tablet-frame" src="tablet.html" title="K9 Command Tablet" tabindex="-1"></iframe>
+    </div>
+    <script src="tablet-bridge.js"></script>
+</body>
+</html>
